@@ -1,0 +1,105 @@
+<launch>
+    <!-- ============================================================ -->
+    <!-- maxt_pkg 标准 mission.launch                                  -->
+    <!-- 通过参数控制各模块启停，组合任意任务                              -->
+    <!-- ============================================================ -->
+
+    <!-- ===== 行为树 ===== -->
+    <arg name="bt_xml_path" default="" />
+    <arg name="bt_tick_rate" default="20.0" />
+    <arg name="heartbeat_rate" default="20.0" />
+
+    <!-- ===== 扩展组件开关 ===== -->
+    <arg name="run_mavros" default="true" />
+    <arg name="run_fast_lio" default="true" />
+    <arg name="run_ring_detect" default="false" />
+    <arg name="run_qr_detect" default="false" />
+    <arg name="run_yolo_detect" default="false" />
+    <arg name="run_camera" default="false" />
+    <arg name="run_real_deliver" default="false" />
+    <arg name="run_fake_deliver" default="false" />
+
+    <!-- ===== 圆环中心检测 ROI 参数 ===== -->
+    <arg name="ring_x_min" default="0.0" />
+    <arg name="ring_x_max" default="4.0" />
+    <arg name="ring_y_min" default="-2.0" />
+    <arg name="ring_y_max" default="2.0" />
+    <arg name="ring_z_min" default="0.5" />
+    <arg name="ring_z_max" default="2.5" />
+    <arg name="ring_history_size" default="10" />
+
+    <!-- ===== YOLO 参数 ===== -->
+    <arg name="yolov5_root" default="$(env HOME)/Libraries/yolov5" />
+    <arg name="weights_path" default="$(find maxt_pkg)/model/best.pt" />
+    <arg name="yolo_device" default="cpu" />
+    <arg name="yolo_confidence" default="0.1" />
+
+    <!-- ============================================================ -->
+    <!-- 1. MAVROS                                                      -->
+    <!-- ============================================================ -->
+    <include if="$(arg run_mavros)"
+             file="$(find tutorial_basic)/launch/mavros.launch" />
+
+    <!-- ============================================================ -->
+    <!-- 2. FAST-LIO                                                    -->
+    <!-- ============================================================ -->
+    <include if="$(arg run_fast_lio)"
+             file="$(find tutorial_navigation)/launch/mid360.launch" />
+
+    <!-- ============================================================ -->
+    <!-- 3. 行为树引擎                                                  -->
+    <!-- ============================================================ -->
+    <node pkg="maxt_pkg" type="maxt_test_node" name="maxt_test_node" output="screen">
+        <param name="bt_xml_path" value="$(arg bt_xml_path)" />
+        <param name="bt_tick_rate" value="$(arg bt_tick_rate)" />
+        <param name="heartbeat_rate" value="$(arg heartbeat_rate)" />
+    </node>
+
+    <!-- ============================================================ -->
+    <!-- 4. 圆环中心检测 (C++ 点云处理)                                  -->
+    <!-- ============================================================ -->
+    <node if="$(arg run_ring_detect)"
+          pkg="maxt_pkg" type="maxt_ring_center_detect_node"
+          name="ring_center_detect_node" output="screen">
+        <param name="x_min" value="$(arg ring_x_min)" />
+        <param name="x_max" value="$(arg ring_x_max)" />
+        <param name="y_min" value="$(arg ring_y_min)" />
+        <param name="y_max" value="$(arg ring_y_max)" />
+        <param name="z_min" value="$(arg ring_z_min)" />
+        <param name="z_max" value="$(arg ring_z_max)" />
+        <param name="max_history_size" value="$(arg ring_history_size)" />
+    </node>
+
+    <!-- ============================================================ -->
+    <!-- 5. QR 码检测                                                   -->
+    <!-- ============================================================ -->
+    <node if="$(arg run_qr_detect)"
+          pkg="maxt_pkg" type="qr_detector.py" name="qr_detector" output="screen" />
+
+    <!-- ============================================================ -->
+    <!-- 6. YOLO 目标检测                                               -->
+    <!-- ============================================================ -->
+    <node if="$(arg run_yolo_detect)"
+          pkg="maxt_pkg" type="yolov5_predict.py" name="yolov5_predict" output="screen">
+        <param name="yolov5_root" value="$(arg yolov5_root)" />
+        <param name="weights_path" value="$(arg weights_path)" />
+        <param name="device" value="$(arg yolo_device)" />
+        <param name="confidence" value="$(arg yolo_confidence)" />
+    </node>
+
+    <!-- ============================================================ -->
+    <!-- 7. 相机驱动                                                    -->
+    <!-- ============================================================ -->
+    <include if="$(arg run_camera)"
+             file="$(find tutorial_vision)/launch/simple_camera_driver.launch" />
+
+    <!-- ============================================================ -->
+    <!-- 8. 投放机构 (仿真/实机二选一)                                   -->
+    <!-- ============================================================ -->
+    <node if="$(arg run_fake_deliver)"
+          pkg="maxt_pkg" type="fake_deliver.py" name="fake_deliver" output="screen" />
+
+    <include if="$(arg run_real_deliver)"
+             file="$(find tutorial_catapult)/launch/catapult_driver.launch" />
+
+</launch>

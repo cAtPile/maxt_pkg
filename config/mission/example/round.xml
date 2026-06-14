@@ -1,0 +1,70 @@
+<root main_tree_to_execute="BehaviorTree">
+    <!-- 任务配置文件 -->
+    <!-- 任务名称：round_360 -->
+    
+    <!-- 定义行为树 -->
+    <BehaviorTree ID="BehaviorTree">
+        <!-- 任务序列 -->
+        <Sequence>
+            <!-- 连接检查 -->
+            <ConnectCheck name="ConnectCheck" timeout="60.0" />
+            
+            <!-- 起飞任务 -->
+            <Takeoff name="Takeoff" target_alt="1.3" ascent_speed="0.5" />
+
+            <!--悬停-->
+            <WaitStep name="WaitStep1=1" wait_duration="1" />
+
+            <QuinticNav x="3.0" y="0" z="1.3" timeout="15" tolerance="0.05" v_max="2.0" a_max="1.0" />
+
+            <!-- 绕圈飞行任务 -->
+            <Round name="Round1" 
+                        center_x="4.3" center_y="0" center_z="1.3" 
+                        radius="1.2" angular_speed="45.0" total_angle="720" 
+                        timeout="1000.0" /> 
+
+            <!--悬停-->
+            <WaitStep name="WaitStep1=2" wait_duration="1" />
+
+            <!-- 触地  -->
+            <QuinticNav x="0.0" y="0" z="1.3" timeout="15" tolerance="0.05" v_max="2.0" a_max="1.0" />
+            <TouchDown name="TouchDown" descent_speed="-0.5"
+                       timeout="60.0"
+                       ground_timeout="3.0" />
+        </Sequence>
+    </BehaviorTree>
+    
+    <!-- 定义自定义节点 -->
+    <TreeNodesModel>
+        <!-- 连接检查节点 -->
+        <Action ID="ConnectCheck">
+            <parameter name="timeout" type="double" default="60.0" />
+        </Action>
+        
+        <!-- 起飞节点 -->
+        <Action ID="Takeoff">
+            <parameter name="target_alt" type="double" default="1.0" />
+            <parameter name="timeout" type="double" default="30.0" />
+        </Action>
+        
+        <!-- 等待节点 -->
+        <Action ID="WaitStep">
+            <parameter name="wait_duration" type="double" default="0.0" />
+        </Action>
+
+        <!-- 绕圈飞行节点 -->
+        <Action ID="Round">
+            <parameter name="center_x" type="double" default="0.0" />
+            <parameter name="center_y" type="double" default="0.0" />
+            <parameter name="center_z" type="double" default="0.0" />
+            <parameter name="radius" type="double" default="0.0" />
+            <parameter name="angular_speed" type="double" default="30.0" />
+            <parameter name="total_angle" type="double" default="360.0" />
+            <parameter name="timeout" type="double" default="30.0" />
+            <parameter name="tolerance" type="double" default="0.05" />
+            <parameter name="ramp_time" type="double" default="2.0" />
+        </Action>
+
+        <!-- 降落节点 -->
+    </TreeNodesModel>
+</root>

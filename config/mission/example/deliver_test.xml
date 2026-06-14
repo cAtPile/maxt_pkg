@@ -1,0 +1,52 @@
+<root main_tree_to_execute="BehaviorTree">
+    <!-- ============================================================ -->
+    <!-- TwinDeliver + Deliver 地面联合测试                             -->
+    <!-- 不起飞，仅验证投放机构逻辑                                     -->
+    <!--                                                              -->
+    <!-- 预期:                                                        -->
+    <!--   TwinDeliver → front_left + front_right 同时打开              -->
+    <!--   Deliver(front_left, back_left) → front_left 已投 → back_left -->
+    <!-- ============================================================ -->
+
+    <BehaviorTree ID="BehaviorTree">
+        <Sequence>
+            <WaitStep name="WaitStep1=1" wait_duration="1" />
+
+            <!-- 单门投放: front_left 已投 → fallback 到 back_left -->
+            <Deliver servo_a="front_left" servo_b="front_right"
+                     deliver_delay="2.0" />
+            <WaitStep wait_duration="1.0" />
+
+            <!-- 单门投放: front_left 已投 → fallback 到 back_left -->
+            <Deliver servo_a="front_left" servo_b="front_right"
+                     deliver_delay="2.0" />
+            <WaitStep wait_duration="1.0" />
+
+            <AllDeliver deliver_delay="2.0"/>
+
+        </Sequence>
+    </BehaviorTree>
+
+    <TreeNodesModel>
+        <Action ID="ConnectCheck">
+            <parameter name="timeout" type="double" default="60.0" />
+        </Action>
+        <Action ID="WaitStep">
+            <parameter name="wait_duration" type="double" default="1.0" />
+        </Action>
+        <Action ID="TwinDeliver">
+            <parameter name="servo_a" type="string" default="front_left" />
+            <parameter name="servo_b" type="string" default="front_right" />
+            <parameter name="deliver_delay" type="double" default="2.0" />
+        </Action>
+        <Action ID="AllDeliver">
+            <parameter name="deliver_delay" type="double" default="2.0" />
+            <parameter name="connect_delay" type="double" default="0.2" />
+        </Action>
+        <Action ID="Deliver">
+            <parameter name="servo_a" type="string" default="front_left" />
+            <parameter name="servo_b" type="string" default="front_right" />
+            <parameter name="deliver_delay" type="double" default="2.0" />
+        </Action>
+    </TreeNodesModel>
+</root>

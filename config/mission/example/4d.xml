@@ -1,0 +1,135 @@
+<root main_tree_to_execute="BehaviorTree">
+    <!-- ============================================================ -->
+    <!-- maxt_pkg 全功能仿真测试                                          -->
+    <!-- 覆盖所有活跃节点:                                                -->
+    <!--   ConnectCheck, Takeoff, WaitStep, QRDetect, GoTo,             -->
+    <!--   YoloReceiver, TargetCheck2, TwinDeliver, Deliver,            -->
+    <!--   RingCenterReceiver, Round, TouchDown,                       -->
+    <!--   CheckLandLeft, CheckLandRight                                -->
+    <!-- ============================================================ -->
+
+    <!-- ========== 行为树 ========== -->
+    <BehaviorTree ID="BehaviorTree">
+        <Sequence>
+
+            <!--step0:起飞-->
+            <ConnectCheck timeout="30" />
+            <Takeoff target_alt="1.3" ascent_speed="0.5" timeout="20" />
+
+            <!-- step1: QR -->
+            <QuinticNav x="1.8" y="0.0" z="1.2" timeout="30" tolerance="0.1" v_max="2.0" a_max="1.0" />
+
+            <!-- step3.1: 第1个投送点 -->
+            <QuinticNav x="3.6" y="-1.6" z="1.3" timeout="30" tolerance="0.1" v_max="2.0" a_max="1.0" />
+            <QuinticNav x="3.6" y="-1.6" z="0.4" timeout="30" tolerance="0.05" v_max="2.0" a_max="1.0" />
+            <WaitStep wait_duration="0.75" />
+            <Deliver servo_a="front_left" servo_b="front_right"
+                     deliver_delay="2.0" />
+            <WaitStep wait_duration="1.0" />
+
+            <!-- step3.2: 第2个投送点 -->
+            <QuinticNav x="1.8" y="-1.6" z="1.3" timeout="30" tolerance="0.1" v_max="2.0" a_max="1.0" />
+            <QuinticNav x="1.8" y="-1.6" z="0.4" timeout="30" tolerance="0.05" v_max="2.0" a_max="1.0" />
+            <WaitStep wait_duration="0.75" />
+            <Deliver servo_a="front_left" servo_b="front_right"
+                     deliver_delay="2.0" />
+            <WaitStep wait_duration="1.0" />
+
+            <!-- step3.3: 第3个投送点 -->
+            <QuinticNav x="1.8" y="1.6" z="1.3" timeout="30" tolerance="0.1" v_max="2.5" a_max="1.2" />
+
+            <!-- step3.4: 第4个投送点 -->
+            <QuinticNav x="3.6" y="1.6" z="1.3" timeout="30" tolerance="0.1" v_max="2.0" a_max="1.0" />
+
+            <!-- step3.5: 特殊投放点 -->
+            <QuinticNav x="6.0" y="1.0" z="1.3" timeout="30" tolerance="0.1" v_max="2.0" a_max="1.0" />
+            <QuinticNav x="6.0" y="1.0" z="0.4" timeout="30" tolerance="0.05" v_max="2.0" a_max="1.0" />
+            <WaitStep wait_duration="0.75" />
+            <AllDeliver deliver_delay="2.0"/>
+            <WaitStep wait_duration="1.0" />
+
+            <!-- step5: 降落 -->
+            <QuinticNav x="3.6" y="1.6" z="1.3" timeout="15" tolerance="0.05" v_max="2.0" a_max="1.0" />
+            <TouchDown descent_speed="-0.5" timeout="60" ground_timeout="3.0" />
+
+        </Sequence>
+    </BehaviorTree>
+
+    <!-- ========== 全部节点模型定义 ========== -->
+    <TreeNodesModel>
+        <!-- ===== 动作节点 ===== -->
+        <Action ID="ConnectCheck">
+            <parameter name="timeout" type="double" default="60.0" />
+        </Action>
+
+        <Action ID="Takeoff">
+            <parameter name="target_alt" type="double" default="1.5" />
+            <parameter name="ascent_speed" type="double" default="0.5" />
+            <parameter name="timeout" type="double" default="20.0" />
+        </Action>
+
+        <Action ID="WaitStep">
+            <parameter name="wait_duration" type="double" default="1.0" />
+        </Action>
+
+        <Action ID="QuinticNav">
+            <parameter name="x" type="double" />
+            <parameter name="y" type="double" />
+            <parameter name="z" type="double" />
+            <parameter name="timeout" type="double" default="30.0" />
+            <parameter name="tolerance" type="double" default="0.1" />
+            <parameter name="v_max" type="double" default="2.5" />
+            <parameter name="a_max" type="double" default="1.2" />
+        </Action>
+
+        <Action ID="QRDetect">
+            <parameter name="timeout" type="double" default="5.0" />
+        </Action>
+
+        <Action ID="YoloReceiver">
+            <parameter name="timeout" type="double" default="10.0" />
+        </Action>
+
+        <Action ID="RingCenterReceiver">
+            <parameter name="timeout" type="double" default="10.0" />
+            <parameter name="offset" type="double" default="0.7" />
+            <parameter name="bias" type="double" default="0.1" />
+        </Action>
+
+        <Action ID="Round">
+            <parameter name="center_x" type="double" />
+            <parameter name="center_y" type="double" />
+            <parameter name="center_z" type="double" />
+            <parameter name="radius" type="double" default="0.0" />
+            <parameter name="angular_speed" type="double" default="30.0" />
+            <parameter name="total_angle" type="double" default="360.0" />
+            <parameter name="tolerance" type="double" default="0.3" />
+            <parameter name="timeout" type="double" default="60.0" />
+        </Action>
+
+        <Action ID="TwinDeliver">
+            <parameter name="servo_a" type="string" default="front_left" />
+            <parameter name="servo_b" type="string" default="front_right" />
+            <parameter name="deliver_delay" type="double" default="2.0" />
+            <parameter name="connect_delay" type="double" default="0.2" />
+        </Action>
+
+        <Action ID="Deliver">
+            <parameter name="servo_a" type="string" default="front_left" />
+            <parameter name="servo_b" type="string" default="front_right" />
+            <parameter name="deliver_delay" type="double" default="2.0" />
+            <parameter name="connect_delay" type="double" default="0.2" />
+        </Action>
+
+        <Action ID="TouchDown">
+            <parameter name="descent_speed" type="double" default="-0.5" />
+            <parameter name="timeout" type="double" default="60.0" />
+            <parameter name="ground_timeout" type="double" default="3.0" />
+        </Action>
+
+        <!-- ===== 条件节点 ===== -->
+        <Condition ID="CheckLandLeft" />
+        <Condition ID="CheckLandRight" />
+        <Condition ID="TargetCheck2" />
+    </TreeNodesModel>
+</root>
