@@ -13,8 +13,8 @@
             <Takeoff name="Takeoff" target_alt="1.3" ascent_speed="0.5" />
 
             <!--悬停-->
-            <WaitStep name="WaitStep1=1" wait_duration="1" />
-
+            <QuinticNav x="1.8" y="0" z="1.3" timeout="15" tolerance="0.05" v_max="2.0" a_max="1.0" />
+            <Hover hover_duration = "1.0"/>
             <QuinticNav x="3.0" y="0" z="1.3" timeout="15" tolerance="0.05" v_max="2.0" a_max="1.0" />
 
             <!-- 绕圈飞行任务 -->
@@ -24,7 +24,7 @@
                         timeout="1000.0" /> 
 
             <!--悬停-->
-            <WaitStep name="WaitStep1=2" wait_duration="1" />
+            <Hover hover_duration = "1.0"/>
 
             <!-- 触地  -->
             <QuinticNav x="0.0" y="0" z="1.3" timeout="15" tolerance="0.05" v_max="2.0" a_max="1.0" />

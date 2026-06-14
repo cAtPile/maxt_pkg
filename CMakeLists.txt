@@ -142,6 +142,7 @@ add_library(${PROJECT_NAME}
 
   src/maxt_nodes/takeoff.cpp
   src/maxt_nodes/waitstep.cpp
+  src/maxt_nodes/hover.cpp
   src/maxt_nodes/round.cpp
   src/maxt_nodes/qr_detect.cpp
   src/maxt_nodes/conditions.cpp

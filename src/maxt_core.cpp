@@ -4,6 +4,7 @@
 #include <maxt_pkg/maxt_nodes/goto_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/waitstep_node.hpp>
+#include <maxt_pkg/maxt_nodes/hover_node.hpp>
 #include <maxt_pkg/maxt_nodes/round_node.hpp>
 #include <maxt_pkg/maxt_nodes/qr_detect_node.hpp>
 #include <maxt_pkg/maxt_nodes/conditions_node.hpp>
@@ -103,9 +104,14 @@ void MaxtCore::registerNodes() {
             return std::make_unique<QuinticNavNode>(name, config, *mav_);
         });
 
-    factory_.registerBuilder<WaitStepNode>("WaitStep", 
+    factory_.registerBuilder<WaitStepNode>("WaitStep",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<WaitStepNode>(name, config, *mav_);
+        });
+
+    factory_.registerBuilder<HoverNode>("Hover",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<HoverNode>(name, config, *mav_);
         });
 
     factory_.registerBuilder<RoundNode>("Round", 

@@ -84,3 +84,12 @@
         plan：建立git仓库->转移—>发布
 
 [15:56] git:现在切换到了新的工作空间
+        find：任然有降落弹跳
+        thinking：应该是降落为了确保位置精准的调整，可以在低空只设置速度不保持位置吗，可以只看触地话题吗
+
+[16:31] doing:创建工程专用skill
+
+[16:48] doing:created HoverNode
+        TODO:   1.(P1)modify TouchDown
+        plan: sim test HoverNode->creat xml->test
+
