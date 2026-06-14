@@ -58,4 +58,11 @@ void MavKit::setSetpointMode(SetpointMode mode) {
     //ROS_INFO("Setpoint mode set to: %d", static_cast<int>(mode));
 }
 
+void MavKit::mavCalibrate(double mapx, double mapy, double factx, double facty) {
+    calib_.setMap(mapx, mapy);
+    calib_.setFact(factx, facty);
+    ROS_INFO("MavKit: Calibrated yaw_offset=%.4f rad (%.2f deg)",
+             calib_.offset(), calib_.offset() * 180.0 / M_PI);
+}
+
 } // namespace maxt

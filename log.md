@@ -93,3 +93,23 @@
         TODO:   1.(P1)modify TouchDown
         plan: sim test HoverNode->creat xml->test
 
+[21:09] find:坐标系问题，每次启动都会有偏移
+        thinking：      1. 坐标相对化 
+                        2. 自动测绘脚本
+                        3. 微小的误差累计的大量的线性偏差
+                        4. 起飞前偏航归零
+                        5. 四点标定是否可以？
+        soultion:       1. 确保每次起飞位置完全相同
+                        2. 标定 
+        plan:   creat calibrate_tools:  1. input:setmap(mapx,mapy)，这是我地图上的坐标
+                                        2. input:setfact(factx,facty),这是标定位置的坐标
+                                        3. transRaw/transPose,将输入的转化为标定后的
+                modify mav_kit: 构造函数创建CalibrateTools全局实例
+                                增加标定函数mavCalibrate，input:使用setmap/fact
+                                raw和pose经过转换后再发布（心跳线程里处理）
+                                getpose/twist经过一步处理后返回
+                modify bt：在connect中添加标定步
+
+[23:02] calibrate:似乎发挥着作用
+        find：距离缩放，但经过计算，距离缩放影响似乎不大
+        plan：试飞看看效果

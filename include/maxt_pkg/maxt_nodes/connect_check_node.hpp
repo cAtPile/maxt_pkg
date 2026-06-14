@@ -18,6 +18,8 @@ public:
 private:
     ros::WallTime start_time_;
     double timeout_;
+    double map_x_{0}, map_y_{0};
+    double fact_x_{0}, fact_y_{0};
 };
 
 } // namespace maxt
