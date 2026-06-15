@@ -13,7 +13,7 @@
         <Sequence>
 
             <!--step0:起飞-->
-            <ConnectCheck timeout="30" />
+            <ConnectCheck timeout="30" map_x="6" map_y="1" fact_x="6.05" fact_y="0.58" />
             <Takeoff target_alt="1.3" ascent_speed="0.5" timeout="20" />
 
             <!-- step1: QR -->
@@ -21,7 +21,7 @@
 
             <!-- step3.1: 第1个投送点 -->
             <QuinticNav x="3.6" y="-1.6" z="1.3" timeout="30" tolerance="0.1" v_max="2.0" a_max="1.0" />
-            <QuinticNav x="3.6" y="-1.6" z="0.2" timeout="30" tolerance="0.05" v_max="2.0" a_max="1.0" />
+            <QuinticNav x="3.6" y="-1.6" z="0.15" timeout="30" tolerance="0.05" v_max="2.0" a_max="1.0" />
             <Hover hover_duration = "0.5"/>
             <Deliver servo_a="front_left" servo_b="front_right"
                      deliver_delay="2.0" />
@@ -29,7 +29,7 @@
 
             <!-- step3.2: 第2个投送点 -->
             <QuinticNav x="1.8" y="-1.6" z="1.3" timeout="30" tolerance="0.1" v_max="2.0" a_max="1.0" />
-            <QuinticNav x="1.8" y="-1.6" z="0.2" timeout="30" tolerance="0.05" v_max="2.0" a_max="1.0" />
+            <QuinticNav x="1.8" y="-1.6" z="0.15" timeout="30" tolerance="0.05" v_max="2.0" a_max="1.0" />
             <Hover hover_duration = "0.5"/>
             <Deliver servo_a="front_left" servo_b="front_right"
                      deliver_delay="2.0" />
@@ -44,7 +44,7 @@
 
             <!-- step3.5: 特殊投放点 -->
             <QuinticNav x="6.0" y="1.0" z="1.3" timeout="30" tolerance="0.1" v_max="2.0" a_max="1.0" />
-            <QuinticNav x="6.0" y="1.0" z="0.2" timeout="30" tolerance="0.05" v_max="2.0" a_max="1.0" />
+            <QuinticNav x="6.0" y="1.0" z="0.15" timeout="30" tolerance="0.05" v_max="2.0" a_max="1.0" />
             <Hover hover_duration = "0.5"/>
             <AllDeliver deliver_delay="2.0"/>
             <Hover hover_duration = "1.0"/>

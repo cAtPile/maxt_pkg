@@ -10,8 +10,8 @@
     <arg name="heartbeat_rate" default="20.0" />
 
     <!-- ===== 扩展组件开关 ===== -->
-    <arg name="run_mavros" default="true" />
-    <arg name="run_fast_lio" default="true" />
+    <arg name="run_mavros" default="false" />
+    <arg name="run_fast_lio" default="false" />
     <arg name="run_ring_detect" default="false" />
     <arg name="run_qr_detect" default="false" />
     <arg name="run_yolo_detect" default="false" />
