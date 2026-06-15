@@ -5,7 +5,7 @@
     <!-- ============================================================ -->
 
     <!-- ===== 行为树 ===== -->
-    <arg name="bt_xml_path" default="$(find maxt_pkg)/config/mission/example/ringnav.xml" />
+    <arg name="bt_xml_path" default="$(find maxt_pkg)/config/mission/example/ringpass.xml" />
     <arg name="bt_tick_rate" default="20.0" />
     <arg name="heartbeat_rate" default="20.0" />
 
