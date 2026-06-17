@@ -206,21 +206,19 @@ BT::NodeStatus RoundNode::onRunning() {
         }
     }
 
-    // Compute circular PVA
-    double theta = start_phi_ + desired_angle_ * M_PI / 180.0;
+    // Compute circular PVA (clockwise)
+    double theta = start_phi_ - desired_angle_ * M_PI / 180.0;
     double ct = std::cos(theta);
     double st = std::sin(theta);
 
     double px = cx_ + radius_ * ct;
     double py = cy_ + radius_ * st;
 
-    // v = R * ω (tangential)
-    double vx = -radius_ * omega_curr * st;
-    double vy =  radius_ * omega_curr * ct;
+    double vx =  radius_ * omega_curr * st;
+    double vy = -radius_ * omega_curr * ct;
 
-    // a = -R·α·sinθ - R·ω²·cosθ,  R·α·cosθ - R·ω²·sinθ
-    double ax = -radius_ * alpha_curr * st - radius_ * omega_curr * omega_curr * ct;
-    double ay =  radius_ * alpha_curr * ct - radius_ * omega_curr * omega_curr * st;
+    double ax =  radius_ * alpha_curr * st - radius_ * omega_curr * omega_curr * ct;
+    double ay = -radius_ * alpha_curr * ct - radius_ * omega_curr * omega_curr * st;
 
     mavros_msgs::PositionTarget target;
     target.header.frame_id = "map";
