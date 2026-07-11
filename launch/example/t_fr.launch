@@ -5,7 +5,7 @@
     <!-- ============================================================ -->
 
     <!-- ===== 行为树 ===== -->
-    <arg name="bt_xml_path" default="$(find maxt_pkg)/config/mission/example/forresult.xml" />
+    <arg name="bt_xml_path" default="$(find maxt_pkg)/config/mission/example/line2.xml" />
     <arg name="bt_tick_rate" default="20.0" />
     <arg name="heartbeat_rate" default="20.0" />
 
@@ -16,7 +16,7 @@
     <arg name="run_qr_detect" default="false" />
     <arg name="run_yolo_detect" default="false" />
     <arg name="run_camera" default="false" />
-    <arg name="run_real_deliver" default="true" />
+    <arg name="run_real_deliver" default="false" />
     <arg name="run_fake_deliver" default="false" />
 
     <!-- ===== 圆环中心检测 ROI 参数 ===== -->
