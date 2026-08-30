@@ -45,14 +45,11 @@ BT::NodeStatus TouchDownNode::onStart() {
 BT::NodeStatus TouchDownNode::onRunning() {
     ros::Time now = ros::Time::now();
 
-    // 超时强制 disarm，不切模式
+    // 超时只终止降落动作，不在未确认接地时强制 disarm。
     if ((now - start_time_).toSec() > timeout_) {
-        ROS_ERROR("TouchDownNode: Timeout (%.1f s)! Forced disarm.", timeout_);
+        ROS_ERROR("TouchDownNode: Timeout (%.1f s), landing not confirmed.", timeout_);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
-        mav_.requestArm(false);
-        disarm_request_time_ = now;
-        phase_ = Phase::DISARM;
-        return BT::NodeStatus::RUNNING;
+        return BT::NodeStatus::FAILURE;
     }
 
     switch (phase_) {

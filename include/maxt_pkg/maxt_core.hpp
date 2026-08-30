@@ -63,13 +63,6 @@ private:
     // 硬件抽象层
     std::unique_ptr<MavKit> mav_;
 
-    // 投放机构 publisher — 系统初始化时提前建立，避免 BT 节点临时建 pub 导致延迟丢消息
-    ros::Publisher front_left_open_pub_,  front_left_close_pub_;
-    ros::Publisher front_right_open_pub_, front_right_close_pub_;
-    ros::Publisher back_left_open_pub_,   back_left_close_pub_;
-    ros::Publisher back_right_open_pub_,  back_right_close_pub_;
-    ros::Publisher all_open_pub_, all_close_pub_;
-
     // BehaviorTree 相关
     BT::BehaviorTreeFactory factory_;
     BT::Tree tree_;

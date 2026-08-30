@@ -1,69 +1,18 @@
-<root main_tree_to_execute="BehaviorTree">
-    <!-- line2: 起飞 → 前飞 2m → 返回原点降落 -->
-
-    <BehaviorTree ID="BehaviorTree">
+<root main_tree_to_execute="Line2">
+    <BehaviorTree ID="Line2">
         <Sequence>
-            <!-- 连接检查 -->
-            <ConnectCheck timeout="30" map_x="6" map_y="1" fact_x="6.0" fact_y="1.0" />
-
-            <!-- 起飞到 1.3m -->
-            <Takeoff target_alt="1.3" ascent_speed="0.5" timeout="20" />
-
-            <!-- 悬停稳定 -->
-            <Hover hover_duration="0.5" />
-
-            <!-- 前飞 2m -->
-            <QuinticNav x="2.0" y="0.0" z="1.3" timeout="15"
-                        tolerance="0.1" v_max="1.5" a_max="0.8" />
-
-            <!-- 悬停 -->
+            <ConnectCheck timeout="30" />
+            <Takeoff target_alt="1.3" ascent_speed="0.5" timeout="30" />
             <Hover hover_duration="1.0" />
-
-            <!-- 返回起飞点 -->
-            <QuinticNav x="0.0" y="0.0" z="1.3" timeout="15"
-                        tolerance="0.1" v_max="1.5" a_max="0.8" />
-
-            <!-- 降落 -->
-            <TouchDown descent_speed="-0.5" timeout="60" ground_timeout="3.0" />
+            <QuinticNav x="2.0" y="0.0" z="1.3"
+                        timeout="20" tolerance="0.1"
+                        v_max="1.5" a_max="0.8" />
+            <Hover hover_duration="1.0" />
+            <QuinticNav x="0.0" y="0.0" z="1.3"
+                        timeout="20" tolerance="0.1"
+                        v_max="1.5" a_max="0.8" />
+            <TouchDown descent_speed="-0.5" timeout="60"
+                       ground_timeout="3.0" />
         </Sequence>
     </BehaviorTree>
-
-    <TreeNodesModel>
-        <Action ID="ConnectCheck">
-            <parameter name="timeout" type="double" default="60.0" />
-            <parameter name="map_x" type="double" default="0.0" />
-            <parameter name="map_y" type="double" default="0.0" />
-            <parameter name="fact_x" type="double" default="0.0" />
-            <parameter name="fact_y" type="double" default="0.0" />
-        </Action>
-
-        <Action ID="Takeoff">
-            <parameter name="target_alt" type="double" default="1.5" />
-            <parameter name="ascent_speed" type="double" default="0.5" />
-            <parameter name="timeout" type="double" default="20.0" />
-        </Action>
-
-        <Action ID="Hover">
-            <parameter name="hover_duration" type="double" default="1.0" />
-        </Action>
-
-        <Action ID="QuinticNav">
-            <parameter name="x" type="double" />
-            <parameter name="y" type="double" />
-            <parameter name="z" type="double" />
-            <parameter name="timeout" type="double" default="30.0" />
-            <parameter name="tolerance" type="double" default="0.1" />
-            <parameter name="v_max" type="double" default="2.5" />
-            <parameter name="a_max" type="double" default="1.2" />
-            <parameter name="pid_kp" type="double" default="1.0" />
-            <parameter name="pid_ki" type="double" default="0.05" />
-            <parameter name="pid_kd" type="double" default="0.0" />
-        </Action>
-
-        <Action ID="TouchDown">
-            <parameter name="descent_speed" type="double" default="-0.5" />
-            <parameter name="timeout" type="double" default="60.0" />
-            <parameter name="ground_timeout" type="double" default="3.0" />
-        </Action>
-    </TreeNodesModel>
 </root>

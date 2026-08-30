@@ -149,10 +149,10 @@ BT::NodeStatus QuinticNavNode::onRunning() {
 
         double hold_elapsed = (now - hold_start_).toSec();
         if (hold_elapsed > HOLD_TIMEOUT) {
-            ROS_WARN("[QuinticNav] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
-                     hold_elapsed, err);
+            ROS_ERROR("[QuinticNav] Terminal alignment timeout (%.1fs), err=%.3f.",
+                      hold_elapsed, err);
             mav_.setSetpointMode(SetpointMode::HEARTBEAT);
-            return BT::NodeStatus::SUCCESS;
+            return BT::NodeStatus::FAILURE;
         }
 
         mavros_msgs::PositionTarget hold_target;

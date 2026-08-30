@@ -2,7 +2,6 @@
 #define MAXT_NODES_HPP
 
 #include <behaviortree_cpp_v3/action_node.h>
-#include <behaviortree_cpp_v3/condition_node.h>
 #include <maxt_pkg/maxt_mav.hpp>
 
 namespace maxt {

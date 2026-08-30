@@ -35,14 +35,11 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
     {
         setpoint_pub_.publish(current_pose_);
     }else if(setpoint_mode_ == SetpointMode::CONTROL){
-        // 发布目标位置 (world -> SLAM)
         geometry_msgs::PoseStamped control_pose = target_pose_;
-        calib_.transPose(control_pose);
         control_pose.header.stamp = ros::Time::now();
         setpoint_pub_.publish(control_pose);
     }else if(setpoint_mode_ == SetpointMode::RAW_CTRL){
         mavros_msgs::PositionTarget raw = raw_target_;
-        calib_.transRaw(raw);
         raw.header.stamp = ros::Time::now();
         raw_setpoint_pub_.publish(raw);
     }else if(setpoint_mode_ == SetpointMode::STANDBY){
@@ -79,16 +76,12 @@ std::string MavKit::getMode() const {
 
 geometry_msgs::PoseStamped MavKit::getCurrentPose() const {
     std::lock_guard<std::mutex> lock(data_mtx_);
-    geometry_msgs::PoseStamped out = current_pose_;
-    calib_.untransPose(out);
-    return out;
+    return current_pose_;
 }
 
 geometry_msgs::TwistStamped MavKit::getCurrentTwist() const {
     std::lock_guard<std::mutex> lock(data_mtx_);
-    geometry_msgs::TwistStamped out = current_twist_;
-    calib_.untransTwist(out);
-    return out;
+    return current_twist_;
 }
 
 double MavKit::get_current_yaw() const {
@@ -103,7 +96,6 @@ double MavKit::get_current_yaw() const {
     return yaw;
 }
 
-//todo 相对化处理home
 void MavKit::setTargetPose(double x, double y, double z) {
     std::lock_guard<std::mutex> lock(data_mtx_);
     target_pose_.header.stamp = ros::Time::now();

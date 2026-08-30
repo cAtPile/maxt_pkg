@@ -14,7 +14,6 @@
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
-#include <maxt_pkg/calibrate_tools.hpp>
 #include <mutex>
 #include <atomic>
 
@@ -45,15 +44,6 @@ public:
      * @return true 初始化成功
      */
     bool mavInit(ros::NodeHandle& nh);
-
-    /**
-     * @brief 标定：根据参照点计算 SLAM 坐标系偏航偏移
-     * @param mapx 地图(测绘)坐标 x
-     * @param mapy 地图(测绘)坐标 y
-     * @param factx SLAM 实际读取坐标 x
-     * @param facty SLAM 实际读取坐标 y
-     */
-    void mavCalibrate(double mapx, double mapy, double factx, double facty);
 
     // --- 指令触发 (Trigger) ---
     /**
@@ -189,8 +179,6 @@ private:
     // Setpoint 模式
     std::atomic<SetpointMode> setpoint_mode_;
 
-    // 标定工具
-    CalibrateTools calib_;
 };
 
 } // namespace maxt
