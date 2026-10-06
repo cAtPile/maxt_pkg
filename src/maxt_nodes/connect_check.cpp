@@ -16,13 +16,13 @@ BT::NodeStatus ConnectCheckNode::onStart() {
     if (!getInput<double>("timeout", timeout_)) {
         timeout_ = 60.0;
     }
-    start_time_ = ros::WallTime::now();
+    start_time_ = ros::Time::now();
     ROS_INFO("ConnectCheckNode: Waiting for drone connection...");
     return BT::NodeStatus::RUNNING;
 }
 
 BT::NodeStatus ConnectCheckNode::onRunning() {
-    if ((ros::WallTime::now() - start_time_).toSec() > timeout_) {
+    if ((ros::Time::now() - start_time_).toSec() > timeout_) {
         ROS_ERROR("ConnectCheckNode: Connection timeout!");
         return BT::NodeStatus::FAILURE;
     }

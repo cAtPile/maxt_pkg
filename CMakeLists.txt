@@ -10,13 +10,14 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   mavros_msgs
   roscpp
+  rosgraph_msgs
   tf2
 )
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS behaviortree_cpp_v3 geometry_msgs mavros_msgs roscpp tf2
+  CATKIN_DEPENDS behaviortree_cpp_v3 geometry_msgs mavros_msgs roscpp rosgraph_msgs tf2
 )
 
 include_directories(
@@ -52,7 +53,27 @@ target_link_libraries(maxt_test_node
   ${catkin_LIBRARIES}
 )
 
-install(TARGETS ${PROJECT_NAME} maxt_test_node
+add_executable(maxt_numeric_sim_node
+  nodes/maxt_numeric_sim_node.cpp
+  src/sim/numeric_sim_core.cpp
+  src/sim/numeric_sim_dynamics.cpp
+  src/sim/numeric_sim_output.cpp
+)
+
+target_link_libraries(maxt_numeric_sim_node
+  ${catkin_LIBRARIES}
+)
+
+add_executable(maxt_bt_logic_test_node
+  nodes/maxt_bt_logic_test_node.cpp
+  src/bt_logic_test_nodes.cpp
+)
+
+target_link_libraries(maxt_bt_logic_test_node
+  ${catkin_LIBRARIES}
+)
+
+install(TARGETS ${PROJECT_NAME} maxt_test_node maxt_numeric_sim_node maxt_bt_logic_test_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -16,7 +16,7 @@ public:
     void onHalted() override;
 
 private:
-    ros::WallTime start_time_;
+    ros::Time start_time_;
     double timeout_;
 };
 

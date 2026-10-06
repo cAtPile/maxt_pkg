@@ -103,7 +103,7 @@ void MaxtCore::registerNodes() {
     ROS_INFO("MaxtCore: All BT Nodes registered.");
 }
 
-void MaxtCore::run() {
+BT::NodeStatus MaxtCore::run() {
     ros::Rate loop_rate(tick_rate_);
     BT::NodeStatus status = BT::NodeStatus::RUNNING;
 
@@ -125,6 +125,8 @@ void MaxtCore::run() {
     } else if (status == BT::NodeStatus::FAILURE) {
         ROS_ERROR("MaxtCore: Mission Failed!");
     }
+
+    return status;
 }
 
 } // namespace maxt

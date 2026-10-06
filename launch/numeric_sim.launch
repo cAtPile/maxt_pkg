@@ -1,0 +1,54 @@
+<launch>
+    <!--
+      端到端数值仿真入口：同时启动 NumericSim 和执行行为树的 maxt_test_node。
+      可在 roslaunch 命令后写“参数:=值”覆盖以下默认值。
+      例：roslaunch maxt_pkg numeric_sim.launch speed_factor:=5.0 csv_path:=""
+    -->
+    <!-- 待执行的 BehaviorTree.CPP XML 任务文件。 -->
+    <arg name="bt_xml_path"
+         default="$(find maxt_pkg)/config/mission/example/line2.xml" />
+    <!-- 行为树 tick 和 MAVROS setpoint 心跳频率，单位均为 Hz。 -->
+    <arg name="bt_tick_rate" default="20.0" />
+    <arg name="heartbeat_rate" default="20.0" />
+    <!-- 固定仿真步长（秒）与执行倍速；倍速不会改变 dt。 -->
+    <arg name="dt" default="0.02" />
+    <arg name="speed_factor" default="1.0" />
+    <!-- 低频终端摘要周期（仿真秒），设为 0 关闭。 -->
+    <arg name="report_period" default="1.0" />
+    <!-- 每仿真步的 CSV 输出；设为空字符串关闭。 -->
+    <arg name="csv_path" default="/tmp/maxt_numeric_sim.csv" />
+    <!-- 故障注入参数：分别模拟断连、拒绝解锁、拒绝 OFFBOARD、不报告落地。 -->
+    <arg name="connected" default="true" />
+    <arg name="accept_arm" default="true" />
+    <arg name="accept_offboard" default="true" />
+    <arg name="report_landed" default="true" />
+
+    <!-- 使整个 ROS graph 使用 NumericSim 发布的 /clock，而非系统时钟。 -->
+    <param name="/use_sim_time" value="true" />
+
+    <!-- MAVROS 接口的最小替身：接收 setpoint，发布理想跟随后的状态。 -->
+    <node pkg="maxt_pkg"
+          type="maxt_numeric_sim_node"
+          name="maxt_numeric_sim_node"
+          output="screen">
+        <param name="dt" value="$(arg dt)" />
+        <param name="speed_factor" value="$(arg speed_factor)" />
+        <param name="report_period" value="$(arg report_period)" />
+        <param name="csv_path" value="$(arg csv_path)" />
+        <param name="connected" value="$(arg connected)" />
+        <param name="accept_arm" value="$(arg accept_arm)" />
+        <param name="accept_offboard" value="$(arg accept_offboard)" />
+        <param name="report_landed" value="$(arg report_landed)" />
+    </node>
+
+    <!-- 被测节点：加载行为树，通过与真实 MAVROS 相同的名称与仿真器交互。 -->
+    <node pkg="maxt_pkg"
+          type="maxt_test_node"
+          name="maxt_test_node"
+          output="screen"
+          required="true">
+        <param name="bt_xml_path" value="$(arg bt_xml_path)" />
+        <param name="bt_tick_rate" value="$(arg bt_tick_rate)" />
+        <param name="heartbeat_rate" value="$(arg heartbeat_rate)" />
+    </node>
+</launch>

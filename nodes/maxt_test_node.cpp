@@ -23,9 +23,9 @@ int main(int argc, char** argv)
 
     // 4. 进入运行循环
     // 该函数是阻塞的，直到行为树运行完成（SUCCESS/FAILURE）或 ROS 关闭
-    core.run();
+    const BT::NodeStatus status = core.run();
 
     ROS_INFO("Maxt Mission Completed. Exiting...");
-    
-    return 0;
+
+    return status == BT::NodeStatus::SUCCESS ? 0 : 2;
 }

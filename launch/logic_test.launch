@@ -1,0 +1,14 @@
+<launch>
+    <arg name="bt_xml_path"
+         default="$(find maxt_pkg)/config/logic_test/all_logic.xml" />
+    <arg name="bt_tick_rate" default="10.0" />
+
+    <!-- Pure control-flow test: no MavKit, MAVROS, PX4 or simulator is started. -->
+    <node pkg="maxt_pkg"
+          type="maxt_bt_logic_test_node"
+          name="maxt_bt_logic_test_node"
+          output="screen">
+        <param name="bt_xml_path" value="$(arg bt_xml_path)" />
+        <param name="bt_tick_rate" value="$(arg bt_tick_rate)" />
+    </node>
+</launch>

@@ -46,7 +46,7 @@ public:
      * @brief 启动行为树主循环
      * 内部包含 tick 频率控制和 AsyncSpinner 调度
      */
-    void run();
+    BT::NodeStatus run();
 
 private:
     /**

@@ -1,0 +1,120 @@
+<root main_tree_to_execute="LogicNodeTest">
+    <!-- 主树只负责编排子树和准备跨子树参数。 -->
+    <BehaviorTree ID="LogicNodeTest">
+        <Sequence name="all_logic_subtree_tests">
+            <!-- 普通 SubTree 使用独立黑板，适合不需要传参的逻辑模块。 -->
+            <SubTree ID="ConditionIfLogic" />
+            <SubTree ID="SequenceFallbackLogic" />
+
+            <!-- SubTreePlus 显式将父树变量映射到子树，并接收子树输出。 -->
+            <SetBlackboard output_key="main_command" value="goto" />
+            <SubTreePlus ID="SwitchLogic"
+                         command_type="{main_command}"
+                         result="{switch_result}" />
+            <TestLog message="{switch_result}" />
+
+            <!-- 不带花括号的属性作为常量传入子树。 -->
+            <SubTreePlus ID="RepeatLogic" cycles="3" />
+
+            <!-- 自动映射让子树使用父树中同名的黑板变量。 -->
+            <SetBlackboard output_key="failures_before_success" value="2" />
+            <SubTreePlus ID="RetryLogic" __autoremap="1" />
+
+            <SubTree ID="WhileDoElseLogic" />
+            <TestLog message="All subtree and logic-node checks passed" />
+        </Sequence>
+    </BehaviorTree>
+
+    <!-- 条件节点及 IfThenElse 子树。 -->
+    <BehaviorTree ID="ConditionIfLogic">
+        <Sequence name="condition_if_subtree">
+            <TestLog message="1/6 Enter ConditionIfLogic subtree" />
+            <IfThenElse>
+                <TestCondition value="true" label="if true condition" />
+                <TestLog message="IfThenElse selected THEN branch" />
+                <TestLog message="ERROR: unexpected ELSE branch" />
+            </IfThenElse>
+            <IfThenElse>
+                <TestCondition value="false" label="if false condition" />
+                <TestLog message="ERROR: unexpected THEN branch" />
+                <TestLog message="IfThenElse selected ELSE branch" />
+            </IfThenElse>
+        </Sequence>
+    </BehaviorTree>
+
+    <!-- Sequence 和 Fallback 组合子树。 -->
+    <BehaviorTree ID="SequenceFallbackLogic">
+        <Sequence name="sequence_fallback_subtree">
+            <TestLog message="2/6 Enter SequenceFallbackLogic subtree" />
+            <Fallback>
+                <TestCondition value="false" label="fallback first child" />
+                <Sequence>
+                    <TestCondition value="true" label="sequence condition" />
+                    <TestLog message="Fallback selected the successful Sequence" />
+                </Sequence>
+            </Fallback>
+        </Sequence>
+    </BehaviorTree>
+
+    <!-- Switch 子树读取父树输入，并通过 result 端口回传执行结果。 -->
+    <BehaviorTree ID="SwitchLogic">
+        <Sequence name="switch_subtree">
+            <TestLog message="3/6 Enter SwitchLogic subtree" />
+            <Switch3 variable="{command_type}"
+                     case_1="takeoff"
+                     case_2="goto"
+                     case_3="land">
+                <Sequence>
+                    <TestLog message="ERROR: Switch selected takeoff" />
+                    <SetBlackboard output_key="result" value="unexpected takeoff" />
+                </Sequence>
+                <Sequence>
+                    <TestLog message="Switch selected goto case" />
+                    <SetBlackboard output_key="result"
+                                   value="Switch subtree output remapped to parent: goto selected" />
+                </Sequence>
+                <Sequence>
+                    <TestLog message="ERROR: Switch selected land" />
+                    <SetBlackboard output_key="result" value="unexpected land" />
+                </Sequence>
+                <Sequence>
+                    <TestLog message="ERROR: Switch selected default" />
+                    <SetBlackboard output_key="result" value="unexpected default" />
+                </Sequence>
+            </Switch3>
+        </Sequence>
+    </BehaviorTree>
+
+    <!-- Repeat 子树通过常量端口获取循环次数。 -->
+    <BehaviorTree ID="RepeatLogic">
+        <Sequence name="repeat_subtree">
+            <TestLog message="4/6 Enter RepeatLogic subtree" />
+            <Repeat num_cycles="{cycles}">
+                <TestLog message="Repeat/for loop body executed" />
+            </Repeat>
+        </Sequence>
+    </BehaviorTree>
+
+    <!-- Retry 子树通过 __autoremap 读取父树中的同名参数。 -->
+    <BehaviorTree ID="RetryLogic">
+        <Sequence name="retry_subtree">
+            <TestLog message="5/6 Enter RetryLogic subtree" />
+            <RetryUntilSuccessful num_attempts="3">
+                <TestFlaky label="retry demo"
+                           failures_before_success="{failures_before_success}" />
+            </RetryUntilSuccessful>
+        </Sequence>
+    </BehaviorTree>
+
+    <!-- 响应式 WhileDoElse 和 halt 行为子树。 -->
+    <BehaviorTree ID="WhileDoElseLogic">
+        <Sequence name="while_do_else_subtree">
+            <TestLog message="6/6 Enter WhileDoElseLogic subtree" />
+            <WhileDoElse>
+                <TestTickCondition label="while condition" success_ticks="2" />
+                <TestRunning label="while DO branch" running_ticks="10" />
+                <TestLog message="WhileDoElse condition changed; ELSE branch selected" />
+            </WhileDoElse>
+        </Sequence>
+    </BehaviorTree>
+</root>

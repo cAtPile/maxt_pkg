@@ -84,6 +84,29 @@ roslaunch maxt_pkg mission.launch \
   bt_xml_path:=$(rospack find maxt_pkg)/config/mission/example/line2.xml
 ```
 
+## 纯终端数值仿真
+
+不启动 PX4、Gazebo 或真实 MAVROS 的行为树流程检查：
+
+```bash
+roslaunch maxt_pkg numeric_sim.launch \
+  bt_xml_path:=$(rospack find maxt_pkg)/config/mission/example/line2.xml \
+  speed_factor:=20 report_period:=0 \
+  csv_path:=/tmp/maxt_line2.csv
+```
+
+该入口会启动 roscore、mock MAVROS 和现有任务节点；它使用理想 setpoint 跟随，只验证流程、超时和状态机，不评估真实飞行控制品质。函数作用、I/O、调用关系和数据结构见 [NumericSim 数值仿真模块详解](docs/NUMERIC_SIM_GUIDE.zh-CN.md)，设计边界和故障开关见[纯终端数值仿真详细计划](docs/TERMINAL_NUMERICAL_SIMULATION_PLAN.zh-CN.md)。
+
+## 行为树逻辑节点测试
+
+只验证 BehaviorTree.CPP v3 的控制流和日志，不初始化 MavKit，也不启动 MAVROS、PX4 或数值仿真：
+
+```bash
+roslaunch maxt_pkg logic_test.launch
+```
+
+测试将 Condition/IfThenElse、Sequence/Fallback、Switch3、Repeat、RetryUntilSuccessful 和 WhileDoElse 分别封装为子树，再由主树组合执行。它同时验证普通 `SubTree` 的独立黑板、`SubTreePlus` 的显式输入输出映射、常量参数和 `__autoremap` 自动映射。`Repeat` 在这里作为固定次数 `for` 的等价写法；最后一项还会验证响应式分支切换时，运行中的子节点确实收到 halt。看到 `all subtree and logic-node checks passed` 后即可按 Ctrl-C 结束 roslaunch。
+
 ## MAVROS 接口
 
 订阅：

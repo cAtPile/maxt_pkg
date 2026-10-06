@@ -13,6 +13,7 @@
   <depend>geometry_msgs</depend>
   <depend>mavros_msgs</depend>
   <depend>roscpp</depend>
+  <depend>rosgraph_msgs</depend>
   <depend>tf2</depend>
 
   <exec_depend>mavros</exec_depend>
