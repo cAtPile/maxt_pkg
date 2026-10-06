@@ -1,0 +1,11 @@
+<root main_tree_to_execute="BasicTest">
+    <!-- 简单飞行检查：使用现有节点，起飞后原地悬停并降落。 -->
+    <BehaviorTree ID="BasicTest">
+        <Sequence>
+            <ConnectCheck timeout="30.0" />
+            <Takeoff target_alt="1.0" ascent_speed="0.5" timeout="30.0" />
+            <Hover hover_duration="3.0" />
+            <TouchDown descent_speed="-0.3" timeout="60.0" ground_timeout="3.0" />
+        </Sequence>
+    </BehaviorTree>
+</root>

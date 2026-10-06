@@ -1,0 +1,20 @@
+<root main_tree_to_execute="NavigationTest">
+    <!-- 绝对坐标测试：假定起飞点 XY=(0,0)，目标高度 z=1m。 -->
+    <BehaviorTree ID="NavigationTest">
+        <Sequence>
+            <ConnectCheck timeout="30.0" />
+            <Takeoff target_alt="1.0" ascent_speed="0.5" timeout="30.0" />
+            <Hover hover_duration="2.0" />
+            <!-- 先对齐原点，再依次测试 X 轴、Y 轴和斜向返回。 -->
+            <QuinticNav x="0.0" y="0.0" z="1.0" v_max="0.8" a_max="0.5" tolerance="0.15" timeout="30.0" />
+            <Hover hover_duration="2.0" />
+            <QuinticNav x="2.0" y="0.0" z="1.0" v_max="0.8" a_max="0.5" tolerance="0.15" timeout="30.0" />
+            <Hover hover_duration="2.0" />
+            <QuinticNav x="2.0" y="2.0" z="1.0" v_max="0.8" a_max="0.5" tolerance="0.15" timeout="30.0" />
+            <Hover hover_duration="2.0" />
+            <QuinticNav x="0.0" y="0.0" z="1.0" v_max="0.8" a_max="0.5" tolerance="0.15" timeout="30.0" />
+            <Hover hover_duration="2.0" />
+            <TouchDown descent_speed="-0.3" timeout="60.0" ground_timeout="3.0" />
+        </Sequence>
+    </BehaviorTree>
+</root>

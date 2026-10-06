@@ -17,12 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_ros
   behaviortree_cpp_v3
-  message_generation
   std_msgs
-  sensor_msgs
-  pcl_ros
-  pcl_conversions
-  visualization_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,32 +52,6 @@ find_package(Boost REQUIRED COMPONENTS system)
 ##   * uncomment the generate_messages entry below
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
-## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  StringStamped.msg
-)
-
-## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
-
-## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
-
-## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-)
-
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
 ################################################
@@ -115,7 +84,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
-  CATKIN_DEPENDS roscpp mavros mavros_msgs geometry_msgs tf2 tf2_ros behaviortree_cpp_v3 message_runtime std_msgs sensor_msgs pcl_ros pcl_conversions visualization_msgs
+  CATKIN_DEPENDS roscpp mavros mavros_msgs geometry_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs
   DEPENDS Boost
 )
 
@@ -144,14 +113,7 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/waitstep.cpp
   src/maxt_nodes/hover.cpp
   src/maxt_nodes/round.cpp
-  src/maxt_nodes/qr_detect.cpp
-  src/maxt_nodes/conditions.cpp
-  src/maxt_nodes/target_check2.cpp
-  src/maxt_nodes/yolo_receiver.cpp
   src/maxt_nodes/connect_check.cpp
-  src/maxt_nodes/ring_center_receiver.cpp
-  src/maxt_nodes/deliver.cpp
-  src/maxt_nodes/all_deliver.cpp
 
   src/maxt_nodes/touch_down.cpp
 
@@ -191,16 +153,6 @@ target_link_libraries(maxt_test_node
   ${Boost_LIBRARIES}
 )
 
-## Declare ring_center_detect_node executable
-add_executable(maxt_ring_center_detect_node src/ring_center_detect_node.cpp)
-
-add_dependencies(maxt_ring_center_detect_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-target_link_libraries(maxt_ring_center_detect_node
-  ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-)
-
 #############
 ## Install ##
 #############
@@ -217,7 +169,7 @@ target_link_libraries(maxt_ring_center_detect_node
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-install(TARGETS maxt_test_node maxt_ring_center_detect_node
+install(TARGETS maxt_test_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

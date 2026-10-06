@@ -1,0 +1,15 @@
+<launch>
+    <!-- 默认复用已启动的 MAVROS 和定位系统；需要时可开启外部启动项。 -->
+    <arg name="run_mavros" default="false" />
+    <arg name="run_fast_lio" default="false" />
+    <arg name="bt_tick_rate" default="20.0" />
+    <arg name="heartbeat_rate" default="20.0" />
+
+    <include file="$(find maxt_pkg)/launch/mission.launch">
+        <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/basic_test.xml" />
+        <arg name="run_mavros" value="$(arg run_mavros)" />
+        <arg name="run_fast_lio" value="$(arg run_fast_lio)" />
+        <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />
+        <arg name="heartbeat_rate" value="$(arg heartbeat_rate)" />
+    </include>
+</launch>

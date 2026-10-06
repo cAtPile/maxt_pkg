@@ -1,0 +1,21 @@
+<root main_tree_to_execute="RoundTest">
+    <!-- 绝对坐标测试：假定起飞点 XY=(0,0)，目标高度 z=1m。 -->
+    <BehaviorTree ID="RoundTest">
+        <Sequence>
+            <ConnectCheck timeout="30.0" />
+            <Takeoff target_alt="1.0" ascent_speed="0.5" timeout="30.0" />
+            <Hover hover_duration="2.0" />
+            <!-- 先到达圆周起点，使到圆心的距离与指定半径一致。 -->
+            <QuinticNav x="0.0" y="0.0" z="1.0" v_max="0.8" a_max="0.5" tolerance="0.15" timeout="30.0" />
+            <Hover hover_duration="2.0" />
+            <!-- 从圆心左侧开始，按现有 Round 实现顺时针运动一圈。 -->
+            <Round center_x="1.0" center_y="0.0" center_z="1.0"
+                   radius="1.0" angular_speed="20.0" total_angle="360.0"
+                   ramp_time="2.0" tolerance="0.15" timeout="45.0" />
+            <Hover hover_duration="2.0" />
+            <QuinticNav x="0.0" y="0.0" z="1.0" v_max="0.8" a_max="0.5" tolerance="0.15" timeout="30.0" />
+            <Hover hover_duration="2.0" />
+            <TouchDown descent_speed="-0.3" timeout="60.0" ground_timeout="3.0" />
+        </Sequence>
+    </BehaviorTree>
+</root>
