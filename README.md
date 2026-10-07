@@ -6,7 +6,7 @@ MaxtCore 负责初始化、注册行为树节点和执行 XML；MavKit 封装状
 
 当前注册节点：`ConnectCheck`、`Takeoff`、`GoTo`、`QuinticNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`。`Land`、`XNavigation` 仅有历史头文件声明，未注册，不能用于任务 XML。
 
-比赛专用识别、圆环检测和投放功能已移除，接口变更和建议见 [清理交付文档](docs/craicRM_delivery.md)。
+比赛专用识别、圆环检测和投放功能已移除，接口变更和建议见 [清理交付文档](docs/done/craicRM_delivery.md)。
 
 主要目录：
 
@@ -55,3 +55,16 @@ roslaunch maxt_pkg mission.launch bt_xml_path:=/absolute/path/to/task.xml
 `mission.launch` 支持 `bt_tick_rate`、`heartbeat_rate`（默认均为 20Hz），以及默认关闭的 `run_mavros`、`run_fast_lio`、`run_camera`。三个组件开关分别依赖外部包 `tutorial_basic`、`tutorial_navigation`、`tutorial_vision`。
 
 本次按指南要求未执行编译或运行测试，测试入口供人工检验。
+
+## Gazebo 视觉仿真
+
+新增 ROS Noetic / Gazebo Classic 11 场景，包含地面、三种障碍物、沿 Y 轴往返的图片板和固定相机：
+
+```bash
+roslaunch maxt_pkg sim_world.launch
+rosrun rqt_image_view rqt_image_view /sim_world/camera/image_raw
+```
+
+依赖 `gazebo_ros`、`gazebo_plugins`、`gazebo_msgs`、`rospy` 和 `tf2_ros`。图片板默认中心 (3,0,1.5)，振幅 2m、周期 12s；可通过 `amplitude`、`period`、`target_x/y/z` 调整，`move_target:=false` 停止移动。资源在 `worlds/`、`models/tracking_target/`，无需下载在线模型。此入口提供视觉环境，后续无人机仿真需另接 SITL/MAVROS。
+
+使用步骤、图片替换和 world 编写方法见 [仿真教程](docs/simWorld_tutorial.md)，变更与建议见 [交付文档](docs/simWorld_delivery.md)。

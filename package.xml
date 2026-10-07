@@ -28,6 +28,12 @@
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   
+  <!-- Standalone Gazebo world and moving image target. -->
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>gazebo_ros</exec_depend>
+  <exec_depend>gazebo_plugins</exec_depend>
+  <exec_depend>gazebo_msgs</exec_depend>
+
   <export>
     <build_type>catkin</build_type>
   </export>

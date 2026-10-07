@@ -1,0 +1,168 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <world name="tracking_test">
+    <gravity>0 0 -9.81</gravity>
+
+    <physics name="default_physics" type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <!-- Self-contained ground and lighting: no online model downloads. -->
+    <light name="sun" type="directional">
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+      <cast_shadows>true</cast_shadows>
+    </light>
+
+    <model name="ground">
+      <static>true</static>
+      <link name="ground_link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>30 30</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>30 30</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.65 0.65 0.65 1</ambient>
+            <diffuse>0.65 0.65 0.65 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="box_obstacle">
+      <static>true</static>
+      <pose>0 3 0.75 0 0 0</pose>
+      <link name="body">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.5 1 1.5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.5 1 1.5</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.7 0.3 0.2 1</ambient>
+            <diffuse>0.7 0.3 0.2 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="pillar_obstacle">
+      <static>true</static>
+      <pose>2 -3 1.25 0 0 0</pose>
+      <link name="body">
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <radius>0.4</radius>
+              <length>2.5</length>
+            </cylinder>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>0.4</radius>
+              <length>2.5</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.2 0.5 0.7 1</ambient>
+            <diffuse>0.2 0.5 0.7 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="wall_obstacle">
+      <static>true</static>
+      <pose>5 3 1 0 0 0</pose>
+      <link name="body">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.3 3 2</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.3 3 2</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.5 0.5 1</ambient>
+            <diffuse>0.5 0.5 0.5 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <include>
+      <uri>model://tracking_target</uri>
+      <name>tracking_target</name>
+      <pose>3 0 1.5 0 0 0</pose>
+    </include>
+
+    <!-- Gazebo cameras look along local +X; target texture lies in the YZ plane. -->
+    <model name="tracking_camera">
+      <static>true</static>
+      <pose>-5 0 1.5 0 0 0</pose>
+      <link name="camera_link">
+        <sensor name="camera" type="camera">
+          <always_on>true</always_on>
+          <update_rate>30</update_rate>
+          <visualize>true</visualize>
+          <camera>
+            <horizontal_fov>1.0472</horizontal_fov>
+            <image>
+              <width>640</width>
+              <height>480</height>
+              <format>R8G8B8</format>
+            </image>
+            <clip>
+              <near>0.1</near>
+              <far>50</far>
+            </clip>
+          </camera>
+          <plugin name="ros_camera" filename="libgazebo_ros_camera.so">
+            <robotNamespace>/sim_world</robotNamespace>
+            <cameraName>camera</cameraName>
+            <imageTopicName>image_raw</imageTopicName>
+            <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+            <frameName>tracking_camera_optical_frame</frameName>
+            <updateRate>30</updateRate>
+          </plugin>
+        </sensor>
+      </link>
+    </model>
+
+    <gui>
+      <camera name="user_camera">
+        <pose>-9 -9 7 0 0.4 0.7</pose>
+      </camera>
+    </gui>
+  </world>
+</sdf>

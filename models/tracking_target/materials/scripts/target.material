@@ -1,0 +1,13 @@
+material Maxt/TrackingTarget
+{
+  technique
+  {
+    pass
+    {
+      lighting off
+      cull_hardware none
+      cull_software none
+      texture_unit { texture target.png }
+    }
+  }
+}
