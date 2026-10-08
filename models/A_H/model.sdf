@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="A_H">
+    <static>true</static>
+    <link name="marker">
+      <!-- Rotate the existing YZ panel into the ground XY plane. -->
+      <visual name="image">
+        <pose>0 0 0 0 1.57079632679 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://tracking_target/meshes/panel.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://A_H/materials/scripts</uri>
+            <uri>model://A_H</uri>
+            <name>Maxt/TakeoffMarker</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

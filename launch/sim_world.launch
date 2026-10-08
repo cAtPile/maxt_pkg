@@ -3,11 +3,12 @@
   <arg name="gui" default="true"/>
   <arg name="paused" default="false"/>
   <arg name="move_target" default="true"/>
-  <arg name="target_x" default="3.0"/>
-  <arg name="target_y" default="0.0"/>
-  <arg name="target_z" default="1.5"/>
+  <arg name="target_x" default="-2.0"/>
+  <arg name="target_y" default="2.0"/>
+  <arg name="target_z" default="0.02"/>
   <arg name="amplitude" default="2.0"/>
   <arg name="period" default="12.0"/>
+  <!-- Compatibility argument; native motion now updates every physics step. -->
   <arg name="rate" default="30.0"/>
   <!-- Preserve model paths supplied by other simulation packages. -->
   <env name="GAZEBO_MODEL_PATH" value="$(find maxt_pkg)/models:$(optenv GAZEBO_MODEL_PATH)"/>
@@ -17,11 +18,16 @@
     <arg name="paused" value="$(arg paused)"/>
     <arg name="use_sim_time" value="true"/>
   </include>
-  <node if="$(arg move_target)" pkg="maxt_pkg" type="moving_target.py" name="moving_target" output="screen">
-    <param name="x" value="$(arg target_x)"/><param name="y" value="$(arg target_y)"/><param name="z" value="$(arg target_z)"/>
-    <param name="amplitude" value="$(arg amplitude)"/><param name="period" value="$(arg period)"/><param name="rate" value="$(arg rate)"/>
-  </node>
-  <!-- World -> optical: camera +X forward becomes optical +Z forward. -->
+  <!-- The model plugin reads these once, then updates on each physics step. -->
+  <group ns="moving_target">
+    <param name="enabled" value="$(arg move_target)"/>
+    <param name="x" value="$(arg target_x)"/>
+    <param name="y" value="$(arg target_y)"/>
+    <param name="z" value="$(arg target_z)"/>
+    <param name="amplitude" value="$(arg amplitude)"/>
+    <param name="period" value="$(arg period)"/>
+  </group>
+  <!-- Downward camera optical frame: +Z points toward the ground. -->
   <node pkg="tf2_ros" type="static_transform_publisher" name="tracking_camera_tf"
-        args="-5 0 1.5 -1.57079632679 0 -1.57079632679 world tracking_camera_optical_frame"/>
+        args="-2 2 6 0.70710678119 -0.70710678119 0 0 world tracking_camera_optical_frame"/>
 </launch>

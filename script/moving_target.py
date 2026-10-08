@@ -8,10 +8,14 @@ from gazebo_msgs.srv import SetModelState
 
 def main():
     rospy.init_node('moving_target')
+    if rospy.get_param('/moving_target/enabled', True):
+        rospy.logfatal('Native target motion is enabled. Use the launch parameters; '
+                       'for legacy control launch with move_target:=false first.')
+        return
     model_name = rospy.get_param('~model_name', 'tracking_target')
-    x = rospy.get_param('~x', 3.0)
-    y = rospy.get_param('~y', 0.0)
-    z = rospy.get_param('~z', 1.5)
+    x = rospy.get_param('~x', -2.0)
+    y = rospy.get_param('~y', 2.0)
+    z = rospy.get_param('~z', 0.02)
     amplitude = rospy.get_param('~amplitude', 2.0)
     period = rospy.get_param('~period', 12.0)
     rate_hz = rospy.get_param('~rate', 30.0)
@@ -20,7 +24,9 @@ def main():
     rospy.wait_for_service('/gazebo/set_model_state')
     set_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
     state = ModelState(model_name=model_name, reference_frame='world')
-    state.pose.orientation.w = 1.0
+    # Rotate the YZ image panel onto the ground, with its front face upward.
+    state.pose.orientation.y = math.sin(math.pi / 4.0)
+    state.pose.orientation.w = math.cos(math.pi / 4.0)
     state.pose.position.x = x
     state.pose.position.z = z
     rate = rospy.Rate(rate_hz, reset=True)

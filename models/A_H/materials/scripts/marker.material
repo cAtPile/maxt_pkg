@@ -1,0 +1,16 @@
+material Maxt/TakeoffMarker
+{
+  technique
+  {
+    pass
+    {
+      lighting off
+      cull_hardware none
+      cull_software none
+      texture_unit
+      {
+        texture A_H.jpg
+      }
+    }
+  }
+}

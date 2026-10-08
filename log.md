@@ -137,6 +137,11 @@
                 2. 测试
 
 [16:03] plan:   1. 做一个world
-                2. 做一个指导模式，使用action
 
+10-7
+[11:52] plan:   1. 学习egoplanner
+                2. 做一个避障world
+                3. 做一个指导模式，使用action
+                4. 做一个搜索二维码的demo
+                5. 做一个避障demo
 

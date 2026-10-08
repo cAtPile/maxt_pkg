@@ -1,10 +1,33 @@
-<?xml version="1.0"?>
-<sdf version="1.6"><model name="tracking_target">
- <!-- Static prevents gravity; the ROS controller explicitly sets its world pose. -->
- <static>true</static><link name="panel">
-  <collision name="panel_collision"><geometry><box><size>0.03 1 1</size></box></geometry></collision>
-  <visual name="image"><geometry><mesh><uri>model://tracking_target/meshes/panel.dae</uri></mesh></geometry>
-   <material><script><uri>model://tracking_target/materials/scripts</uri><uri>model://tracking_target/materials/textures</uri><name>Maxt/TrackingTarget</name></script></material>
-  </visual>
- </link>
-</model></sdf>
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="tracking_target">
+    <!-- Static prevents gravity; the Gazebo plugin updates its pose every simulation step. -->
+    <static>true</static>
+    <link name="panel">
+      <collision name="panel_collision">
+        <geometry>
+          <box>
+            <size>0.03 1 1</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="image">
+        <geometry>
+          <mesh>
+            <uri>model://tracking_target/meshes/panel.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://tracking_target/materials/scripts</uri>
+            <uri>model://tracking_target/materials/textures</uri>
+            <name>Maxt/TrackingTarget</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+    <plugin name="moving_target" filename="libmaxt_moving_target_plugin.so">
+      <robotNamespace>/moving_target</robotNamespace>
+    </plugin>
+  </model>
+</sdf>

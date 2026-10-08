@@ -58,13 +58,21 @@ roslaunch maxt_pkg mission.launch bt_xml_path:=/absolute/path/to/task.xml
 
 ## Gazebo 视觉仿真
 
-新增 ROS Noetic / Gazebo Classic 11 场景，包含地面、三种障碍物、沿 Y 轴往返的图片板和固定相机：
+新增 ROS Noetic / Gazebo Classic 11 场景，包含地面、三个方柱障碍物、沿 Y 轴往返的图片板和固定相机：
 
 ```bash
 roslaunch maxt_pkg sim_world.launch
 rosrun rqt_image_view rqt_image_view /sim_world/camera/image_raw
 ```
 
-依赖 `gazebo_ros`、`gazebo_plugins`、`gazebo_msgs`、`rospy` 和 `tf2_ros`。图片板默认中心 (3,0,1.5)，振幅 2m、周期 12s；可通过 `amplitude`、`period`、`target_x/y/z` 调整，`move_target:=false` 停止移动。资源在 `worlds/`、`models/tracking_target/`，无需下载在线模型。此入口提供视觉环境，后续无人机仿真需另接 SITL/MAVROS。
+依赖 `gazebo_ros`、`gazebo_plugins`、`gazebo_msgs`、`rospy` 和 `tf2_ros`。图片板默认中心 (-2,2,0.02)，振幅 2m、周期 12s；可通过 `amplitude`、`period`、`target_x/y/z` 调整，`move_target:=false` 停止移动。资源在 `worlds/`、`models/tracking_target/`，无需下载在线模型。此入口提供视觉环境，后续无人机仿真需另接 SITL/MAVROS。
 
 使用步骤、图片替换和 world 编写方法见 [仿真教程](docs/simWorld_tutorial.md)，变更与建议见 [交付文档](docs/simWorld_delivery.md)。
+
+使用 `ref/sim.launch` 接入 PX4 时，启动文件必须将 `$(find maxt_pkg)/models` 加入 `GAZEBO_MODEL_PATH`，否则新 world 中的 `model://tracking_target` 无法从本包解析。该参考入口已补充此设置并保留原有 PX4 模型路径；它依赖外部 PX4、mavlink_sitl_gazebo 和 MAVROS 包。
+
+当前 world 在 (0,0) 放置 `models/A_H/A_H.jpg` 起飞标记；三个障碍物中心 XY 分别为 (2,2)、(4,1)、(4,3)，尺寸均为 0.5×0.5×2m。目标在 (-2,0) 与 (-2,4) 之间往返，图片朝上，板面高度 0.02m。固定相机在 (-2,2,6) 俯视地面。`ref/sim.launch` 默认起飞位置仍为 (0,0)，已配置目标运动插件。详见 [场景修改交付](docs/modifyWorld_delivery.md)。
+
+`ref/sim.launch` 默认使用 PX4 的 `iris` 模型，SDF 与 `vehicle` 参数一致；已移除原 magpie360 模型对应的 Mid360 建图、里程计转发和静态 TF 链。定位采用 PX4 仿真传感器估计，通过 MAVROS 获取。此次减少了激光和建图负载，实际流畅度仍需本机运行确认。
+
+靶标现由 Gazebo 原生插件按每个物理步更新，消除了原 Python 30Hz 同步服务调用造成的不均匀更新。首次使用需重新编译：`cd ~/catkin_ws && catkin_make --pkg maxt_pkg`，然后 `source devel/setup.bash`。`move_target`、`target_x/y/z`、`amplitude`、`period` 参数继续有效；`sim_world.launch` 的旧 `rate` 参数保留但不再控制更新频率。修复说明见 [靶标运动交付文档](docs/target_motion_delivery.md)。

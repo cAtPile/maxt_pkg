@@ -22,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(gazebo REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -100,6 +101,12 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
+
+# Native target motion avoids synchronous ROS service calls during simulation.
+link_directories(${GAZEBO_LIBRARY_DIRS})
+add_library(maxt_moving_target_plugin SHARED src/sim/moving_target_plugin.cpp)
+target_include_directories(maxt_moving_target_plugin PRIVATE ${GAZEBO_INCLUDE_DIRS})
+target_link_libraries(maxt_moving_target_plugin ${GAZEBO_LIBRARIES} ${catkin_LIBRARIES})
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
@@ -183,7 +190,7 @@ install(TARGETS maxt_test_node
 
 ## Mark libraries for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_libraries.html
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME} maxt_moving_target_plugin
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}

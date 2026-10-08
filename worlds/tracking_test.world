@@ -45,19 +45,19 @@
 
     <model name="box_obstacle">
       <static>true</static>
-      <pose>0 3 0.75 0 0 0</pose>
+      <pose>2 2 1 0 0 0</pose>
       <link name="body">
         <collision name="collision">
           <geometry>
             <box>
-              <size>1.5 1 1.5</size>
+              <size>0.5 0.5 2</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>1.5 1 1.5</size>
+              <size>0.5 0.5 2</size>
             </box>
           </geometry>
           <material>
@@ -70,22 +70,20 @@
 
     <model name="pillar_obstacle">
       <static>true</static>
-      <pose>2 -3 1.25 0 0 0</pose>
+      <pose>4 1 1 0 0 0</pose>
       <link name="body">
         <collision name="collision">
           <geometry>
-            <cylinder>
-              <radius>0.4</radius>
-              <length>2.5</length>
-            </cylinder>
+            <box>
+              <size>0.5 0.5 2</size>
+            </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <cylinder>
-              <radius>0.4</radius>
-              <length>2.5</length>
-            </cylinder>
+            <box>
+              <size>0.5 0.5 2</size>
+            </box>
           </geometry>
           <material>
             <ambient>0.2 0.5 0.7 1</ambient>
@@ -97,19 +95,19 @@
 
     <model name="wall_obstacle">
       <static>true</static>
-      <pose>5 3 1 0 0 0</pose>
+      <pose>4 3 1 0 0 0</pose>
       <link name="body">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.3 3 2</size>
+              <size>0.5 0.5 2</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.3 3 2</size>
+              <size>0.5 0.5 2</size>
             </box>
           </geometry>
           <material>
@@ -120,16 +118,24 @@
       </link>
     </model>
 
+    <!-- Ground image marks the takeoff origin; lift slightly to avoid z-fighting. -->
+    <include>
+      <uri>model://A_H</uri>
+      <name>takeoff_marker</name>
+      <pose>0 0 0.01 0 0 0</pose>
+    </include>
+
+    <!-- Motion controller uses centre (-2, 2), amplitude 2 along world Y. -->
     <include>
       <uri>model://tracking_target</uri>
       <name>tracking_target</name>
-      <pose>3 0 1.5 0 0 0</pose>
+      <pose>-2 2 0.02 0 1.57079632679 0</pose>
     </include>
 
-    <!-- Gazebo cameras look along local +X; target texture lies in the YZ plane. -->
+    <!-- Camera local +X is rotated downward to observe the ground target. -->
     <model name="tracking_camera">
       <static>true</static>
-      <pose>-5 0 1.5 0 0 0</pose>
+      <pose>-2 2 6 0 1.57079632679 0</pose>
       <link name="camera_link">
         <sensor name="camera" type="camera">
           <always_on>true</always_on>
