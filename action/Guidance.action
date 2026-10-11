@@ -1,0 +1,10 @@
+# Target selected by the perception action server.
+string target_id
+---
+# Terminal description: SUCCEED, FAIL, TIMEOUT, ...
+string message
+---
+# Errors and biases must use the same units (pixels or normalized coordinates).
+bool target_visible
+float32 error_u
+float32 error_v

@@ -1,0 +1,23 @@
+<launch>
+    <!-- 默认复用已有仿真；run_sim:=true 可同时启动 PX4、Gazebo 和 MAVROS。 -->
+    <arg name="run_sim" default="false" />
+    <arg name="gui" default="true" />
+    <arg name="error_u" default="20.0" />
+    <arg name="duration" default="10.0" />
+    <arg name="rate" default="20.0" />
+
+    <include if="$(arg run_sim)" file="$(find maxt_pkg)/launch/sim.launch">
+        <arg name="gui" value="$(arg gui)" />
+    </include>
+
+    <node pkg="maxt_pkg" type="guidance_test_server.py"
+          name="guidance_test_server" output="screen">
+        <param name="error_u" value="$(arg error_u)" />
+        <param name="duration" value="$(arg duration)" />
+        <param name="rate" value="$(arg rate)" />
+    </node>
+
+    <include file="$(find maxt_pkg)/launch/mission.launch">
+        <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/guidance_test.xml" />
+    </include>
+</launch>

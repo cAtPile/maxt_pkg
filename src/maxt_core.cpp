@@ -1,4 +1,5 @@
 #include <maxt_pkg/maxt_core.hpp>
+#include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
 #include <maxt_pkg/maxt_nodes/goto_node.hpp>
@@ -98,6 +99,11 @@ void MaxtCore::registerNodes() {
     factory_.registerBuilder<TouchDownNode>("TouchDown",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<TouchDownNode>(name, config, *mav_);
+        });
+
+    factory_.registerBuilder<GuidanceNode>("Guidance",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<GuidanceNode>(name, config, *mav_);
         });
 
     ROS_INFO("MaxtCore: All BT Nodes registered.");

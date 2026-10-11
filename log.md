@@ -139,9 +139,20 @@
 [16:03] plan:   1. 做一个world
 
 10-7
-[11:52] plan:   1. 学习egoplanner
-                2. 做一个避障world
-                3. 做一个指导模式，使用action
+[11:52] plan:   1. 做一个避障world
+
+10-8
+[13:01] done:   1. 搭建了基础测试环境
+        plan:   1. 做一个指导模式，使用action
+                2. 学习egoplanner
                 4. 做一个搜索二维码的demo
                 5. 做一个避障demo
 
+10-11
+[19:04] done:   1. 完成guidance的脚本测试
+
+        plan:   1. 定义交互消息格式
+                4. ArUco的视觉伺服
+                2. 地面小车的仿真
+                3. ArUco的仿真环境
+                5. ugv+uav协同

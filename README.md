@@ -4,7 +4,7 @@
 
 MaxtCore 负责初始化、注册行为树节点和执行 XML；MavKit 封装状态订阅、坐标标定、设点发布以及解锁和模式服务。任务节点使用已有非阻塞生命周期。
 
-当前注册节点：`ConnectCheck`、`Takeoff`、`GoTo`、`QuinticNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`。`Land`、`XNavigation` 仅有历史头文件声明，未注册，不能用于任务 XML。
+当前注册节点：`ConnectCheck`、`Takeoff`、`GoTo`、`QuinticNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`。`Land`、`XNavigation` 仅有历史头文件声明，未注册，不能用于任务 XML。
 
 比赛专用识别、圆环检测和投放功能已移除，接口变更和建议见 [清理交付文档](docs/done/craicRM_delivery.md)。
 
@@ -76,3 +76,11 @@ rosrun rqt_image_view rqt_image_view /sim_world/camera/image_raw
 `ref/sim.launch` 默认使用 PX4 的 `iris` 模型，SDF 与 `vehicle` 参数一致；已移除原 magpie360 模型对应的 Mid360 建图、里程计转发和静态 TF 链。定位采用 PX4 仿真传感器估计，通过 MAVROS 获取。此次减少了激光和建图负载，实际流畅度仍需本机运行确认。
 
 靶标现由 Gazebo 原生插件按每个物理步更新，消除了原 Python 30Hz 同步服务调用造成的不均匀更新。首次使用需重新编译：`cd ~/catkin_ws && catkin_make --pkg maxt_pkg`，然后 `source devel/setup.bash`。`move_target`、`target_x/y/z`、`amplitude`、`period` 参数继续有效；`sim_world.launch` 的旧 `rate` 参数保留但不再控制更新频率。修复说明见 [靶标运动交付文档](docs/target_motion_delivery.md)。
+
+## 视觉引导节点
+
+`Guidance` 向 `/guidance` 的 `maxt_pkg/GuidanceAction` 服务提交 `target_id`，读取可见性和图像偏差，通过 PID 发布水平速度，保持开始时的高度和偏航。onRunning 内通过 WAIT_SERVER、WAIT_FEEDBACK、GUIDING、REACHED 状态推进任务。误差达标后恢复 HEARTBEAT；等待反馈和目标丢失时使用 HEARTBEAT 模式发布当前位置。
+
+识别 action 服务需由感知端提供。XML 端口（仅 target_id、tolerance、timeout）、内部坐标映射和使用示例见 [Guidance 交付文档](docs/guidanceNode_delivery.md)。编译依赖新增 actionlib、actionlib_msgs 和 ROS 消息生成工具；修改后需重新运行 `catkin_make --pkg maxt_pkg` 并加载 `devel/setup.bash`。
+
+模拟反馈测试：已启动仿真时运行 `roslaunch maxt_pkg guidance_test.launch`；也可运行 `roslaunch maxt_pkg guidance_test.launch run_sim:=true` 一起启动仿真。行为树起飞后发送 `target_id=test`，服务以 20Hz 发布固定 `error_u=20、error_v=0`，10 秒后停止反馈，Guidance 在 15 秒整体超时后执行降落。参数 `error_u`、`duration`、`rate` 可在 launch 命令中调整；模拟反馈与实际运动无关。详细步骤见 [测试脚本说明](docs/guidance_test_delivery.md)。

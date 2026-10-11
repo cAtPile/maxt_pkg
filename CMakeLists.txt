@@ -11,6 +11,9 @@ add_compile_options(-std=c++14)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  actionlib
+  actionlib_msgs
+  message_generation
   mavros
   mavros_msgs
   geometry_msgs
@@ -21,6 +24,9 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
+add_action_files(FILES Guidance.action)
+generate_messages(DEPENDENCIES actionlib_msgs std_msgs)
+
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(gazebo REQUIRED)
 
@@ -85,7 +91,7 @@ find_package(gazebo REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
-  CATKIN_DEPENDS roscpp mavros mavros_msgs geometry_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs
+  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs
   DEPENDS Boost
 )
 
@@ -114,6 +120,7 @@ add_library(${PROJECT_NAME}
   src/maxt_mav/maxt_mav_cb.cpp
   src/maxt_mav/maxt_mav_con.cpp
   src/maxt_mav/maxt_mav_request.cpp
+  src/maxt_nodes/guidance.cpp
   src/maxt_nodes/goto.cpp
 
   src/maxt_nodes/takeoff.cpp
@@ -174,7 +181,7 @@ target_link_libraries(maxt_test_node
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-catkin_install_python(PROGRAMS script/moving_target.py
+catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -222,3 +229,7 @@ install(DIRECTORY launch config
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+install(DIRECTORY action
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
