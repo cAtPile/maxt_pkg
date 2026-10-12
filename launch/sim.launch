@@ -11,9 +11,11 @@
     <arg name="Y" default="0"/>
     <!-- vehicle model and world -->
     <arg name="est" default="ekf2"/>
+    <!-- PX4 airframe stays iris; Gazebo adds the body-mounted camera via SDF. -->
     <arg name="vehicle" default="iris"/>
+    <arg name="gazebo_model" default="iris_downward_depth_camera"/>
     <arg name="world" default="$(find maxt_pkg)/worlds/tracking_test.world"/>
-    <arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg vehicle)/$(arg vehicle).sdf"/>
+    <arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg gazebo_model)/$(arg gazebo_model).sdf"/>
 
     <!-- Resolve tracking_target while preserving existing PX4 model paths. -->
     <env name="GAZEBO_MODEL_PATH"
@@ -32,13 +34,14 @@
     <arg name="target_z" default="0.02"/>
     <arg name="amplitude" default="2.0"/>
     <arg name="period" default="12.0"/>
+    <arg name="config" default="$(find maxt_pkg)/config/sim_world.yaml"/>
 
     <!-- MAVROS configs -->
     <arg name="fcu_url" default="udp://:14540@localhost:14557"/>
     <arg name="gcs_url" default="udp://@127.0.0.1:14550"/>
     <arg name="respawn_mavros" default="false"/>
     <!-- PX4 configs -->
-    <arg name="interactive" default="true"/>
+    <arg name="interactive" default="false"/>
     <!-- PX4 SITL and Gazebo -->
 
     <include file="$(find px4)/launch/posix_sitl.launch">
@@ -66,6 +69,7 @@
         <param name="z" value="$(arg target_z)"/>
         <param name="amplitude" value="$(arg amplitude)"/>
         <param name="period" value="$(arg period)"/>
+        <rosparam command="load" file="$(arg config)"/>
     </group>
 
     <!-- MAVROS -->

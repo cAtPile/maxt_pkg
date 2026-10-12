@@ -1,0 +1,28 @@
+<launch>
+    <!-- 起飞 2m → (-2, 2, 2) → 真实 ArUco 视觉伺服 → 降落。 -->
+    <arg name="run_sim" default="true" />
+    <arg name="gui" default="true" />
+    <arg name="view_image" default="true" />
+    <arg name="vision_config" default="$(find maxt_pkg)/config/aruco_center.yaml" />
+    <arg name="bt_tick_rate" default="20.0" />
+    <arg name="heartbeat_rate" default="20.0" />
+
+    <include if="$(arg run_sim)" file="$(find maxt_pkg)/launch/sim.launch">
+        <arg name="gui" value="$(arg gui)" />
+    </include>
+
+    <include file="$(find maxt_pkg)/launch/aruco_center.launch">
+        <arg name="config" value="$(arg vision_config)" />
+        <arg name="run_guidance" value="true" />
+    </include>
+
+    <include file="$(find maxt_pkg)/launch/mission.launch">
+        <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/vision_test.xml" />
+        <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />
+        <arg name="heartbeat_rate" value="$(arg heartbeat_rate)" />
+    </include>
+
+    <!-- 原始 sensor_msgs/Image；订阅后识别节点才会发布标注图像。 -->
+    <node if="$(arg view_image)" pkg="rqt_image_view" type="rqt_image_view"
+          name="vision_image_view" args="/aruco_center/debug_image" output="screen" />
+</launch>

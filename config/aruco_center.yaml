@@ -1,0 +1,18 @@
+# ArUco 视觉识别参数，由 launch/aruco_center.launch 加载到节点私有命名空间。
+# 修改后需重启识别节点；脚本在启动时读取参数，不会自动热更新。
+
+# 输入话题必须是 sensor_msgs/Image（原始图像，而不是压缩图像）。
+# iris_downward_depth_camera 的机身下视相机彩色图像；实机可改成 /camera/image_raw。
+image_topic: /camera/rgb/image_raw
+
+# 字典和 ID 必须与目标图片一致；当前仿真标记为 DICT_4X4_50 / ID 0。
+dictionary: DICT_4X4_50
+marker_id: 0
+
+# 输出中心：geometry_msgs/PointStamped，x=u、y=v，单位为像素，z=0。
+# “~”表示相对于节点的私有话题，默认解析为 /aruco_center/center。
+center_topic: "~center"
+
+# 输出标注图像：sensor_msgs/Image，可通过 rqt_image_view 查看。
+# 仅在存在订阅者时才绘制并发布，默认解析为 /aruco_center/debug_image。
+debug_image_topic: "~debug_image"

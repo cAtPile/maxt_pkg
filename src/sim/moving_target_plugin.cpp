@@ -21,6 +21,8 @@ public:
         model_ = model;
         center_pose_ = model_->WorldPose();
         bool enabled = true;
+        double speed = 0.0;
+        bool has_speed = false;
         if (ros::isInitialized())
         {
             const std::string ns = sdf->HasElement("robotNamespace")
@@ -32,22 +34,41 @@ public:
             params.param("z", center_pose_.Pos().Z(), center_pose_.Pos().Z());
             params.param("amplitude", amplitude_, 2.0);
             params.param("period", period_, 12.0);
+            has_speed = params.hasParam("speed");
+            if (has_speed && !params.getParam("speed", speed))
+            {
+                gzerr << "MovingTargetPlugin: speed must be a numeric value in m/s.\n";
+                return;
+            }
         }
         if (!enabled)
             return;
-        if (!std::isfinite(period_) || period_ <= 0.0 ||
+        if ((!has_speed && (!std::isfinite(period_) || period_ <= 0.0)) ||
+            (has_speed && (!std::isfinite(speed) || speed < 0.0)) ||
             !std::isfinite(amplitude_) || amplitude_ < 0.0)
         {
-            gzerr << "MovingTargetPlugin: period must be positive and amplitude "
-                  << "nonnegative (both finite).\n";
+            gzerr << "MovingTargetPlugin: period must be positive; speed and "
+                  << "amplitude must be nonnegative (all finite).\n";
             return;
+        }
+        stationary_ = amplitude_ == 0.0 || (has_speed && speed == 0.0);
+        if (has_speed && !stationary_)
+        {
+            period_ = 2.0 * std::acos(-1.0) * amplitude_ / speed;
+            if (!std::isfinite(period_) || period_ <= 0.0)
+            {
+                gzerr << "MovingTargetPlugin: speed/amplitude produce an invalid period.\n";
+                return;
+            }
         }
         Reset();
         update_connection_ = gazebo::event::Events::ConnectWorldUpdateBegin(
             std::bind(&MovingTargetPlugin::OnUpdate, this, std::placeholders::_1));
         gzmsg << "MovingTargetPlugin: " << model_->GetName()
               << " follows a sinusoid every physics step, period=" << period_
-              << ", amplitude=" << amplitude_ << "\n";
+              << ", amplitude=" << amplitude_
+              << ", max_speed=" << (stationary_ ? 0.0 :
+                  2.0 * std::acos(-1.0) * amplitude_ / period_) << " m/s\n";
     }
 
     void Reset() override
@@ -64,7 +85,7 @@ private:
         if (now < previous_time_)
             start_time_ = now;
         previous_time_ = now;
-        const double phase = 2.0 * std::acos(-1.0) *
+        const double phase = stationary_ ? 0.0 : 2.0 * std::acos(-1.0) *
             std::fmod(now - start_time_, period_) / period_;
         auto pose = center_pose_;
         pose.Pos().Y() += amplitude_ * std::sin(phase);
@@ -76,6 +97,7 @@ private:
     ignition::math::Pose3d center_pose_;
     double amplitude_ = 2.0;
     double period_ = 12.0;
+    bool stationary_ = false;
     double start_time_ = 0.0;
     double previous_time_ = 0.0;
     gazebo::event::ConnectionPtr update_connection_;

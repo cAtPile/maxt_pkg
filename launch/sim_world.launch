@@ -8,6 +8,7 @@
   <arg name="target_z" default="0.02"/>
   <arg name="amplitude" default="2.0"/>
   <arg name="period" default="12.0"/>
+  <arg name="config" default="$(find maxt_pkg)/config/sim_world.yaml"/>
   <!-- Compatibility argument; native motion now updates every physics step. -->
   <arg name="rate" default="30.0"/>
   <!-- Preserve model paths supplied by other simulation packages. -->
@@ -26,8 +27,6 @@
     <param name="z" value="$(arg target_z)"/>
     <param name="amplitude" value="$(arg amplitude)"/>
     <param name="period" value="$(arg period)"/>
+    <rosparam command="load" file="$(arg config)"/>
   </group>
-  <!-- Downward camera optical frame: +Z points toward the ground. -->
-  <node pkg="tf2_ros" type="static_transform_publisher" name="tracking_camera_tf"
-        args="-2 2 6 0.70710678119 -0.70710678119 0 0 world tracking_camera_optical_frame"/>
 </launch>

@@ -58,24 +58,27 @@ roslaunch maxt_pkg mission.launch bt_xml_path:=/absolute/path/to/task.xml
 
 ## Gazebo 视觉仿真
 
-新增 ROS Noetic / Gazebo Classic 11 场景，包含地面、三个方柱障碍物、沿 Y 轴往返的图片板和固定相机：
+新增 ROS Noetic / Gazebo Classic 11 场景，包含地面、三个方柱障碍物、沿 Y 轴往返的图片板；识别图像来自无人机机身下视相机：
 
 ```bash
-roslaunch maxt_pkg sim_world.launch
-rosrun rqt_image_view rqt_image_view /sim_world/camera/image_raw
+roslaunch maxt_pkg vision_test.launch
+# 查看机身相机原始彩色图像：
+rosrun rqt_image_view rqt_image_view /camera/rgb/image_raw
 ```
 
-依赖 `gazebo_ros`、`gazebo_plugins`、`gazebo_msgs`、`rospy` 和 `tf2_ros`。图片板默认中心 (-2,2,0.02)，振幅 2m、周期 12s；可通过 `amplitude`、`period`、`target_x/y/z` 调整，`move_target:=false` 停止移动。资源在 `worlds/`、`models/tracking_target/`，无需下载在线模型。此入口提供视觉环境，后续无人机仿真需另接 SITL/MAVROS。
+依赖 `gazebo_ros`、`gazebo_plugins`、`gazebo_msgs`、`rospy` 和 `tf2_ros`。图片板默认中心 (-2,2,0.02)，振幅 2m、周期约 12s；可通过 `amplitude`、`target_x/y/z` 调整，`move_target:=false` 停止移动。资源在 `worlds/`、`models/tracking_target/`，无需下载在线模型。此入口提供视觉环境，后续无人机仿真需另接 SITL/MAVROS。
+
+靶标位置、运动范围和速度在 [config/sim_world.yaml](config/sim_world.yaml) 中设置：`x/y/z` 为 Gazebo 世界坐标系中的运动中心（m），`amplitude` 为 Y 轴往返振幅（m），移动范围为 `[y-amplitude, y+amplitude]`。例如 `speed: 0.5` 表示最大速度 0.5 m/s，`speed: 0.0` 表示在中心静止。靶标保持正弦往返轨迹，瞬时速度会变化，周期由 `T = 2π × amplitude / speed` 自动计算。配置中的位置和振幅优先于对应 launch 参数，`speed` 优先于旧 `period` 参数；删除对应配置项后可继续使用 launch 参数。修改后重启仿真生效，`sim_world.launch` 和 `sim.launch` 均支持 `config:=/absolute/path/to/custom.yaml` 指定配置。相机随无人机运动，调整靶标位置时需确认机身下视相机能看到目标。详见 [速度配置交付文档](docs/done/sim_world_speed_delivery.md)。
 
 使用步骤、图片替换和 world 编写方法见 [仿真教程](docs/simWorld_tutorial.md)，变更与建议见 [交付文档](docs/simWorld_delivery.md)。
 
 使用 `ref/sim.launch` 接入 PX4 时，启动文件必须将 `$(find maxt_pkg)/models` 加入 `GAZEBO_MODEL_PATH`，否则新 world 中的 `model://tracking_target` 无法从本包解析。该参考入口已补充此设置并保留原有 PX4 模型路径；它依赖外部 PX4、mavlink_sitl_gazebo 和 MAVROS 包。
 
-当前 world 在 (0,0) 放置 `models/A_H/A_H.jpg` 起飞标记；三个障碍物中心 XY 分别为 (2,2)、(4,1)、(4,3)，尺寸均为 0.5×0.5×2m。目标在 (-2,0) 与 (-2,4) 之间往返，图片朝上，板面高度 0.02m。固定相机在 (-2,2,6) 俯视地面。`ref/sim.launch` 默认起飞位置仍为 (0,0)，已配置目标运动插件。详见 [场景修改交付](docs/modifyWorld_delivery.md)。
+当前 world 在 (0,0) 放置 `models/A_H/A_H.jpg` 起飞标记；三个障碍物中心 XY 分别为 (2,2)、(4,1)、(4,3)，尺寸均为 0.5×0.5×2m。目标在 (-2,0) 与 (-2,4) 之间往返，图片朝上，板面高度 0.02m。world 不再包含固定图像相机。`ref/sim.launch` 默认起飞位置仍为 (0,0)，已配置目标运动插件。详见 [场景修改交付](docs/modifyWorld_delivery.md)。
 
-`ref/sim.launch` 默认使用 PX4 的 `iris` 模型，SDF 与 `vehicle` 参数一致；已移除原 magpie360 模型对应的 Mid360 建图、里程计转发和静态 TF 链。定位采用 PX4 仿真传感器估计，通过 MAVROS 获取。此次减少了激光和建图负载，实际流畅度仍需本机运行确认。
+`launch/sim.launch` 默认使用 PX4 的 `iris` 飞控配置和 Gazebo 的 `iris_downward_depth_camera` 模型，机身下视相机彩色图像话题为 `/camera/rgb/image_raw`；已移除原 magpie360 模型对应的 Mid360 建图、里程计转发和静态 TF 链。定位采用 PX4 仿真传感器估计，通过 MAVROS 获取。此次减少了激光和建图负载，实际流畅度仍需本机运行确认。
 
-靶标现由 Gazebo 原生插件按每个物理步更新，消除了原 Python 30Hz 同步服务调用造成的不均匀更新。首次使用需重新编译：`cd ~/catkin_ws && catkin_make --pkg maxt_pkg`，然后 `source devel/setup.bash`。`move_target`、`target_x/y/z`、`amplitude`、`period` 参数继续有效；`sim_world.launch` 的旧 `rate` 参数保留但不再控制更新频率。修复说明见 [靶标运动交付文档](docs/target_motion_delivery.md)。
+靶标现由 Gazebo 原生插件按每个物理步更新，消除了原 Python 30Hz 同步服务调用造成的不均匀更新。首次使用需重新编译：`cd ~/catkin_ws && catkin_make --pkg maxt_pkg`，然后 `source devel/setup.bash`。`move_target`、`target_x/y/z`、`amplitude` 参数继续有效，`period` 在配置未指定 `speed` 时有效；`sim_world.launch` 的旧 `rate` 参数保留但不再控制更新频率。修复说明见 [靶标运动交付文档](docs/target_motion_delivery.md)。
 
 ## 视觉引导节点
 
@@ -84,3 +87,11 @@ rosrun rqt_image_view rqt_image_view /sim_world/camera/image_raw
 识别 action 服务需由感知端提供。XML 端口（仅 target_id、tolerance、timeout）、内部坐标映射和使用示例见 [Guidance 交付文档](docs/guidanceNode_delivery.md)。编译依赖新增 actionlib、actionlib_msgs 和 ROS 消息生成工具；修改后需重新运行 `catkin_make --pkg maxt_pkg` 并加载 `devel/setup.bash`。
 
 模拟反馈测试：已启动仿真时运行 `roslaunch maxt_pkg guidance_test.launch`；也可运行 `roslaunch maxt_pkg guidance_test.launch run_sim:=true` 一起启动仿真。行为树起飞后发送 `target_id=test`，服务以 20Hz 发布固定 `error_u=20、error_v=0`，10 秒后停止反馈，Guidance 在 15 秒整体超时后执行降落。参数 `error_u`、`duration`、`rate` 可在 launch 命令中调整；模拟反馈与实际运动无关。详细步骤见 [测试脚本说明](docs/guidance_test_delivery.md)。
+
+## 视觉伺服测试
+
+运行 `roslaunch maxt_pkg vision_test.launch`：启动 PX4/Gazebo、机身下视相机识别与标注图像窗口，使用 `config/mission/vision_test.xml`。飞机起飞到 2m，巡航至 (-2, 2, 2)，悬停 2 秒后视觉跟踪 ArUco ID 0 共 60 秒，最后降落。视觉阶段最多等待 90 秒；丢失目标或图像过期时暂停水平控制，重新识别后继续跟踪。
+
+靶标白边板为 0.5×0.5m，内部 ArUco 黑色方块为 0.375m。输入 `/camera/rgb/image_raw`，标注图像 `/aruco_center/debug_image`，真实像素误差通过 `/guidance` Action 提供给飞控。`Guidance` 的 `downward_camera=true` 将下视相机像素轴按当前航向转换到水平速度，`kp=0.003`，速度上限 0.5m/s；`tracking_duration=0` 保持原有单次对中行为。
+
+靶标运动由 `config/sim_world.yaml` 控制。修改尺寸或配置后需重启仿真；修改 C++ 控制节点后需重新编译。

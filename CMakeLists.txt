@@ -181,7 +181,7 @@ target_link_libraries(maxt_test_node
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py
+catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py script/aruco_center.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -213,7 +213,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  FILES_MATCHING PATTERN "*.launch" PATTERN "*.xml"
+  FILES_MATCHING PATTERN "*.launch" PATTERN "*.xml" PATTERN "*.yaml"
   PATTERN "*~" EXCLUDE
 )
 

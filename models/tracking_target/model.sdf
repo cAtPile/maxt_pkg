@@ -7,7 +7,7 @@
       <collision name="panel_collision">
         <geometry>
           <box>
-            <size>0.03 1 1</size>
+            <size>0.015 0.5 0.5</size>
           </box>
         </geometry>
       </collision>
@@ -15,6 +15,7 @@
         <geometry>
           <mesh>
             <uri>model://tracking_target/meshes/panel.dae</uri>
+            <scale>0.5 0.5 0.5</scale>
           </mesh>
         </geometry>
         <material>

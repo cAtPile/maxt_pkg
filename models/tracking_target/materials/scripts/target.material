@@ -7,7 +7,11 @@ material Maxt/TrackingTarget
       lighting off
       cull_hardware none
       cull_software none
-      texture_unit { texture target.png }
+      texture_unit
+      {
+        texture aruco_4x4_50_id0.png
+        filtering none
+      }
     }
   }
 }

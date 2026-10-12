@@ -1,0 +1,10 @@
+<launch>
+  <!-- 可通过 config:=/absolute/path/custom.yaml 指定另一份参数文件。 -->
+  <arg name="config" default="$(find maxt_pkg)/config/aruco_center.yaml"/>
+  <arg name="run_guidance" default="false"/>
+  <node pkg="maxt_pkg" type="aruco_center.py" name="aruco_center" output="screen">
+    <!-- 放在 node 内部，保证参数加载到 ~ 私有命名空间。 -->
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="run_guidance" value="$(arg run_guidance)"/>
+  </node>
+</launch>

@@ -48,13 +48,17 @@ private:
     maxt_pkg::GuidanceGoal goal_;
     PIDController pid_u_, pid_v_;
     ros::Time start_time_, last_update_;
+    ros::Time tracking_start_;
+    double tracking_duration_{0.0};
+    bool downward_camera_{false}, tracking_started_{false};
     unsigned long processed_sequence_{0};
     bool goal_sent_{false};
     const std::string action_name_{"/guidance"};
     double bias_u_{0.0}, bias_v_{0.0};
     double tolerance_{5.0}, timeout_{30.0};
     const double feedback_timeout_{0.5};
-    const double kp_{0.01}, ki_{0.0}, kd_{0.0};
+    double kp_{0.01};
+    const double ki_{0.0}, kd_{0.0};
     const double integral_max_{50.0}, max_speed_{0.5};
     double u_to_x_{1.0}, u_to_y_{0.0}, v_to_x_{0.0}, v_to_y_{1.0};
     double hold_z_{0.0}, hold_yaw_{0.0};
