@@ -24,7 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
-add_action_files(FILES Guidance.action)
+add_action_files(FILES Guidance.action ugv_mover.action)
 generate_messages(DEPENDENCIES actionlib_msgs std_msgs)
 
 find_package(Boost REQUIRED COMPONENTS system)
@@ -181,12 +181,17 @@ target_link_libraries(maxt_test_node
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py script/aruco_center.py
+catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py script/aruco_center.py ugv_demo/ugv_offboard.py ugv_demo/ugv_move_demo.py ugv_demo/ugv_move_controller.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(DIRECTORY worlds models
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+install(DIRECTORY ugv_demo
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  FILES_MATCHING PATTERN "*.launch" PATTERN "*.md" PATTERN "*.sh" PATTERN "*.yaml"
 )
 
 ## Mark executables for installation

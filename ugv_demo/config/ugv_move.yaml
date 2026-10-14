@@ -1,0 +1,9 @@
+# Targets are absolute MAVROS local ENU coordinates (metres).
+profile: point_3_3
+profiles:
+  point_3_3:
+    - {x: -3.0, y: 13.0}
+  two_points:
+    - {x: 3.0, y: 3.0}
+    - {x: 6.0, y: 3.0}
+server_timeout: 60.0

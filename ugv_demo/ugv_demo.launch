@@ -1,0 +1,29 @@
+<launch>
+  <arg name="run_mavros" default="false"/>
+  <arg name="fcu_url" default="udp://:14540@127.0.0.1:14557"/>
+  <arg name="mavros_ns" default="/mavros"/>
+  <arg name="speed" default="0.5"/>
+  <arg name="duration" default="5.0"/>
+  <arg name="heading_deg" default="0.0"/>
+  <arg name="use_goal" default="true"/>
+  <arg name="goal_x" default="3.0"/>
+  <arg name="goal_y" default="3.0"/>
+  <arg name="tolerance" default="0.2"/>
+  <arg name="legacy_rover_velocity" default="true"/>
+  <include if="$(arg run_mavros)" file="$(find mavros)/launch/px4.launch">
+    <arg name="fcu_url" value="$(arg fcu_url)"/>
+    <arg name="gcs_url" value=""/>
+  </include>
+  <node pkg="maxt_pkg" type="ugv_offboard.py" name="ugv_offboard_demo" output="screen">
+    <param name="mavros_ns" value="$(arg mavros_ns)"/>
+    <param name="speed" value="$(arg speed)"/>
+    <param name="duration" value="$(arg duration)"/>
+    <param name="heading_deg" value="$(arg heading_deg)"/>
+    <param name="startup_timeout" value="60.0"/>
+    <param name="use_goal" value="$(arg use_goal)"/>
+    <param name="goal_x" value="$(arg goal_x)"/>
+    <param name="goal_y" value="$(arg goal_y)"/>
+    <param name="tolerance" value="$(arg tolerance)"/>
+    <param name="legacy_rover_velocity" value="$(arg legacy_rover_velocity)"/>
+  </node>
+</launch>

@@ -1,0 +1,11 @@
+# Absolute target in MAVROS local ENU, metres.
+float32 target_x
+float32 target_y
+---
+bool succeed
+---
+uint8 WAITING=0
+uint8 STARTING=1
+uint8 MOVING=2
+uint8 REACHED=3
+uint8 state

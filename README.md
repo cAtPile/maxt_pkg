@@ -95,3 +95,9 @@ rosrun rqt_image_view rqt_image_view /camera/rgb/image_raw
 靶标白边板为 0.5×0.5m，内部 ArUco 黑色方块为 0.375m。输入 `/camera/rgb/image_raw`，标注图像 `/aruco_center/debug_image`，真实像素误差通过 `/guidance` Action 提供给飞控。`Guidance` 的 `downward_camera=true` 将下视相机像素轴按当前航向转换到水平速度，`kp=0.003`，速度上限 0.5m/s；`tracking_duration=0` 保持原有单次对中行为。
 
 靶标运动由 `config/sim_world.yaml` 控制。修改尺寸或配置后需重启仿真；修改 C++ 控制节点后需重新编译。
+
+## UGV 移动协同
+
+新增基于 ROS Action 的 PX4 小车移动 demo：`ugv_move_demo.py` 接收 `/ugv_mover` 目标，`ugv_move_controller.py` 按 YAML 配置顺序发送目的地，默认 ENU `(3,3)`。支持任务取消、抢占、连续目标和状态反馈，复用原小车控制及本机 PX4 航向补偿。
+
+首次运行需要 `catkin_make --pkg maxt_pkg` 并加载工作空间环境。仿真终端执行 `./ugv_demo/start_sim.sh run_control:=false`，另一终端执行 `roslaunch maxt_pkg ugv_move.launch`。配置与操作见 [UGV 使用说明](ugv_demo/README.md)，接口和设计见 [移动协同交付文档](docs/done/cowork_ugv_delivery.md)。仿真验证由使用者进行。
