@@ -1,0 +1,28 @@
+<root main_tree_to_execute="RegionTraverseTest">
+    <BehaviorTree ID="RegionTraverseTest">
+        <Sequence>
+            <ConnectCheck timeout="30.0" />
+            <Takeoff target_alt="4.0" ascent_speed="0.5" timeout="45.0" />
+            <RegionTraverse reg_point_1_x="0" reg_point_1_y="0"
+                            reg_point_2_x="6" reg_point_2_y="0"
+                            reg_point_3_x="6" reg_point_3_y="6"
+                            reg_point_4_x="0" reg_point_4_y="6"
+                            coverage_step="1"
+                            waypoints="{region_waypoints}"
+                            waypoint_count="{region_waypoint_count}" />
+            <SetBlackboard output_key="region_waypoint_index" value="0" />
+            <!-- 每轮取出一个航点；QuinticNav 完成后再进入下一轮。 -->
+            <Repeat num_cycles="{region_waypoint_count}">
+                <Sequence>
+                    <GetRegionWaypoint waypoints="{region_waypoints}"
+                                       index="{region_waypoint_index}"
+                                       next_index="{region_waypoint_index}"
+                                       x="{region_target_x}" y="{region_target_y}" />
+                    <QuinticNav x="{region_target_x}" y="{region_target_y}" z="4.0"
+                                v_max="0.8" a_max="0.5" tolerance="0.15" timeout="45.0" />
+                </Sequence>
+            </Repeat>
+            <TouchDown descent_speed="-0.3" timeout="60.0" ground_timeout="3.0" />
+        </Sequence>
+    </BehaviorTree>
+</root>

@@ -4,7 +4,7 @@
 
 MaxtCore 负责初始化、注册行为树节点和执行 XML；MavKit 封装状态订阅、坐标标定、设点发布以及解锁和模式服务。任务节点使用已有非阻塞生命周期。
 
-当前注册节点：`ConnectCheck`、`Takeoff`、`GoTo`、`QuinticNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`。`Land`、`XNavigation` 仅有历史头文件声明，未注册，不能用于任务 XML。
+当前注册节点：`ConnectCheck`、`Takeoff`、`GoTo`、`QuinticNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`RegionTraverse`。`Land`、`XNavigation` 仅有历史头文件声明，未注册，不能用于任务 XML。
 
 比赛专用识别、圆环检测和投放功能已移除，接口变更和建议见 [清理交付文档](docs/done/craicRM_delivery.md)。
 
@@ -101,3 +101,19 @@ rosrun rqt_image_view rqt_image_view /camera/rgb/image_raw
 新增基于 ROS Action 的 PX4 小车移动 demo：`ugv_move_demo.py` 接收 `/ugv_mover` 目标，`ugv_move_controller.py` 按 YAML 配置顺序发送目的地，默认 ENU `(3,3)`。支持任务取消、抢占、连续目标和状态反馈，复用原小车控制及本机 PX4 航向补偿。
 
 首次运行需要 `catkin_make --pkg maxt_pkg` 并加载工作空间环境。仿真终端执行 `./ugv_demo/start_sim.sh run_control:=false`，另一终端执行 `roslaunch maxt_pkg ugv_move.launch`。配置与操作见 [UGV 使用说明](ugv_demo/README.md)，接口和设计见 [移动协同交付文档](docs/done/cowork_ugv_delivery.md)。仿真验证由使用者进行。
+
+## 矩形区域遍历规划
+
+`RegionTraverse` 接收按边界顺序排列的四个角点 `reg_point_1_x/y` 至 `reg_point_4_x/y` 和平行轨迹间距 `coverage_step`（米），生成蛇形路线。相邻航带严格按该间距排列，横向余量对称留在两侧；支持旋转矩形。
+
+输出 `waypoints` 为 `maxt::RegionWaypoints`（`std::vector<std::array<double, 2>>`），`waypoint_count` 为 `int`，通过 XML `{黑板键}` 映射使用。节点只计算二维航点，不控制飞行；高度及后续航点执行由调用方负责。示例见 [region_traverse_test.xml](config/mission/region_traverse_test.xml)，接口、验证和建议见 [交付文档](docs/regionTraverse_delivery.md)。
+
+`region_traverse_test.xml` 现为完整飞行任务：连接检查 → 起飞到 4m → 为 `(0,0)、(6,0)、(6,6)、(0,6)` 按 `coverage_step=1m` 生成 12 个航点 → `Repeat` 配合 `GetRegionWaypoint` 逐点调用 `QuinticNav`（z=4m）→ 原地降落。编译并加载环境后执行：
+
+```bash
+roslaunch maxt_pkg region_traverse_test.launch
+```
+
+该入口会实际执行飞行；航带 y 为 0.5、1.5、2.5、3.5、4.5、5.5m，正常结束在 `(0,5.5)` 降落。
+
+区域遍历入口默认复用已启动的 MAVROS 和定位系统，支持 `run_mavros`、`run_fast_lio`（默认 false）、`bt_tick_rate`、`heartbeat_rate`（默认 20Hz），与现有导航测试入口一致。

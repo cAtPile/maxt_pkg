@@ -1,4 +1,5 @@
 #include <maxt_pkg/maxt_core.hpp>
+#include <maxt_pkg/maxt_nodes/region_traverse_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
@@ -59,6 +60,8 @@ bool MaxtCore::init() {
 }
 
 void MaxtCore::registerNodes() {
+    factory_.registerNodeType<RegionTraverseNode>("RegionTraverse");
+    factory_.registerNodeType<GetRegionWaypointNode>("GetRegionWaypoint");
 
     factory_.registerBuilder<TakeoffNode>("Takeoff", 
         [this](const std::string& name, const BT::NodeConfiguration& config) {
