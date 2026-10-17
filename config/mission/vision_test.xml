@@ -6,7 +6,7 @@
             <ForceSuccess>
                 <Sequence>
                     <Takeoff target_alt="2.0" ascent_speed="0.5" timeout="60.0" />
-                    <QuinticNav x="-2.0" y="2.0" z="2.0" v_max="0.8" a_max="0.5" tolerance="0.15" timeout="40.0" />
+                    <Nav x="-2.0" y="2.0" z="2.0" tolerance="0.15" timeout="40.0" />
                     <Hover hover_duration="2.0" />
                     <Guidance target_id="0" tolerance="5.0" kp="0.006"
                               downward_camera="true" tracking_duration="60.0"

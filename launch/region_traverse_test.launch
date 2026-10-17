@@ -1,12 +1,22 @@
 <launch>
-    <!-- 区域遍历：起飞 4m，按 1m 间距遍历 6×6m 矩形，完成后降落。 -->
+    <!-- 区域遍历：起飞 4m，按 1m 间距遍历 6×6m 矩形，检测到目标后跟踪，跟踪结束或遍历完成后降落。 -->
+    <arg name="run_detection" default="true" />
+    <arg name="run_guidance" default="true" />
+    <arg name="detection_config" default="$(find maxt_pkg)/config/aruco_center.yaml" />
+    <arg name="run_camera" default="false" />
     <arg name="run_mavros" default="false" />
     <arg name="run_fast_lio" default="false" />
     <arg name="bt_tick_rate" default="20.0" />
     <arg name="heartbeat_rate" default="20.0" />
 
+    <include if="$(arg run_detection)" file="$(find maxt_pkg)/launch/aruco_center.launch">
+        <arg name="config" value="$(arg detection_config)" />
+        <arg name="run_guidance" value="$(arg run_guidance)" />
+    </include>
+
     <include file="$(find maxt_pkg)/launch/mission.launch">
         <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/region_traverse_test.xml" />
+        <arg name="run_camera" value="$(arg run_camera)" />
         <arg name="run_mavros" value="$(arg run_mavros)" />
         <arg name="run_fast_lio" value="$(arg run_fast_lio)" />
         <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />

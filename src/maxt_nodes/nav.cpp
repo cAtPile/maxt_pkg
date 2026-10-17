@@ -1,4 +1,4 @@
-#include <maxt_pkg/maxt_nodes/quintic_nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav_node.hpp>
 #include <cmath>
 
 namespace maxt {
@@ -19,43 +19,50 @@ static constexpr double T_MIN = 0.5;
 static constexpr double DT_MIN = 1e-6;
 static constexpr double HOLD_TIMEOUT = 3.0;
 
-BT::PortsList QuinticNavNode::providedPorts() {
+BT::PortsList NavNode::providedPorts() {
     return {
         BT::InputPort<double>("x"),
         BT::InputPort<double>("y"),
         BT::InputPort<double>("z"),
-        BT::InputPort<double>("v_max", 2.5, "max velocity (m/s)"),
-        BT::InputPort<double>("a_max", 1.2, "max acceleration (m/s^2)"),
         BT::InputPort<double>("tolerance", 0.1, "arrival tolerance (m)"),
-        BT::InputPort<double>("timeout", 60.0, "timeout (s)"),
-        BT::InputPort<double>("pid_kp", 1.0, "PID P gain for terminal alignment"),
-        BT::InputPort<double>("pid_ki", 0.05, "PID I gain for terminal alignment"),
-        BT::InputPort<double>("pid_kd", 0.0, "PID D gain for terminal alignment")
+        BT::InputPort<double>("timeout", 60.0, "timeout (s)")
     };
 }
 
-QuinticNavNode::QuinticNavNode(const std::string& name,
+NavNode::NavNode(const std::string& name,
                                const BT::NodeConfiguration& config,
-                               MavKit& mav)
-    : MavActionNode(name, config, mav)
+                               MavKit& mav, const ros::NodeHandle& nh)
+    : MavActionNode(name, config, mav), nav_nh_(nh, "nav")
 {
 }
 
-BT::NodeStatus QuinticNavNode::onStart() {
-    if (!getInput<double>("x", tx_) ||
-        !getInput<double>("y", ty_) ||
-        !getInput<double>("z", tz_)) {
-        ROS_ERROR("[QuinticNav] Missing target coordinates!");
+BT::NodeStatus NavNode::onStart() {
+    if (!nav_nh_.getParam("v_max", v_max_) ||
+        !nav_nh_.getParam("a_max", a_max_) ||
+        !nav_nh_.getParam("pid_kp", pid_kp_) ||
+        !nav_nh_.getParam("pid_ki", pid_ki_) ||
+        !nav_nh_.getParam("pid_kd", pid_kd_)) {
+        ROS_ERROR("[Nav] Missing configuration under %s; load config/nav.yaml.",
+                  nav_nh_.getNamespace().c_str());
+        return BT::NodeStatus::FAILURE;
+    }
+    if (!std::isfinite(v_max_) || v_max_ <= 0.0 ||
+        !std::isfinite(a_max_) || a_max_ <= 0.0 ||
+        !std::isfinite(pid_kp_) || !std::isfinite(pid_ki_) ||
+        !std::isfinite(pid_kd_)) {
+        ROS_ERROR("[Nav] Invalid configuration: v_max/a_max must be positive and all gains finite.");
         return BT::NodeStatus::FAILURE;
     }
 
-    getInput<double>("v_max", v_max_);
-    getInput<double>("a_max", a_max_);
+    if (!getInput<double>("x", tx_) ||
+        !getInput<double>("y", ty_) ||
+        !getInput<double>("z", tz_)) {
+        ROS_ERROR("[Nav] Missing target coordinates!");
+        return BT::NodeStatus::FAILURE;
+    }
+
     getInput<double>("tolerance", tolerance_);
     getInput<double>("timeout", timeout_);
-    getInput<double>("pid_kp", pid_kp_);
-    getInput<double>("pid_ki", pid_ki_);
-    getInput<double>("pid_kd", pid_kd_);
 
     auto pose = mav_.getCurrentPose();
     double cx = pose.pose.position.x;
@@ -90,12 +97,12 @@ BT::NodeStatus QuinticNavNode::onStart() {
     last_time_ = start_time_;
     holding_ = false;
 
-    ROS_INFO("[QuinticNav] START: (%.2f,%.2f,%.2f) -> (%.2f,%.2f,%.2f) dist=%.2f T=%.2f",
+    ROS_INFO("[Nav] START: (%.2f,%.2f,%.2f) -> (%.2f,%.2f,%.2f) dist=%.2f T=%.2f",
              cx, cy, cz, tx_, ty_, tz_, dist, T_);
     return BT::NodeStatus::RUNNING;
 }
 
-BT::NodeStatus QuinticNavNode::onRunning() {
+BT::NodeStatus NavNode::onRunning() {
     ros::Time now = ros::Time::now();
     double dt = (now - last_time_).toSec();
     if (dt <= DT_MIN) return BT::NodeStatus::RUNNING;
@@ -103,7 +110,7 @@ BT::NodeStatus QuinticNavNode::onRunning() {
 
     double elapsed = (now - start_time_).toSec();
     if (elapsed > timeout_) {
-        ROS_ERROR("[QuinticNav] Timeout! elapsed=%.1f", elapsed);
+        ROS_ERROR("[Nav] Timeout! elapsed=%.1f", elapsed);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::FAILURE;
     }
@@ -141,7 +148,7 @@ BT::NodeStatus QuinticNavNode::onRunning() {
         }
 
         if (err < tolerance_) {
-            ROS_INFO("[QuinticNav] REACHED: pos_err=%.3f elapsed=%.2fs",
+            ROS_INFO("[Nav] REACHED: pos_err=%.3f elapsed=%.2fs",
                      err, elapsed);
             mav_.setSetpointMode(SetpointMode::HEARTBEAT);
             return BT::NodeStatus::SUCCESS;
@@ -149,7 +156,7 @@ BT::NodeStatus QuinticNavNode::onRunning() {
 
         double hold_elapsed = (now - hold_start_).toSec();
         if (hold_elapsed > HOLD_TIMEOUT) {
-            ROS_WARN("[QuinticNav] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
+            ROS_WARN("[Nav] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
                      hold_elapsed, err);
             mav_.setSetpointMode(SetpointMode::HEARTBEAT);
             return BT::NodeStatus::SUCCESS;
@@ -165,11 +172,11 @@ BT::NodeStatus QuinticNavNode::onRunning() {
         hold_target.position.z = tz_;
         mav_.setRawTarget(hold_target);
 
-        ROS_DEBUG( "[QuinticNav] Holding at target, err=%.3f hold=%.1fs",
+        ROS_DEBUG( "[Nav] Holding at target, err=%.3f hold=%.1fs",
                           err, hold_elapsed);
     }
 
-    ROS_DEBUG("[QuinticNav] t=%.2f/%.2f | ref=(%.2f,%.2f,%.2f) vel=(%.2f,%.2f,%.2f)",
+    ROS_DEBUG("[Nav] t=%.2f/%.2f | ref=(%.2f,%.2f,%.2f) vel=(%.2f,%.2f,%.2f)",
         t, T_, px, py, pz, vx, vy, vz);
 
     mavros_msgs::PositionTarget target;
@@ -192,8 +199,8 @@ BT::NodeStatus QuinticNavNode::onRunning() {
     return BT::NodeStatus::RUNNING;
 }
 
-void QuinticNavNode::onHalted() {
-    ROS_WARN("[QuinticNav] Halted!");
+void NavNode::onHalted() {
+    ROS_WARN("[Nav] Halted!");
     mav_.setSetpointMode(SetpointMode::HEARTBEAT);
 }
 

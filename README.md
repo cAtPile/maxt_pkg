@@ -4,7 +4,7 @@
 
 MaxtCore 负责初始化、注册行为树节点和执行 XML；MavKit 封装状态订阅、坐标标定、设点发布以及解锁和模式服务。任务节点使用已有非阻塞生命周期。
 
-当前注册节点：`ConnectCheck`、`Takeoff`、`GoTo`、`QuinticNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`RegionTraverse`。`Land`、`XNavigation` 仅有历史头文件声明，未注册，不能用于任务 XML。
+当前注册节点：`ConnectCheck`、`Takeoff`、`GoTo`、`Nav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`RegionTraverse`、`GetRegionWaypoint`、`FoundCheck`。`Land`、`XNavigation` 仅有历史头文件声明，未注册，不能用于任务 XML。
 
 比赛专用识别、圆环检测和投放功能已移除，接口变更和建议见 [清理交付文档](docs/done/craicRM_delivery.md)。
 
@@ -33,12 +33,12 @@ roslaunch maxt_pkg basic_test.launch
 | 配置 | 启动命令 | 测试动作 |
 | --- | --- | --- |
 | `basic_test.xml` | `roslaunch maxt_pkg basic_test.launch` | 起飞 1m，悬停 3s |
-| `navigation_test.xml` | `roslaunch maxt_pkg navigation_test.launch` | QuinticNav 依次航行至 (0,0,1)、(2,0,1)、(2,2,1)、(0,0,1)，各点悬停 |
+| `navigation_test.xml` | `roslaunch maxt_pkg navigation_test.launch` | Nav 依次航行至 (0,0,1)、(2,0,1)、(2,2,1)、(0,0,1)，各点悬停 |
 | `round_test.xml` | `roslaunch maxt_pkg round_test.launch` | 航行至 (0,0,1)，绕 (1,0,1) 顺时针一圈，半径 1m、角速度 20°/s，返回 (0,0,1) |
 
 坐标单位为米，使用 MavKit 当前坐标系中的绝对坐标；这两个运动测试假设起飞点 XY 为 (0,0)，目标高度 z 为 1.0。若定位原点或地面高度不同，请先修改 XML 中的航点、圆心和高度。ConnectCheck 默认不启用坐标标定。导航限速为 0.8m/s，限加速度为 0.5m/s²；圆周加减速时间为 2s，超时为 45s。三个入口均支持相同的外部组件和频率开关。
 
-QuinticNav 现有实现会在末端等待超过 3s 后强制返回 SUCCESS，因此行为树成功日志不能单独证明航点精度达标；请结合实际轨迹和误差检查结果。
+Nav 现有实现会在末端等待超过 3s 后强制返回 SUCCESS，因此行为树成功日志不能单独证明航点精度达标；请结合实际轨迹和误差检查结果。
 
 如果本机已有 `tutorial_basic` 和 `tutorial_navigation`，可由启动文件一并启动 MAVROS 和 FAST-LIO：
 
@@ -106,14 +106,34 @@ rosrun rqt_image_view rqt_image_view /camera/rgb/image_raw
 
 `RegionTraverse` 接收按边界顺序排列的四个角点 `reg_point_1_x/y` 至 `reg_point_4_x/y` 和平行轨迹间距 `coverage_step`（米），生成蛇形路线。相邻航带严格按该间距排列，横向余量对称留在两侧；支持旋转矩形。
 
-输出 `waypoints` 为 `maxt::RegionWaypoints`（`std::vector<std::array<double, 2>>`），`waypoint_count` 为 `int`，通过 XML `{黑板键}` 映射使用。节点只计算二维航点，不控制飞行；高度及后续航点执行由调用方负责。示例见 [region_traverse_test.xml](config/mission/region_traverse_test.xml)，接口、验证和建议见 [交付文档](docs/regionTraverse_delivery.md)。
+输出 `waypoints` 为 `maxt::RegionWaypoints`（`std::vector<std::array<double, 2>>`），`waypoint_count` 为 `int`，通过 XML `{黑板键}` 映射使用。节点只计算二维航点，不控制飞行；高度及后续航点执行由调用方负责。示例见 [region_traverse_test.xml](config/mission/region_traverse_test.xml)，接口、验证和建议见 [交付文档](docs/done/regionTraverse_delivery.md)。
 
-`region_traverse_test.xml` 现为完整飞行任务：连接检查 → 起飞到 4m → 为 `(0,0)、(6,0)、(6,6)、(0,6)` 按 `coverage_step=1m` 生成 12 个航点 → `Repeat` 配合 `GetRegionWaypoint` 逐点调用 `QuinticNav`（z=4m）→ 原地降落。编译并加载环境后执行：
+`region_traverse_test.xml` 现为完整飞行任务：连接检查 → 起飞到 4m → 为 `(0,0)、(-6,0)、(-6,6)、(0,6)` 按 `coverage_step=1m` 生成 12 个航点 → `ReactiveFallback` 优先检查 `FoundCheck`，未找到时由 `Repeat` 配合 `GetRegionWaypoint` 逐点调用 `Nav`（z=4m）→ 找到目标后跟踪 60 秒再降落，遍历完成仍未找到则直接降落。编译并加载环境后执行：
 
 ```bash
 roslaunch maxt_pkg region_traverse_test.launch
 ```
 
-该入口会实际执行飞行；航带 y 为 0.5、1.5、2.5、3.5、4.5、5.5m，正常结束在 `(0,5.5)` 降落。
+该入口会实际执行飞行；航带 y 为 0.5、1.5、2.5、3.5、4.5、5.5m，未找到目标时遍历全部航点，在 `(0,5.5)` 降落；找到目标时中断当前导航，转入 Guidance 跟踪，跟踪结束或失败后降落。
 
 区域遍历入口默认复用已启动的 MAVROS 和定位系统，支持 `run_mavros`、`run_fast_lio`（默认 false）、`bt_tick_rate`、`heartbeat_rate`（默认 20Hz），与现有导航测试入口一致。
+
+Nav 的 `v_max`、`a_max`、`pid_kp`、`pid_ki`、`pid_kd` 统一在 `config/nav.yaml` 中配置，由 `mission.launch` 加载至节点私有命名空间 `nav/`，不再支持 XML InputPort。可使用 `roslaunch maxt_pkg mission.launch bt_xml_path:=任务XML路径 nav_config:=自定义YAML路径` 指定配置文件。直接运行节点时需自行加载这些私有参数；参数缺失或无效时 Nav 返回 FAILURE。
+
+
+## 区域遍历查找目标
+
+`FoundCheckNode` 的头文件和源文件直接放在各自的 `maxt_nodes` 目录中，注册名为 `FoundCheck`。它订阅现有识别脚本的 `std_msgs/Bool`，只检查状态，不执行图像识别或飞行控制。
+
+| XML 输入端口 | 默认值 | 含义 |
+| --- | --- | --- |
+| `topic` | `/aruco_center/is_found` | 检测话题，建树时订阅，不支持运行中切换 |
+| `timeout` | `0.5` | 消息接收后有效时长，单位为秒，使用墙钟时间 |
+
+最新消息为 true 且未过期时返回 SUCCESS；未收到消息、最新消息为 false 或超时均返回 FAILURE。该节点不锁存检测结果，不向黑板写入内容。任务 XML 在命中后通过 SetBlackboard 将 `region_search_result` 写为 `found`，遍历全部航点后写为 `complete`，由 Switch2 决定是否执行跟踪。`ReactiveFallback` 每个 tick 优先检查目标，命中时 halt 下方 Repeat 和正在运行的 Nav，复用 Nav 现有的 `onHalted()` 释放导航控制。仍沿用原任务的失败处理：Nav 失败时任务返回 FAILURE，不进入后续降落。
+
+`region_traverse_test.launch` 默认启动 `aruco_center.launch`，并通过 `run_guidance:=true` 开启 `/guidance` Action 服务，提供 Guidance 所需的视觉误差反馈。`run_guidance:=false` 可关闭该服务；本任务的跟踪阶段需要有外部服务替代。相机、MAVROS 和定位系统默认由外部提供。已有识别节点时使用 `run_detection:=false`，并确保该节点已开启 `/guidance` 服务；需要启动相机时使用 `run_camera:=true`。`detection_config:=/绝对路径/参数.yaml` 可指定识别配置；若修改 `is_found_topic`，需同步修改 XML 的 FoundCheck `topic`；若修改 `marker_id`，需同步修改 Guidance 的 `target_id`。现有感知脚本识别的是配置指定的 ArUco 字典和 ID，FoundCheck 本身不解析通用 QR 码。
+
+按使用者要求，最终运行测试由人工完成。建议依次确认：未找到时完成 12 个航点后降落；导航过程中找到目标时停止遍历、跟踪 60 秒后降落；检测为 false 或消息断流超过 0.5 秒时继续搜索。编译并加载工作空间环境后使用上面的 `region_traverse_test.launch` 入口。
+
+跟踪阶段用 ForceSuccess 包裹 Guidance，使跟踪超时或 Action 失败后仍进入 TouchDown；`guidance_message` 和 Guidance 日志保留失败原因。此时最终任务 SUCCESS 表示降落流程完成，并不单独证明跟踪成功。未找到目标时跳过 Guidance；一旦搜索命中，后续短暂丢失由 Guidance 自身的等待反馈逻辑处理，不会恢复遍历。

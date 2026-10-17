@@ -127,12 +127,14 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/waitstep.cpp
   src/maxt_nodes/hover.cpp
   src/maxt_nodes/region_traverse.cpp
+  src/maxt_nodes/get_region_waypoint.cpp
+  src/maxt_nodes/found_check.cpp
   src/maxt_nodes/round.cpp
   src/maxt_nodes/connect_check.cpp
 
   src/maxt_nodes/touch_down.cpp
 
-  src/maxt_nodes/quintic_nav.cpp
+  src/maxt_nodes/nav.cpp
 )
 
 ## Add cmake target dependencies of the library

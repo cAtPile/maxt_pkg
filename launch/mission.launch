@@ -1,6 +1,7 @@
 <launch>
     <!-- 基础任务入口：飞行节点由行为树 XML 编排。 -->
     <arg name="bt_xml_path" />
+    <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml" />
     <arg name="bt_tick_rate" default="20.0" />
     <arg name="heartbeat_rate" default="20.0" />
     <arg name="run_mavros" default="false" />
@@ -15,6 +16,7 @@
              file="$(find tutorial_vision)/launch/simple_camera_driver.launch" />
 
     <node pkg="maxt_pkg" type="maxt_test_node" name="maxt_test_node" output="screen">
+        <rosparam command="load" file="$(arg nav_config)" />
         <param name="bt_xml_path" value="$(arg bt_xml_path)" />
         <param name="bt_tick_rate" value="$(arg bt_tick_rate)" />
         <param name="heartbeat_rate" value="$(arg heartbeat_rate)" />

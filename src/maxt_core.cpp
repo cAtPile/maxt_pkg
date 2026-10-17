@@ -1,5 +1,6 @@
 #include <maxt_pkg/maxt_core.hpp>
 #include <maxt_pkg/maxt_nodes/region_traverse_node.hpp>
+#include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
@@ -11,7 +12,8 @@
 #include <maxt_pkg/maxt_nodes/connect_check_node.hpp>
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>
 
-#include <maxt_pkg/maxt_nodes/quintic_nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/found_check_node.hpp>
 
 namespace maxt {
 
@@ -60,6 +62,10 @@ bool MaxtCore::init() {
 }
 
 void MaxtCore::registerNodes() {
+    factory_.registerBuilder<FoundCheckNode>("FoundCheck",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<FoundCheckNode>(name, config, nh_);
+        });
     factory_.registerNodeType<RegionTraverseNode>("RegionTraverse");
     factory_.registerNodeType<GetRegionWaypointNode>("GetRegionWaypoint");
 
@@ -73,9 +79,9 @@ void MaxtCore::registerNodes() {
             return std::make_unique<GoToNode>(name, config, *mav_);
         });
 
-    factory_.registerBuilder<QuinticNavNode>("QuinticNav",
+    factory_.registerBuilder<NavNode>("Nav",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<QuinticNavNode>(name, config, *mav_);
+            return std::make_unique<NavNode>(name, config, *mav_, nh_);
         });
 
     factory_.registerBuilder<WaitStepNode>("WaitStep",

@@ -1,5 +1,5 @@
-#ifndef MAXT_NODES_QUINTIC_NAV_HPP
-#define MAXT_NODES_QUINTIC_NAV_HPP
+#ifndef MAXT_NODES_NAV_HPP
+#define MAXT_NODES_NAV_HPP
 
 #include <maxt_pkg/maxt_nodes.hpp>
 #include <maxt_pkg/quintic_curve.hpp>
@@ -7,9 +7,9 @@
 
 namespace maxt {
 
-class QuinticNavNode : public MavActionNode {
+class NavNode : public MavActionNode {
 public:
-    QuinticNavNode(const std::string& name, const BT::NodeConfiguration& config, MavKit& mav);
+    NavNode(const std::string& name, const BT::NodeConfiguration& config, MavKit& mav, const ros::NodeHandle& nh);
 
     static BT::PortsList providedPorts();
 
@@ -18,6 +18,7 @@ public:
     void onHalted() override;
 
 private:
+    ros::NodeHandle nav_nh_;
     double tx_{0.0}, ty_{0.0}, tz_{0.0};
     double v_max_{2.5}, a_max_{1.2};
     double tolerance_{0.1};

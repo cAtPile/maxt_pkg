@@ -10,6 +10,7 @@
 
 输出话题（节点名为 aruco_center 时）：
     /aruco_center/center：point.x = u，point.y = v，point.z = 0。
+    /aruco_center/is_found：std_msgs/Bool，每帧发布指定目标是否被找到。
     /aruco_center/debug_image：画出标记边框和中心的图像。
 像素原点在左上角，u 向右增大，v 向下增大，坐标可以是小数。
 本脚本只做二维定位，不计算距离或三维姿态，因此不需要标记实际尺寸。
@@ -24,6 +25,7 @@ from maxt_pkg.msg import GuidanceAction, GuidanceFeedback, GuidanceResult
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import PointStamped
 from sensor_msgs.msg import Image
+from std_msgs.msg import Bool
 
 
 class ArucoCenter:
@@ -60,13 +62,15 @@ class ArucoCenter:
         # 输出话题也从配置读取，可使用绝对路径或节点私有名称。
         center_topic = rospy.get_param("~center_topic", "~center")
         debug_image_topic = rospy.get_param("~debug_image_topic", "~debug_image")
+        is_found_topic = rospy.get_param("~is_found_topic", "~is_found")
         self.center_pub = rospy.Publisher(center_topic, PointStamped, queue_size=1)
         self.image_pub = rospy.Publisher(debug_image_topic, Image, queue_size=1)
+        self.is_found_pub = rospy.Publisher(is_found_topic, Bool, queue_size=1)
         self.feedback_lock = threading.Lock()
         self.feedback_stamp = None
         self.feedback = GuidanceFeedback(target_visible=False)
         self.feedback_timeout = float(rospy.get_param("~feedback_timeout", 0.3))
-        # 可选真实视觉 Action 服务；独立识别入口仍只发布图像和中心。
+        # 可选真实视觉 Action 服务；独立识别入口发布图像、中心及检测状态。
         if rospy.get_param("~run_guidance", False):
             self.server = actionlib.SimpleActionServer(
                 "/guidance", GuidanceAction, execute_cb=self.execute_guidance,
@@ -88,6 +92,8 @@ class ArucoCenter:
             # 即使输入是 mono8 灰度图，CvBridge 也可以转换成 bgr8。
             image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         except CvBridgeError as exc:
+            # 无法处理本帧时报告 false，避免下游继续沿用上一帧的 true。
+            self.is_found_pub.publish(Bool(data=False))
             with self.feedback_lock:
                 self.feedback = frame_feedback
                 self.feedback_stamp = msg.header.stamp
@@ -155,6 +161,10 @@ class ArucoCenter:
                     cv2.circle(image, (round(u), round(v)), 5, (0, 0, 255), -1)
                 # 若同一帧出现多个相同 ID，只使用第一个有效结果。
                 break
+        # 每个正常处理的图像回调恰好发布一次，不受调试图像订阅情况影响。
+        # true 表示指定 ID 已被检测到且成功计算中心，不表示检测到任意标记。
+        # Bool 没有时间戳；如果输入图像停止，状态也停止发布，下游仍需超时判断。
+        self.is_found_pub.publish(Bool(data=found))
         with self.feedback_lock:
             self.feedback = frame_feedback
             self.feedback_stamp = msg.header.stamp

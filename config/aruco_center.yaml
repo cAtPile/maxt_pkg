@@ -13,6 +13,10 @@ marker_id: 0
 # “~”表示相对于节点的私有话题，默认解析为 /aruco_center/center。
 center_topic: "~center"
 
+# 每帧检测状态：std_msgs/Bool，找到指定 ID 且中心有效为 true，否则为 false。
+# 图像转换失败也发布 false；输入图像中断时不发布，接收端仍需检查超时。
+is_found_topic: "~is_found"
+
 # 输出标注图像：sensor_msgs/Image，可通过 rqt_image_view 查看。
 # 仅在存在订阅者时才绘制并发布，默认解析为 /aruco_center/debug_image。
 debug_image_topic: "~debug_image"
