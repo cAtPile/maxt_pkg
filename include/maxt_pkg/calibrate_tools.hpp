@@ -1,3 +1,6 @@
+/**
+* @brief 标定工具
+*/
 #ifndef MAXT_CALIBRATE_TOOLS_HPP
 #define MAXT_CALIBRATE_TOOLS_HPP
 

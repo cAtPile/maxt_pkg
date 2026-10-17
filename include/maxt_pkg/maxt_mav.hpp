@@ -15,6 +15,8 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
 #include <maxt_pkg/calibrate_tools.hpp>
+#include <maxt_pkg/quintic_curve.hpp>
+#include <Eigen/Core>
 #include <mutex>
 #include <atomic>
 
@@ -27,7 +29,15 @@ enum class SetpointMode {
     HEARTBEAT,  // 心跳模式
     CONTROL,    // 位置控制模式
     RAW_CTRL,   // 原始设定值模式(setpoint_raw)
-    STANDBY     // 待机模式
+    STANDBY,    // 待机模式
+    CURVE_CTRL  // 定时器采样五次曲线并发布 p/v/a
+};
+
+// 世界坐标系下的曲线参考状态，不由传感器逐帧覆盖。
+struct CurveState {
+    Eigen::Vector3d position{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d velocity{Eigen::Vector3d::Zero()};
+    Eigen::Vector3d acceleration{Eigen::Vector3d::Zero()};
 };
 
 /**
@@ -36,6 +46,8 @@ enum class SetpointMode {
  */
 class MavKit {
 public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
     MavKit(ros::NodeHandle& nh);// 构造函数
     ~MavKit() = default;// 析构函数
 
@@ -81,6 +93,10 @@ public:
      * @param target 原始目标 (PositionTarget message)
      */
     void setRawTarget(const mavros_msgs::PositionTarget& target);
+
+    // 设置世界坐标系目标，终点速度、加速度为零；随后切换到 CURVE_CTRL。
+    void setQuinticCurveTarget(const Eigen::Vector3d& position);
+    double getCurveTime() const;
 
     /**
      * @brief 设置 setpoint 模式
@@ -161,6 +177,9 @@ private:
     void twistCb(const geometry_msgs::TwistStamped::ConstPtr& msg);
     void heartbeatTimerCallback(const ros::TimerEvent& event);
 
+    // 调用方持有 data_mtx_，采样当前曲线并填充原始参考设点。
+    void loadCurveRaw(const ros::Time& now);
+
     ros::NodeHandle nh_;
     
     // 线程安全保障
@@ -174,6 +193,11 @@ private:
     geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped target_pose_;
     mavros_msgs::PositionTarget raw_target_;
+    mavros_msgs::PositionTarget curve_raw_target_;
+    CurveState curve_state_;
+    QuinticCurve curve_;
+    ros::Time curve_start_;
+    double curve_time_{1.0};
 
 
     // ROS 句柄

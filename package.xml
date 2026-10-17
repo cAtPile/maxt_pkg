@@ -47,4 +47,5 @@
     <build_type>catkin</build_type>
     <gazebo_ros plugin_path="${prefix}/../../lib"/>
   </export>
+  <depend>eigen</depend>
 </package>

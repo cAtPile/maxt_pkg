@@ -137,3 +137,16 @@ Nav 的 `v_max`、`a_max`、`pid_kp`、`pid_ki`、`pid_kd` 统一在 `config/nav
 按使用者要求，最终运行测试由人工完成。建议依次确认：未找到时完成 12 个航点后降落；导航过程中找到目标时停止遍历、跟踪 60 秒后降落；检测为 false 或消息断流超过 0.5 秒时继续搜索。编译并加载工作空间环境后使用上面的 `region_traverse_test.launch` 入口。
 
 跟踪阶段用 ForceSuccess 包裹 Guidance，使跟踪超时或 Action 失败后仍进入 TouchDown；`guidance_message` 和 Guidance 日志保留失败原因。此时最终任务 SUCCESS 表示降落流程完成，并不单独证明跟踪成功。未找到目标时跳过 Guidance；一旦搜索命中，后续短暂丢失由 Guidance 自身的等待反馈逻辑处理，不会恢复遍历。
+
+## MavKit 曲线控制
+
+`CURVE_CTRL` 模式由 MavKit 定时器采样五次曲线，直接发布位置、速度和加速度参考。
+外部调用 `setQuinticCurveTarget(Eigen::Vector3d(x, y, z))` 设置世界坐标系目标，
+调用 `getCurveTime()` 获取估算时长，再切换到 `SetpointMode::CURVE_CTRL`。
+时长沿用 `nav/v_max`、`nav/a_max` 的估算公式，终点速度和加速度为零，新增依赖 Eigen3。
+参考 `CurveState` 不随传感器更新；在 CURVE_CTRL 中重设目标时继承切换时刻的参考 p/v/a，
+从其他模式进入时以当前位置和零速度、零加速度初始化。非零初始导数的重规划不保证严格限速。
+
+Nav 在曲线执行期间仅检查总超时；曲线完成后先填充目标位置和三轴 PID 速度修正，
+再切换 RAW_CTRL 进行末端对齐。达到容差或末端等待超过 3 秒返回 SUCCESS；
+完成、超时或 halt 时切回 HEARTBEAT。当前修改不包含 halt 平滑减速或 Guidance 接管平滑。

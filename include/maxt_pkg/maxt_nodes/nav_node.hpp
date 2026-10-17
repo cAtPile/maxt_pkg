@@ -2,7 +2,6 @@
 #define MAXT_NODES_NAV_HPP
 
 #include <maxt_pkg/maxt_nodes.hpp>
-#include <maxt_pkg/quintic_curve.hpp>
 #include <maxt_pkg/pid_controller.hpp>
 
 namespace maxt {
@@ -20,12 +19,10 @@ public:
 private:
     ros::NodeHandle nav_nh_;
     double tx_{0.0}, ty_{0.0}, tz_{0.0};
-    double v_max_{2.5}, a_max_{1.2};
     double tolerance_{0.1};
     double timeout_{60.0};
     double pid_kp_{1.0}, pid_ki_{0.05}, pid_kd_{0.0};
 
-    QuinticCurve curve_;
     double T_{1.0};
     ros::Time traj_start_;
     ros::Time start_time_;

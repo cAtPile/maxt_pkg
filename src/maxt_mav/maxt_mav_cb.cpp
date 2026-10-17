@@ -45,6 +45,11 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
         calib_.transRaw(raw);
         raw.header.stamp = ros::Time::now();
         raw_setpoint_pub_.publish(raw);
+    }else if(setpoint_mode_ == SetpointMode::CURVE_CTRL){
+        loadCurveRaw(ros::Time::now());
+        mavros_msgs::PositionTarget raw = curve_raw_target_;
+        calib_.transRaw(raw);
+        raw_setpoint_pub_.publish(raw);
     }else if(setpoint_mode_ == SetpointMode::STANDBY){
         // 不发布
     }else{

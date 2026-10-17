@@ -28,6 +28,7 @@ add_action_files(FILES Guidance.action ugv_mover.action)
 generate_messages(DEPENDENCIES actionlib_msgs std_msgs)
 
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen3 REQUIRED)
 find_package(gazebo REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -92,7 +93,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
   CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs
-  DEPENDS Boost
+  DEPENDS Boost Eigen3
 )
 
 
@@ -106,6 +107,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 # Native target motion avoids synchronous ROS service calls during simulation.
