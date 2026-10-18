@@ -149,4 +149,20 @@ Nav 的 `v_max`、`a_max`、`pid_kp`、`pid_ki`、`pid_kd` 统一在 `config/nav
 
 Nav 在曲线执行期间仅检查总超时；曲线完成后先填充目标位置和三轴 PID 速度修正，
 再切换 RAW_CTRL 进行末端对齐。达到容差或末端等待超过 3 秒返回 SUCCESS；
-完成、超时或 halt 时切回 HEARTBEAT。当前修改不包含 halt 平滑减速或 Guidance 接管平滑。
+完成或超时时切回 HEARTBEAT；halt 时请求 SLOW_DOWN 平滑减速。
+
+`SLOW_DOWN` 是独立的设点模式，MavKit 继承当前曲线参考 p/v/a，复用现有 `QuinticCurve`，
+自由决定停车位置，由定时器的 SLOW_DOWN 分支采样和发布。
+原有 CURVE_CTRL 分支只采样并发布导航曲线，不处理减速完成或自动模式切换。配置 `nav/slow_down_time`（默认 1.0 s）
+和 `nav/stop_velocity_tolerance`（默认 0.01 m/s）；参数须为正。
+所有轴完成减速、参考速度满足阈值且加速度归零后进入 HEARTBEAT。
+判断使用参考状态，不代表实测飞机已经完全停止。该曲线不强制限制 jerk 或峰值加速度；
+初始加速度与速度同向时，为保持加速度连续，速度可能先增加再下降。
+
+减速未完成时，新 Nav 目标继承当前参考状态生成五次曲线；CONTROL 目标也转为五次曲线。
+RAW_CTRL 接管使用最新设点中启用的速度轴作为过渡目标，忽略的速度轴按零处理，
+使用五次插值平滑过渡至目标速度和零加速度，然后发布最新 RAW 设点。
+因此 Guidance 等待反馈时的 HEARTBEAT 请求不会截断减速，收到反馈后可平滑接管参考速度。
+该 RAW 过渡适用于本项目世界坐标系、非力控制且目标加速度为零或忽略的设点；
+过渡期间发布完整 p/v/a，结束时恢复 RAW 的掩码、位置和 yaw，不对位置及 yaw 的切换做平滑。
+STANDBY 仍立即停止发布。

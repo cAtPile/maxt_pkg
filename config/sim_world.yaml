@@ -1,6 +1,6 @@
 # 运动中心位置，使用 Gazebo 世界坐标系，单位 m。
-x: -2.0
-y: 2.0
+x: -4.0
+y: 4.0
 z: 0.02
 
 # 沿 Y 轴往返的振幅，单位 m；移动范围为 [y-amplitude, y+amplitude]。
@@ -9,4 +9,4 @@ amplitude: 2
 # 靶标沿 Y 轴做正弦往返运动。speed 是最大速度，单位 m/s。
 # speed = 0 时静止；修改后需重新启动仿真。
 # 周期 T = 2*pi*amplitude/speed；默认保持振幅 2 m、周期约 12 s。
-speed: 0.3
+speed: 0.5

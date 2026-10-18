@@ -141,8 +141,8 @@ BT::NodeStatus NavNode::onRunning() {
 }
 
 void NavNode::onHalted() {
-    ROS_WARN("[Nav] Halted!");
-    mav_.setSetpointMode(SetpointMode::HEARTBEAT);
+    ROS_WARN("[Nav] Halted! Slowing down.");
+    mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
 }
 
 } // namespace maxt

@@ -30,7 +30,8 @@ enum class SetpointMode {
     CONTROL,    // 位置控制模式
     RAW_CTRL,   // 原始设定值模式(setpoint_raw)
     STANDBY,    // 待机模式
-    CURVE_CTRL  // 定时器采样五次曲线并发布 p/v/a
+    CURVE_CTRL, // 定时器采样五次曲线并发布 p/v/a
+    SLOW_DOWN   // 独立执行减速及接管过渡曲线
 };
 
 // 世界坐标系下的曲线参考状态，不由传感器逐帧覆盖。
@@ -179,6 +180,9 @@ private:
 
     // 调用方持有 data_mtx_，采样当前曲线并填充原始参考设点。
     void loadCurveRaw(const ros::Time& now);
+    void setQuinticCurveTargetLocked(const Eigen::Vector3d& position, const ros::Time& now);
+    void startVelocityTransition(const Eigen::Vector3d& velocity, const ros::Time& now);
+    void captureCurveState(const ros::Time& now);
 
     ros::NodeHandle nh_;
     
@@ -198,6 +202,11 @@ private:
     QuinticCurve curve_;
     ros::Time curve_start_;
     double curve_time_{1.0};
+    bool velocity_transition_{false};
+    SetpointMode transition_end_mode_{SetpointMode::HEARTBEAT};
+    double slow_down_time_{1.0};
+    Eigen::Vector3d transition_velocity_{Eigen::Vector3d::Zero()};
+    double stop_velocity_tolerance_{0.01};
 
 
     // ROS 句柄

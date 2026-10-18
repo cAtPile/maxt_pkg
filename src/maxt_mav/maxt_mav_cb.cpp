@@ -50,6 +50,31 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
         mavros_msgs::PositionTarget raw = curve_raw_target_;
         calib_.transRaw(raw);
         raw_setpoint_pub_.publish(raw);
+    }else if(setpoint_mode_ == SetpointMode::SLOW_DOWN){
+        // 减速完成及接管逻辑仅在 SLOW_DOWN 中执行。
+        const ros::Time now = ros::Time::now();
+        loadCurveRaw(now);
+        // 必须同时完成加速度归零；仅速度过零就退出会截断仍在执行的曲线。
+        const bool transition_finished = velocity_transition_ &&
+            (now - curve_start_).toSec() >= curve_time_;
+        if (transition_finished &&
+            (transition_end_mode_ != SetpointMode::HEARTBEAT ||
+             curve_state_.velocity.cwiseAbs().maxCoeff() <= stop_velocity_tolerance_)) {
+            velocity_transition_ = false;
+            setpoint_mode_ = transition_end_mode_;
+            if (transition_end_mode_ == SetpointMode::HEARTBEAT) {
+                setpoint_pub_.publish(current_pose_);
+            } else {
+                auto raw = raw_target_;
+                calib_.transRaw(raw);
+                raw.header.stamp = now;
+                raw_setpoint_pub_.publish(raw);
+            }
+            return;
+        }
+        mavros_msgs::PositionTarget raw = curve_raw_target_;
+        calib_.transRaw(raw);
+        raw_setpoint_pub_.publish(raw);
     }else if(setpoint_mode_ == SetpointMode::STANDBY){
         // 不发布
     }else{
