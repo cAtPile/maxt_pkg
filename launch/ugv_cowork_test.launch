@@ -1,0 +1,26 @@
+<launch>
+    <arg name="run_ugv_sim" default="true" />
+    <arg name="run_detection" default="true" />
+    <arg name="run_guidance" default="true" />
+    <arg name="detection_config" default="$(find maxt_pkg)/config/aruco_center.yaml" />
+    <arg name="run_camera" default="false" />
+    <arg name="run_mavros" default="false" />
+    <arg name="run_fast_lio" default="false" />
+    <arg name="bt_tick_rate" default="20.0" />
+    <arg name="heartbeat_rate" default="20.0" />
+
+    <node if="$(arg run_ugv_sim)" pkg="maxt_pkg" type="ugv_sim.py"
+          name="ugv_sim" output="screen" />
+    <include if="$(arg run_detection)" file="$(find maxt_pkg)/launch/aruco_center.launch">
+        <arg name="config" value="$(arg detection_config)" />
+        <arg name="run_guidance" value="$(arg run_guidance)" />
+    </include>
+    <include file="$(find maxt_pkg)/launch/mission.launch">
+        <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/ugv_cowork_test.xml" />
+        <arg name="run_mavros" value="$(arg run_mavros)" />
+        <arg name="run_fast_lio" value="$(arg run_fast_lio)" />
+        <arg name="run_camera" value="$(arg run_camera)" />
+        <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />
+        <arg name="heartbeat_rate" value="$(arg heartbeat_rate)" />
+    </include>
+</launch>

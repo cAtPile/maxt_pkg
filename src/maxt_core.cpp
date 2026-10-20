@@ -2,6 +2,8 @@
 #include <maxt_pkg/maxt_nodes/region_traverse_node.hpp>
 #include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
+#include <maxt_pkg/maxt_nodes/ugv_cowork_node.hpp>
+#include <maxt_pkg/maxt_nodes/capture_pose_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
 #include <maxt_pkg/maxt_nodes/goto_node.hpp>
@@ -62,6 +64,14 @@ bool MaxtCore::init() {
 }
 
 void MaxtCore::registerNodes() {
+    factory_.registerBuilder<CapturePoseNode>("CapturePose",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<CapturePoseNode>(name, config, *mav_);
+        });
+    factory_.registerBuilder<UgvCoworkNode>("UgvCowork",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<UgvCoworkNode>(name, config, *mav_);
+        });
     factory_.registerBuilder<FoundCheckNode>("FoundCheck",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<FoundCheckNode>(name, config, nh_);

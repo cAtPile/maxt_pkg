@@ -123,6 +123,8 @@ add_library(${PROJECT_NAME}
   src/maxt_mav/maxt_mav_con.cpp
   src/maxt_mav/maxt_mav_request.cpp
   src/maxt_nodes/guidance.cpp
+  src/maxt_nodes/ugv_cowork_node.cpp
+  src/maxt_nodes/capture_pose_node.cpp
   src/maxt_nodes/goto.cpp
 
   src/maxt_nodes/takeoff.cpp
@@ -225,6 +227,14 @@ install(DIRECTORY launch config
 #############
 ## Testing ##
 #############
+
+if(CATKIN_ENABLE_TESTING)
+  add_executable(ugv_cowork_tree_test test/ugv_cowork_tree_test.cpp)
+  add_dependencies(ugv_cowork_tree_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+  target_link_libraries(ugv_cowork_tree_test ${PROJECT_NAME} ${catkin_LIBRARIES})
+  add_test(NAME ugv_cowork_tree
+    COMMAND ugv_cowork_tree_test ${CMAKE_CURRENT_SOURCE_DIR}/config/mission/ugv_cowork_test.xml)
+endif()
 
 ## Add gtest based cpp test target and link libraries
 # catkin_add_gtest(${PROJECT_NAME}-test test/test_maxt_pkg.cpp)

@@ -4,7 +4,7 @@
 
 MaxtCore 负责初始化、注册行为树节点和执行 XML；MavKit 封装状态订阅、坐标标定、设点发布以及解锁和模式服务。任务节点使用已有非阻塞生命周期。
 
-当前注册节点：`ConnectCheck`、`Takeoff`、`GoTo`、`Nav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`RegionTraverse`、`GetRegionWaypoint`、`FoundCheck`。`Land`、`XNavigation` 仅有历史头文件声明，未注册，不能用于任务 XML。
+当前注册节点：`ConnectCheck`、`Takeoff`、`GoTo`、`Nav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`RegionTraverse`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`CapturePose`。`Land`、`XNavigation` 仅有历史头文件声明，未注册，不能用于任务 XML。
 
 比赛专用识别、圆环检测和投放功能已移除，接口变更和建议见 [清理交付文档](docs/done/craicRM_delivery.md)。
 
@@ -184,3 +184,61 @@ RAW_CTRL 接管使用最新设点中启用的速度轴作为过渡目标，忽�
 该 RAW 过渡适用于本项目世界坐标系、非力控制且目标加速度为零或忽略的设点；
 过渡期间发布完整 p/v/a，结束时恢复 RAW 的掩码、位置和 yaw，不对位置及 yaw 的切换做平滑。
 STANDBY 仍立即停止发布。
+
+## 空地协同搜索与返航
+
+`ugv_cowork_test.xml` 复用区域遍历任务：连接 → 记录起飞位置 → 起飞 4m →
+按 1m 间距搜索 `(0,0)、(-6,0)、(-6,6)、(0,6)` → 找到标记后视觉对齐 →
+并行持续伺服与小车跟随 → 小车到达后停止伺服 → 返回起飞点上方 → 降落。
+识别沿用现有 ArUco ID 0，并非通用 QR 码识别；原 `region_traverse_test.xml` 保留。
+
+`Guidance` 的代码和接口保持不变。并行分支用 `KeepRunningUntilFailure` 包裹 Guidance，
+将其成功转换为 RUNNING；`Parallel success_threshold="1" failure_threshold="1"`
+因此仅由小车成功结束，自动 halt Guidance 并取消视觉 Action。
+并行阶段小车总超时 90s，Guidance 跟踪 120s、总超时 150s，正常情况下不会中途重启跟踪。
+
+`UgvCowork follow_drone="true"` 直接读取无人机自身 XY（米）作为小车目标，
+不发布或修改无人机设点。每隔至少 0.2s 检查并发送变化超过 0.2m 的位置；
+自己的更新由服务端抢占旧目标，不当作协同失败；外部客户端抢占则返回失败。
+仅当最新 Action 为 SUCCEEDED、结果 `succeed=true`、无人机距已发送目标不超过 0.2m，
+且该目标已保持至少 1s 未被替换时返回 SUCCESS。
+这是“小车到达无人机位置”的判断，并不保证此刻视觉误差也达标；
+初次对齐发生在小车跟随之前。没有进行图像到地面位置投影，要求双方坐标系一致。
+
+| UgvCowork 输入端口 | 默认值 | 含义 |
+| --- | --- | --- |
+| `action_name` | `/ugv_mover` | 小车 Action 服务名 |
+| `timeout` | `60.0` | 等待连接与到达的总墙钟秒数 |
+| `follow_drone` | `false` | true 持续跟随无人机 XY；false 保留原单目标悬停模式 |
+| `update_period` | `0.2` | 两次目标更新的最小墙钟间隔，秒 |
+| `target_tolerance` | `0.2` | 目标更新及成功时的位置偏差阈值，米 |
+| `settle_time` | `1.0` | 跟随模式最终目标的最小保持时长，墙钟秒 |
+
+输出 `message` 为 WAIT_SERVER、WAIT_UGV、UGV_REACHED 或失败原因。
+halt、超时和析构时仅取消本节点仍在执行的小车目标。
+
+新增 `CapturePose` 将收到的定位快照写入黑板 `home_x/home_y/return_z`；
+`height_offset=4.0` 使返航及搜索高度等于记录时地面 Z 加 4m。
+该节点等待首条带时间戳的定位，默认超时 10s，不控制飞行。
+头文件和源文件均直接位于各自的 `maxt_nodes/` 目录。
+搜索矩形仍采用固定地图坐标，不随起飞点平移。
+
+未找到目标、搜索失败、对齐失败或协同超时都会转入返航。
+黑板 `cowork_result` 保存 not_found、search_failed、alignment_failed、cowork_failed 或 ugv_reached；
+`alignment_message`、`guidance_message`、`ugv_message` 保存对应节点的细节。
+返航使用现有 GoTo，实测位置进入各轴 0.15m 容差才成功；
+返航超时则停止任务并保持位置，不进入降落。起飞失败也直接结束任务。
+最终任务 SUCCESS 表示返航降落完成，协同是否成功以 `cowork_result` 为准。
+
+编译并加载环境后，先准备无人机仿真/MAVROS 和定位，再运行：
+
+```bash
+roslaunch maxt_pkg ugv_cowork_test.launch
+```
+
+入口默认启动 ArUco 检测、视觉 Action 服务和 Matplotlib 小车仿真。
+已有小车服务时使用 `run_ugv_sim:=false`；已有感知服务时使用 `run_detection:=false`。
+支持 `detection_config`、`run_camera`、`run_mavros`、`run_fast_lio` 和两个频率参数。
+`run_guidance:=false` 仅在另有 `/guidance` 服务时使用。
+不要同时运行 `ugv_controller.py`，它的目标会抢占协同任务。
+修改识别 ID 或话题后需同步修改 XML 中的 Guidance/FoundCheck 配置。

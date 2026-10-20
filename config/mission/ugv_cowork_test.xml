@@ -1,0 +1,78 @@
+<root main_tree_to_execute="UgvCoworkTest">
+    <BehaviorTree ID="UgvCoworkTest">
+        <Sequence>
+            <ConnectCheck timeout="60.0" />
+            <!-- 保存实际起飞 XY 与起飞点上方 4m 的返航高度。 -->
+            <CapturePose height_offset="4.0" timeout="10.0"
+                         x="{home_x}" y="{home_y}" z="{return_z}" />
+            <Takeoff target_alt="4.0" ascent_speed="0.5" timeout="60.0" />
+            <SetBlackboard output_key="cowork_result" value="not_found" />
+            <!-- 搜索/协同失败也返航；黑板保留具体阶段结果。 -->
+            <ForceSuccess>
+                <Sequence>
+                    <SetBlackboard output_key="cowork_result" value="search_failed" />
+                    <RegionTraverse reg_point_1_x="0" reg_point_1_y="0"
+                                    reg_point_2_x="-6" reg_point_2_y="0"
+                                    reg_point_3_x="-6" reg_point_3_y="6"
+                                    reg_point_4_x="0" reg_point_4_y="6"
+                                    coverage_step="1"
+                                    waypoints="{region_waypoints}"
+                                    waypoint_count="{region_waypoint_count}" />
+                    <SetBlackboard output_key="region_waypoint_index" value="0" />
+                    <!-- 命中时记录搜索结果，并 halt 正在运行的导航。 -->
+                    <ReactiveFallback>
+                        <Sequence>
+                            <FoundCheck topic="/aruco_center/is_found" timeout="0.5" />
+                            <SetBlackboard output_key="region_search_result" value="found" />
+                        </Sequence>
+                        <Sequence>
+                            <!-- 每轮取出一个航点；Nav 完成后再进入下一轮。 -->
+                            <Repeat num_cycles="{region_waypoint_count}">
+                                <Sequence>
+                                    <GetRegionWaypoint waypoints="{region_waypoints}"
+                                                       index="{region_waypoint_index}"
+                                                       next_index="{region_waypoint_index}"
+                                                       x="{region_target_x}" y="{region_target_y}" />
+                                    <Nav x="{region_target_x}" y="{region_target_y}" z="{return_z}" tolerance="0.15" timeout="45.0" />
+                                </Sequence>
+                            </Repeat>
+                            <SetBlackboard output_key="region_search_result" value="complete" />
+                        </Sequence>
+                    </ReactiveFallback>
+                    <Switch2 variable="{region_search_result}" case_1="found" case_2="complete">
+                        <Sequence>
+                            <SetBlackboard output_key="cowork_result" value="alignment_failed" />
+                            <!-- 先对齐，再让小车跟随无人机，避免使用刚发现目标时的偏离位置。 -->
+                            <Guidance target_id="0" tolerance="5.0" kp="0.006"
+                                      downward_camera="true" tracking_duration="0.0"
+                                      timeout="45.0" message="{alignment_message}" />
+                            <SetBlackboard output_key="cowork_result" value="cowork_failed" />
+                            <Parallel success_threshold="1" failure_threshold="1">
+                                <!-- 成功被装饰为 RUNNING，只有小车成功才能结束并行阶段。
+                                     小车超时 90s，短于本轮跟踪时长 120s。 -->
+                                <KeepRunningUntilFailure>
+                                    <Guidance target_id="0" tolerance="5.0" kp="0.006"
+                                              downward_camera="true" tracking_duration="120.0"
+                                              timeout="150.0" message="{guidance_message}" />
+                                </KeepRunningUntilFailure>
+                                <UgvCowork follow_drone="true" timeout="90.0"
+                                           update_period="0.2" target_tolerance="0.2"
+                                           settle_time="1.0" message="{ugv_message}" />
+                            </Parallel>
+                            <SetBlackboard output_key="cowork_result" value="ugv_reached" />
+                        </Sequence>
+                        <Sequence>
+                            <SetBlackboard output_key="cowork_result" value="not_found" />
+                            <AlwaysSuccess />
+                        </Sequence>
+                        <AlwaysFailure />
+                    </Switch2>
+                </Sequence>
+            </ForceSuccess>
+            <!-- GoTo 实测达标才成功；返航失败时不在未知位置自动降落。 -->
+            <GoTo x="{home_x}" y="{home_y}" z="{return_z}"
+                  tolerance="0.15" step="0.5" timeout="90.0" />
+            <TouchDown descent_speed="-0.3" timeout="60.0" ground_timeout="3.0" />
+        </Sequence>
+    </BehaviorTree>
+</root>
