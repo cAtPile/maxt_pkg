@@ -96,11 +96,29 @@ rosrun rqt_image_view rqt_image_view /camera/rgb/image_raw
 
 靶标运动由 `config/sim_world.yaml` 控制。修改尺寸或配置后需重启仿真；修改 C++ 控制节点后需重新编译。
 
-## UGV 移动协同
+## UGV 轻量仿真
 
-新增基于 ROS Action 的 PX4 小车移动 demo：`ugv_move_demo.py` 接收 `/ugv_mover` 目标，`ugv_move_controller.py` 按 YAML 配置顺序发送目的地，默认 ENU `(3,3)`。支持任务取消、抢占、连续目标和状态反馈，复用原小车控制及本机 PX4 航向补偿。
+`script/ugv_sim.py` 使用 Matplotlib 显示小车运动与路径，不依赖 PX4 或 Gazebo。初始位置为 `(0,0)`，通过 `/ugv_mover` 接收现有 `ugv_mover.action` 的绝对 XY 目标（米），以恒定速度直线前进。速度在 `config/ugv_confg.yaml` 的 `speed` 中配置（m/s，正数）；文件名按需求保留 `confg` 拼写。
 
-首次运行需要 `catkin_make --pkg maxt_pkg` 并加载工作空间环境。仿真终端执行 `./ugv_demo/start_sim.sh run_control:=false`，另一终端执行 `roslaunch maxt_pkg ugv_move.launch`。配置与操作见 [UGV 使用说明](ugv_demo/README.md)，接口和设计见 [移动协同交付文档](docs/done/cowork_ugv_delivery.md)。仿真验证由使用者进行。
+`script/ugv_controller.py` 按 `config/ugv_target.yaml` 的 `targets` 列表依次发送目标，终端显示状态；失败或被抢占后停止发送。Ctrl+C 取消当前目标，小车停在当前位置；新的 Action 目标可抢占正在执行的目标。关闭绘图窗口会退出仿真。
+
+依赖 ROS Noetic Python 环境、已生成的 Action 消息、Matplotlib、PyYAML、rospkg 和桌面显示环境。首次使用需编译本包并加载工作空间环境：
+
+```bash
+cd ~/catkin_ws
+catkin_make --pkg maxt_pkg
+source devel/setup.bash
+roscore
+```
+
+另开两个终端，加载相同工作空间环境后分别运行：
+
+```bash
+rosrun maxt_pkg ugv_sim.py
+rosrun maxt_pkg ugv_controller.py
+```
+
+两端可通过 `_config:=/absolute/path/to/config.yaml` 分别指定速度配置与目标配置，也可通过 `_action_name:=/custom_ugv_mover` 设置相同服务名。此仿真使用墙钟推进，无需 `/clock`；运行时应使用默认 `use_sim_time=false`。配置修改后重启对应节点生效。
 
 ## 矩形区域遍历规划
 

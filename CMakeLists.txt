@@ -186,17 +186,12 @@ target_link_libraries(maxt_test_node
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py script/aruco_center.py ugv_demo/ugv_offboard.py ugv_demo/ugv_move_demo.py ugv_demo/ugv_move_controller.py
+catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py script/aruco_center.py script/ugv_sim.py script/ugv_controller.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(DIRECTORY worlds models
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
-
-install(DIRECTORY ugv_demo
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  FILES_MATCHING PATTERN "*.launch" PATTERN "*.md" PATTERN "*.sh" PATTERN "*.yaml"
 )
 
 ## Mark executables for installation

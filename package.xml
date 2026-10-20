@@ -36,6 +36,9 @@
   
   <!-- Standalone Gazebo world and moving image target. -->
   <exec_depend>rospy</exec_depend>
+  <exec_depend>python3-matplotlib</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>python3-rospkg</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>rqt_image_view</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
