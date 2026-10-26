@@ -1,0 +1,10 @@
+<root main_tree_to_execute="FastMission">
+    <BehaviorTree ID="FastMission">
+        <Sequence>
+            <ConnectCheck/>
+            <Takeoff target_alt="0.5"/>
+            <Hover hover_duration="2.0" />
+            <TouchDown/>
+        </Sequence>
+    </BehaviorTree>
+</root>
