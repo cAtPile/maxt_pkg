@@ -1,11 +1,5 @@
 6-10
 [19:31] RoundNode:改为前馈
-        find：在很短距离内gotonode修正能力不足
-        plan:GoToNode走若干小步，检查是否为setpoint固有缺点
-
-[19:42] GoToNode:似乎微小步也可以较快到达
-                再测试一下是否是偶然
-                确实是偶然现象
         plan:测试RoundNode绕20圈
 
 [19:51] RoundNode:前馈版本似乎没问题

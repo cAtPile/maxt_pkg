@@ -125,7 +125,6 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/guidance.cpp
   src/maxt_nodes/ugv_cowork_node.cpp
   src/maxt_nodes/capture_pose_node.cpp
-  src/maxt_nodes/goto.cpp
 
   src/maxt_nodes/takeoff.cpp
   src/maxt_nodes/waitstep.cpp
@@ -189,6 +188,7 @@ target_link_libraries(maxt_test_node
 # )
 
 catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py script/aruco_center.py script/ugv_sim.py script/ugv_controller.py
+  script/fast_mission/fast_mission.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

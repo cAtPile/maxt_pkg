@@ -1,17 +1,16 @@
 <root main_tree_to_execute="GuidanceTest">
     <BehaviorTree ID="GuidanceTest">
         <Sequence>
-            <ConnectCheck timeout="30.0" />
-            <Takeoff target_alt="1.0" ascent_speed="0.5" timeout="30.0" />
+            <ConnectCheck />
+            <Takeoff target_alt="1.0" />
             <Hover hover_duration="2.0" />
             <!-- 本测试预期超时失败，继续执行降落。 -->
             <ForceSuccess>
                 <Guidance target_id="test"
-                          tolerance="5.0"
                           timeout="15.0"
                           message="{guidance_message}" />
             </ForceSuccess>
-            <TouchDown descent_speed="-0.3" timeout="60.0" ground_timeout="3.0" />
+            <TouchDown />
         </Sequence>
     </BehaviorTree>
 </root>

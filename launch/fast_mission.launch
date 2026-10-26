@@ -1,0 +1,19 @@
+<launch>
+    <!-- 执行快速编排器最近保存的 XML，复用通用入口加载无人机配置。 -->
+    <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml" />
+    <arg name="bt_tick_rate" default="20.0" />
+    <arg name="heartbeat_rate" default="20.0" />
+    <arg name="run_mavros" default="false" />
+    <arg name="run_fast_lio" default="false" />
+    <arg name="run_camera" default="false" />
+
+    <include file="$(find maxt_pkg)/launch/mission.launch">
+        <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/fast_mission.xml" />
+        <arg name="nav_config" value="$(arg nav_config)" />
+        <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />
+        <arg name="heartbeat_rate" value="$(arg heartbeat_rate)" />
+        <arg name="run_mavros" value="$(arg run_mavros)" />
+        <arg name="run_fast_lio" value="$(arg run_fast_lio)" />
+        <arg name="run_camera" value="$(arg run_camera)" />
+    </include>
+</launch>

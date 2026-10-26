@@ -1,19 +1,18 @@
 <root main_tree_to_execute="VisionTest">
     <BehaviorTree ID="VisionTest">
         <Sequence>
-            <ConnectCheck timeout="60.0" />
+            <ConnectCheck />
             <!-- 飞行阶段失败后也进入降落流程。 -->
             <ForceSuccess>
                 <Sequence>
-                    <Takeoff target_alt="2.0" ascent_speed="0.5" timeout="60.0" />
+                    <Takeoff target_alt="2.0" />
                     <Nav x="-2.0" y="2.0" z="2.0" tolerance="0.15" timeout="40.0" />
                     <Hover hover_duration="2.0" />
-                    <Guidance target_id="0" tolerance="5.0" kp="0.006"
-                              downward_camera="true" tracking_duration="60.0"
+                    <Guidance target_id="0" tracking_duration="60.0"
                               timeout="90.0" message="{guidance_message}" />
                 </Sequence>
             </ForceSuccess>
-            <TouchDown descent_speed="-0.3" timeout="60.0" ground_timeout="3.0" />
+            <TouchDown />
         </Sequence>
     </BehaviorTree>
 </root>

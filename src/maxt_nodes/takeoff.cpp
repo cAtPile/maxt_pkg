@@ -4,9 +4,7 @@ namespace maxt {
 
 BT::PortsList TakeoffNode::providedPorts() {
     return {
-        BT::InputPort<double>("target_alt", 0.5, "takeoff altitude"),
-        BT::InputPort<double>("ascent_speed", 0.5, "ascent speed (m/s)"),
-        BT::InputPort<double>("timeout", 30.0, "takeoff timeout(s)")
+        BT::InputPort<double>("target_alt", 0.5, "takeoff altitude")
     };
 }
 
@@ -15,9 +13,12 @@ TakeoffNode::TakeoffNode(const std::string& name, const BT::NodeConfiguration& c
 }
 
 BT::NodeStatus TakeoffNode::onStart() {
+    // 每次启动从节点私有命名空间读取本模块的 ROS 参数。
+    ros::NodeHandle params("~takeoff");
+    params.param("ascent_speed", ascent_speed_, 0.5);
+    params.param("timeout", timeout_, 30.0);
+
     if (!getInput<double>("target_alt", target_alt_)) target_alt_ = 0.5;
-    if (!getInput<double>("ascent_speed", ascent_speed_)) ascent_speed_ = 0.5;
-    if (!getInput<double>("timeout", timeout_)) timeout_ = 30.0;
 
     phase_ = Phase::ARM;
     start_time_ = ros::Time::now();

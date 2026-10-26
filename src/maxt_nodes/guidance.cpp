@@ -19,29 +19,28 @@ GuidanceNode::~GuidanceNode() {
 }
 
 BT::PortsList GuidanceNode::providedPorts() {
-    // 行为树端口：target_id 指定目标；tolerance 是 u、v 各轴允许的误差，
+    // 行为树端口指定目标和任务时长；控制增益与容差从 ROS 参数读取。
     return {
         BT::InputPort<std::string>("target_id"),
-        BT::InputPort<double>("tolerance", 5.0, "per-axis error tolerance"),
         BT::InputPort<double>("timeout", 30.0, "whole operation timeout in seconds"),
         BT::InputPort<double>("tracking_duration", 0.0, "continuous tracking seconds; zero aligns once"),
-        BT::InputPort<bool>("downward_camera", false, "PX4 downward camera axes mapped with vehicle yaw"),
-        BT::InputPort<double>("kp", 0.01, "pixel error proportional gain"),
         BT::OutputPort<std::string>("message", "local completion or server result")
     };
 }
 
 BT::NodeStatus GuidanceNode::onStart() {
+    // 每次启动从节点私有命名空间读取本模块的 ROS 参数。
+    ros::NodeHandle params("~guidance");
+    params.param("tolerance", tolerance_, 5.0);
+    params.param("downward_camera", downward_camera_, false);
+    params.param("kp", kp_, 0.01);
 
     // 节点首次被 tick时执行：读取输入并校验参数。
     if (!getInput("target_id", goal_.target_id) || goal_.target_id.empty()) {
         return finish(BT::NodeStatus::FAILURE, "FAIL: missing target_id");
     }//TODO:请分离getinput和校验
-    getInput("tolerance", tolerance_);
     getInput("timeout", timeout_);
     getInput("tracking_duration", tracking_duration_);
-    getInput("downward_camera", downward_camera_);
-    getInput("kp", kp_);
     tracking_started_ = false;
     if (!std::isfinite(tolerance_) || !std::isfinite(timeout_) ||
         !std::isfinite(tracking_duration_) || !std::isfinite(kp_) ||

@@ -1,0 +1,12 @@
+<root main_tree_to_execute="FastMission">
+    <BehaviorTree ID="FastMission">
+        <Sequence>
+            <ConnectCheck/>
+            <Takeoff target_alt="2"/>
+            <Nav x="2" y="0" z="2" tolerance="0.1" timeout="60.0"/>
+            <Nav x="2" y="2" z="2" tolerance="0.1" timeout="60.0"/>
+            <Nav x="0" y="0" z="2" tolerance="0.1" timeout="60.0"/>
+            <TouchDown/>
+        </Sequence>
+    </BehaviorTree>
+</root>

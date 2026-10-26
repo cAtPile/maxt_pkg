@@ -1,3 +1,4 @@
+# 无人机统一配置：所有行为树任务共用，由 mission.launch 加载到节点私有命名空间。
 # Nav 节点的速度、加速度与三轴 PID 参数。
 nav:
   v_max: 5       # m/s
@@ -7,3 +8,24 @@ nav:
   pid_kp: 1.0
   pid_ki: 0.05
   pid_kd: 0.0
+
+# BT 节点的 ROS 参数：时间 s，速度 m/s，高度容差 m。
+connect_check:
+  timeout: 60.0
+capture_pose:
+  timeout: 10.0
+takeoff:
+  ascent_speed: 0.5
+  timeout: 60.0
+touch_down:
+  descent_speed: -0.3
+  timeout: 60.0
+  ground_timeout: 3.0
+  height_tol: 0.3
+  vel_tol: 0.2
+guidance:
+  tolerance: 5.0  # 视觉误差各轴容差，像素
+  downward_camera: true  # 下视相机坐标转换
+  kp: 0.006  # 像素误差比例增益
+found_check:
+  timeout: 0.5

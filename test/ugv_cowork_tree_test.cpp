@@ -3,7 +3,6 @@
 #include <maxt_pkg/maxt_nodes/connect_check_node.hpp>
 #include <maxt_pkg/maxt_nodes/found_check_node.hpp>
 #include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
-#include <maxt_pkg/maxt_nodes/goto_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 #include <maxt_pkg/maxt_nodes/nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/region_traverse_node.hpp>
@@ -50,18 +49,18 @@ public:
             tracking_ = getInput<double>("tracking_duration").value() > 0;
             if (tracking_) ++scenario_.tracking_starts;
             return BT::NodeStatus::RUNNING;
-        } else if (kind_ == "Nav") {
-            return BT::NodeStatus::RUNNING;
-        } else if (kind_ == "UgvCowork") {
-            check(getInput<bool>("follow_drone").value(), "follow mode missing");
-            return BT::NodeStatus::RUNNING;
-        } else if (kind_ == "GoTo") {
+        } else if (kind_ == "Nav" && name() == "ReturnHome") {
             check(getInput<double>("x").value() == 1.25, "lost takeoff X");
             check(getInput<double>("y").value() == -0.75, "lost takeoff Y");
             check(getInput<double>("z").value() == 4.5, "lost return altitude");
             scenario_.returned = true;
             return scenario_.name == "return_failed" ? BT::NodeStatus::FAILURE
                                                        : BT::NodeStatus::SUCCESS;
+        } else if (kind_ == "Nav") {
+            return BT::NodeStatus::RUNNING;
+        } else if (kind_ == "UgvCowork") {
+            check(getInput<bool>("follow_drone").value(), "follow mode missing");
+            return BT::NodeStatus::RUNNING;
         } else if (kind_ == "TouchDown") {
             check(scenario_.returned, "landing before return");
             scenario_.landed = true;
@@ -124,7 +123,6 @@ void run(const std::string& xml, const std::string& name, const std::string& exp
     registerLeaf<maxt::NavNode>(factory, "Nav", scenario);
     registerLeaf<maxt::GuidanceNode>(factory, "Guidance", scenario);
     registerLeaf<maxt::UgvCoworkNode>(factory, "UgvCowork", scenario);
-    registerLeaf<maxt::GoToNode>(factory, "GoTo", scenario);
     registerLeaf<maxt::TouchDownNode>(factory, "TouchDown", scenario);
     factory.registerNodeType<maxt::RegionTraverseNode>("RegionTraverse");
     factory.registerNodeType<maxt::GetRegionWaypointNode>("GetRegionWaypoint");

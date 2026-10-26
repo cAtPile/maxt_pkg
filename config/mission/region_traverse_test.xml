@@ -1,8 +1,8 @@
 <root main_tree_to_execute="RegionTraverseTest">
     <BehaviorTree ID="RegionTraverseTest">
         <Sequence>
-            <ConnectCheck timeout="30.0" />
-            <Takeoff target_alt="4.0" ascent_speed="0.5" timeout="45.0" />
+            <ConnectCheck />
+            <Takeoff target_alt="4.0" />
             <RegionTraverse reg_point_1_x="0" reg_point_1_y="0"
                             reg_point_2_x="-6" reg_point_2_y="0"
                             reg_point_3_x="-6" reg_point_3_y="6"
@@ -14,7 +14,7 @@
             <!-- 命中时记录搜索结果，并 halt 正在运行的导航。 -->
             <ReactiveFallback>
                 <Sequence>
-                    <FoundCheck topic="/aruco_center/is_found" timeout="0.5" />
+                    <FoundCheck topic="/aruco_center/is_found" />
                     <SetBlackboard output_key="region_search_result" value="found" />
                 </Sequence>
                 <Sequence>
@@ -35,14 +35,13 @@
             <Switch2 variable="{region_search_result}" case_1="found" case_2="complete">
                 <!-- 跟踪成功或失败都进入后续降落，失败原因保留在 guidance_message。 -->
                 <ForceSuccess>
-                    <Guidance target_id="0" tolerance="5.0" kp="0.006"
-                              downward_camera="true" tracking_duration="60.0"
+                    <Guidance target_id="0" tracking_duration="60.0"
                               timeout="90.0" message="{guidance_message}" />
                 </ForceSuccess>
                 <AlwaysSuccess />
                 <AlwaysFailure />
             </Switch2>
-            <TouchDown descent_speed="-0.3" timeout="60.0" ground_timeout="3.0" />
+            <TouchDown />
         </Sequence>
     </BehaviorTree>
 </root>

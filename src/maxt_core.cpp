@@ -6,7 +6,6 @@
 #include <maxt_pkg/maxt_nodes/capture_pose_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
-#include <maxt_pkg/maxt_nodes/goto_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/waitstep_node.hpp>
 #include <maxt_pkg/maxt_nodes/hover_node.hpp>
@@ -16,6 +15,9 @@
 
 #include <maxt_pkg/maxt_nodes/nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/found_check_node.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <std_msgs/String.h>
+#include <sstream>
 
 namespace maxt {
 
@@ -58,6 +60,8 @@ bool MaxtCore::init() {
 
     // 5. 添加标准控制台日志（可选）
     logger_ = std::make_unique<BT::StdCoutLogger>(tree_);
+    mission_status_pub_ = nh_.advertise<std_msgs::String>("mission_status", 1, true);
+    publishMissionState("IDLE");
 
     ROS_INFO("MaxtCore: System initialized successfully.");
     return true;
@@ -82,11 +86,6 @@ void MaxtCore::registerNodes() {
     factory_.registerBuilder<TakeoffNode>("Takeoff", 
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<TakeoffNode>(name, config, *mav_);
-        });
-
-    factory_.registerBuilder<GoToNode>("GoTo",
-        [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<GoToNode>(name, config, *mav_);
         });
 
     factory_.registerBuilder<NavNode>("Nav",
@@ -128,6 +127,36 @@ void MaxtCore::registerNodes() {
     ROS_INFO("MaxtCore: All BT Nodes registered.");
 }
 
+void MaxtCore::publishMissionState(const std::string& state) {
+    boost::property_tree::ptree snapshot;
+    snapshot.put("state", state);
+    snapshot.put("xml_path", xml_path_);
+    snapshot.put("stamp", ros::WallTime::now().toSec());
+    boost::property_tree::ptree active;
+    // 遍历全部叶节点，支持并行任务；不把父级 Sequence 当作执行动作。
+    if (state == "RUNNING") {
+        BT::applyRecursiveVisitor(tree_.rootNode(), [&active](const BT::TreeNode* node) {
+            if (node->type() != BT::NodeType::ACTION || node->status() != BT::NodeStatus::RUNNING) {
+                return;
+            }
+            boost::property_tree::ptree entry;
+            entry.put("uid", node->UID());
+            entry.put("name", node->name());
+            entry.put("type", node->registrationName());
+            active.push_back(std::make_pair("", entry));
+        });
+    }
+    // property_tree 的空数组会变成空字符串；没有运行节点时省略 active 字段。
+    if (!active.empty()) {
+        snapshot.add_child("active", active);
+    }
+    std::ostringstream stream;
+    boost::property_tree::write_json(stream, snapshot, false);
+    std_msgs::String message;
+    message.data = stream.str();
+    mission_status_pub_.publish(message);
+}
+
 void MaxtCore::run() {
     ros::Rate loop_rate(tick_rate_);
     BT::NodeStatus status = BT::NodeStatus::RUNNING;
@@ -138,11 +167,16 @@ void MaxtCore::run() {
     while (ros::ok() && status == BT::NodeStatus::RUNNING) {
         // 执行一次行为树 Tick
         status = tree_.tickRoot();
+        publishMissionState(BT::toStr(status, false));
 
         // 但保留主线程的一些零散回调
         ros::spinOnce();
         
         loop_rate.sleep();
+    }
+
+    if (status == BT::NodeStatus::RUNNING) {
+        publishMissionState("STOPPED");
     }
 
     if (status == BT::NodeStatus::SUCCESS) {

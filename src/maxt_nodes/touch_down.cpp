@@ -4,13 +4,7 @@
 namespace maxt {
 
 BT::PortsList TouchDownNode::providedPorts() {
-    return {
-        BT::InputPort<double>("descent_speed", -0.5, "下降速度(m/s)"),
-        BT::InputPort<double>("timeout", 60.0, "降落总超时(s)"),
-        BT::InputPort<double>("ground_timeout", 3.0, "着陆确认持续时间(s)"),
-        BT::InputPort<double>("height_tol", 0.3, "高度容差(m), 相对home点"),
-        BT::InputPort<double>("vel_tol", 0.2, "垂速容差(m/s)")
-    };
+    return {};
 }
 
 TouchDownNode::TouchDownNode(const std::string& name,
@@ -20,11 +14,13 @@ TouchDownNode::TouchDownNode(const std::string& name,
 }
 
 BT::NodeStatus TouchDownNode::onStart() {
-    if (!getInput<double>("descent_speed", descent_speed_)) descent_speed_ = -0.5;
-    if (!getInput<double>("timeout", timeout_)) timeout_ = 60.0;
-    if (!getInput<double>("ground_timeout", ground_timeout_)) ground_timeout_ = 3.0;
-    if (!getInput<double>("height_tol", height_tol_)) height_tol_ = 0.3;
-    if (!getInput<double>("vel_tol", vel_tol_)) vel_tol_ = 0.2;
+    // 每次启动从节点私有命名空间读取本模块的 ROS 参数。
+    ros::NodeHandle params("~touch_down");
+    params.param("descent_speed", descent_speed_, -0.5);
+    params.param("timeout", timeout_, 60.0);
+    params.param("ground_timeout", ground_timeout_, 3.0);
+    params.param("height_tol", height_tol_, 0.3);
+    params.param("vel_tol", vel_tol_, 0.2);
 
     if (!mav_.isArmed()) {
         ROS_INFO("TouchDownNode: Already disarmed");

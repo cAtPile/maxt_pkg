@@ -4,7 +4,6 @@ namespace maxt {
 
 BT::PortsList ConnectCheckNode::providedPorts() {
     return {
-        BT::InputPort<double>("timeout", 60.0, "connection timeout (s)"),
         BT::InputPort<double>("map_x",  0.0,  "reference map x (world)"),
         BT::InputPort<double>("map_y",  0.0,  "reference map y (world)"),
         BT::InputPort<double>("fact_x", 0.0,  "reference SLAM x"),
@@ -17,9 +16,10 @@ ConnectCheckNode::ConnectCheckNode(const std::string& name, const BT::NodeConfig
 }
 
 BT::NodeStatus ConnectCheckNode::onStart() {
-    if (!getInput<double>("timeout", timeout_)) {
-        timeout_ = 60.0;
-    }
+    // 每次启动从节点私有命名空间读取本模块的 ROS 参数。
+    ros::NodeHandle params("~connect_check");
+    params.param("timeout", timeout_, 60.0);
+
     getInput<double>("map_x", map_x_);
     getInput<double>("map_y", map_y_);
     getInput<double>("fact_x", fact_x_);

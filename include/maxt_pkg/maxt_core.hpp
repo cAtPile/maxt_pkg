@@ -55,8 +55,12 @@ private:
      */
     void registerNodes();
 
+    // 发布只读监看快照，供快速任务工作区及后续监看器订阅。
+    void publishMissionState(const std::string& state);
+
     // ROS 相关
     ros::NodeHandle nh_;
+    ros::Publisher mission_status_pub_;
     // 关键：异步 Spinner，确保回调在后台线程独立运行，不阻塞 BT
     std::unique_ptr<ros::AsyncSpinner> spinner_;
 

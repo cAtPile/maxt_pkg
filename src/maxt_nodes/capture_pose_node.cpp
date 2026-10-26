@@ -4,7 +4,6 @@ namespace maxt {
 
 BT::PortsList CapturePoseNode::providedPorts() {
     return {
-        BT::InputPort<double>("timeout", 10.0, "pose wait timeout (wall seconds)"),
         BT::InputPort<double>("height_offset", 0.0, "height added to captured Z (m)"),
         BT::OutputPort<double>("x"),
         BT::OutputPort<double>("y"),
@@ -13,7 +12,10 @@ BT::PortsList CapturePoseNode::providedPorts() {
 }
 
 BT::NodeStatus CapturePoseNode::onStart() {
-    getInput("timeout", timeout_);
+    // 每次启动从节点私有命名空间读取本模块的 ROS 参数。
+    ros::NodeHandle params("~capture_pose");
+    params.param("timeout", timeout_, 10.0);
+
     getInput("height_offset", height_offset_);
     started_ = ros::WallTime::now();
     return onRunning();

@@ -1,11 +1,11 @@
 <root main_tree_to_execute="UgvCoworkTest">
     <BehaviorTree ID="UgvCoworkTest">
         <Sequence>
-            <ConnectCheck timeout="60.0" />
+            <ConnectCheck />
             <!-- 保存实际起飞 XY 与起飞点上方 4m 的返航高度。 -->
-            <CapturePose height_offset="4.0" timeout="10.0"
+            <CapturePose height_offset="4.0"
                          x="{home_x}" y="{home_y}" z="{return_z}" />
-            <Takeoff target_alt="4.0" ascent_speed="0.5" timeout="60.0" />
+            <Takeoff target_alt="4.0" />
             <SetBlackboard output_key="cowork_result" value="not_found" />
             <!-- 搜索/协同失败也返航；黑板保留具体阶段结果。 -->
             <ForceSuccess>
@@ -22,7 +22,7 @@
                     <!-- 命中时记录搜索结果，并 halt 正在运行的导航。 -->
                     <ReactiveFallback>
                         <Sequence>
-                            <FoundCheck topic="/aruco_center/is_found" timeout="0.5" />
+                            <FoundCheck topic="/aruco_center/is_found" />
                             <SetBlackboard output_key="region_search_result" value="found" />
                         </Sequence>
                         <Sequence>
@@ -43,16 +43,14 @@
                         <Sequence>
                             <SetBlackboard output_key="cowork_result" value="alignment_failed" />
                             <!-- 先对齐，再让小车跟随无人机，避免使用刚发现目标时的偏离位置。 -->
-                            <Guidance target_id="0" tolerance="5.0" kp="0.006"
-                                      downward_camera="true" tracking_duration="0.0"
+                            <Guidance target_id="0" tracking_duration="0.0"
                                       timeout="45.0" message="{alignment_message}" />
                             <SetBlackboard output_key="cowork_result" value="cowork_failed" />
                             <Parallel success_threshold="1" failure_threshold="1">
                                 <!-- 成功被装饰为 RUNNING，只有小车成功才能结束并行阶段。
                                      小车超时 90s，短于本轮跟踪时长 120s。 -->
                                 <KeepRunningUntilFailure>
-                                    <Guidance target_id="0" tolerance="5.0" kp="0.006"
-                                              downward_camera="true" tracking_duration="120.0"
+                                    <Guidance target_id="0" tracking_duration="120.0"
                                               timeout="150.0" message="{guidance_message}" />
                                 </KeepRunningUntilFailure>
                                 <UgvCowork follow_drone="true" timeout="90.0"
@@ -69,10 +67,10 @@
                     </Switch2>
                 </Sequence>
             </ForceSuccess>
-            <!-- GoTo 实测达标才成功；返航失败时不在未知位置自动降落。 -->
-            <GoTo x="{home_x}" y="{home_y}" z="{return_z}"
-                  tolerance="0.15" step="0.5" timeout="90.0" />
-            <TouchDown descent_speed="-0.3" timeout="60.0" ground_timeout="3.0" />
+            <!-- 使用 Nav 返航；返航失败时不执行后续降落。 -->
+            <Nav name="ReturnHome" x="{home_x}" y="{home_y}" z="{return_z}"
+                  tolerance="0.15" timeout="90.0" />
+            <TouchDown />
         </Sequence>
     </BehaviorTree>
 </root>
