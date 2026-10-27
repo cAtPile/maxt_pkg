@@ -92,7 +92,7 @@ BT::NodeStatus RoundNode::onStart() {
     double theta = start_phi_;
     mavros_msgs::PositionTarget target;
     target.header.frame_id = "map";
-    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
     target.type_mask = ROUND_TYPE_MASK;
     target.position.x = cx_ + radius_ * std::cos(theta);
     target.position.y = cy_ + radius_ * std::sin(theta);
@@ -222,7 +222,7 @@ BT::NodeStatus RoundNode::onRunning() {
 
     mavros_msgs::PositionTarget target;
     target.header.frame_id = "map";
-    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
     target.type_mask = ROUND_TYPE_MASK;
     target.position.x = px;
     target.position.y = py;

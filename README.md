@@ -87,7 +87,7 @@ PX4 的具体版本未在本仓库锁定；本包不包含 PX4 源码或 SITL �
    - 无人机仿真：先在外部完成 PX4 SITL 配置和构建，确保 `rospack find px4`、`rospack find mavlink_sitl_gazebo` 可解析，然后运行 `sim.launch`。
    - 实机任务：先启动 MAVROS 和定位系统，再启动任务入口。任务 XML 会实际请求解锁、OFFBOARD 和飞行，执行前需核对坐标、高度及运动范围。
 
-`mission.launch` 的可选组件依赖外部包：`run_mavros` 使用 `tutorial_basic/launch/mavros.launch`，`run_fast_lio` 使用 `tutorial_navigation/launch/mid360.launch`，`run_camera` 使用 `tutorial_vision/launch/simple_camera_driver.launch`。这些包不随本项目提供，三个开关默认均为 `false`。
+`mission.launch` 通过 `sim` 选择运行环境：默认 `sim:=true` 同步启动本包的 `sim.launch`（含 MAVROS），`sim:=false` 启动本包的 `mavros.launch` 连接实机。旧参数 `run_mavros` 仅为兼容已有入口保留，不再控制启动。可选组件 `run_fast_lio` 使用 `tutorial_navigation/launch/mid360.launch`，`run_camera` 使用 `tutorial_vision/launch/simple_camera_driver.launch`；这两个外部包不随本项目提供，开关默认均为 `false`。
 
 ## 使用方法
 
@@ -275,7 +275,7 @@ roslaunch maxt_pkg basic_test.launch
 roslaunch maxt_pkg mission.launch bt_xml_path:=/absolute/path/to/task.xml
 ```
 
-`mission.launch` 支持 `nav_config`（默认 `config/nav.yaml`，包含所有任务共用的无人机参数）、`bt_tick_rate` 和 `heartbeat_rate`（均默认 20Hz），以及前述三个外部组件开关。基础、导航和圆周测试只转发 `run_mavros`、`run_fast_lio` 及两个频率参数；需要自定义导航配置或启动相机时可直接使用 `mission.launch`。
+`mission.launch` 支持 `sim`（默认 `true`，实机使用 `sim:=false`）、`nav_config`（默认 `config/nav.yaml`，包含所有任务共用的无人机参数）、`bt_tick_rate` 和 `heartbeat_rate`（均默认 20Hz），以及前述可选组件开关。需要选择实机、自定义导航配置或启动相机时可直接使用 `mission.launch`。
 
 航点使用当前 MavKit 坐标系的绝对坐标，单位为米；默认连接检查不进行坐标标定。起飞高度和航点 Z 的含义需结合定位原点核对。`Nav` 末端等待超过 3s 可能强制返回 SUCCESS，任务成功日志不能单独证明航点误差达标。
 

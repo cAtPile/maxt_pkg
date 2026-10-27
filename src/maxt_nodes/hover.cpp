@@ -23,7 +23,7 @@ BT::NodeStatus HoverNode::onStart() {
     // 立即发布第一个 setpoint
     mavros_msgs::PositionTarget target;
     target.header.frame_id = "map";
-    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
     target.type_mask =
         mavros_msgs::PositionTarget::IGNORE_VX |
         mavros_msgs::PositionTarget::IGNORE_VY |
@@ -55,7 +55,7 @@ BT::NodeStatus HoverNode::onRunning() {
     // 每个 tick 持续发布记录的位置
     mavros_msgs::PositionTarget target;
     target.header.frame_id = "map";
-    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
     target.type_mask =
         mavros_msgs::PositionTarget::IGNORE_VX |
         mavros_msgs::PositionTarget::IGNORE_VY |

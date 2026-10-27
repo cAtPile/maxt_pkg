@@ -44,7 +44,7 @@ BT::NodeStatus UgvCoworkNode::onStart() {
     if (!follow_drone_) {
         mavros_msgs::PositionTarget hold;
         hold.header.frame_id = "map";
-        hold.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+        hold.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
         hold.type_mask = mavros_msgs::PositionTarget::IGNORE_VX |
             mavros_msgs::PositionTarget::IGNORE_VY |
             mavros_msgs::PositionTarget::IGNORE_VZ |
