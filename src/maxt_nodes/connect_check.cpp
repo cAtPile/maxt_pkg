@@ -1,4 +1,6 @@
 #include <maxt_pkg/maxt_nodes/connect_check_node.hpp>
+#include <Eigen/Geometry>
+#include <cmath>
 
 namespace maxt {
 
@@ -39,6 +41,20 @@ BT::NodeStatus ConnectCheckNode::onRunning() {
     if (mav_.isConnected()) {
         if (map_x_ != 0.0 || map_y_ != 0.0) {
             mav_.mavCalibrate(map_x_, map_y_, fact_x_, fact_y_);
+        } else {
+            const auto pose = mav_.getCurrentPose();
+            const auto& orientation = pose.pose.orientation;
+            Eigen::Quaterniond q(orientation.w, orientation.x, orientation.y, orientation.z);
+            const double norm = q.norm();
+            if (!std::isfinite(norm) || norm < 1e-6) {
+                ROS_INFO_THROTTLE(1.0, "ConnectCheckNode: Waiting for valid local pose...");
+                return BT::NodeStatus::RUNNING;
+            }
+            q.normalize();
+            const double yaw = std::atan2(2.0 * (q.w() * q.z() + q.x() * q.y()),
+                                          1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z()));
+            // 将任务 +X 固定到连接时的机头水平朝向，只标定一次。
+            mav_.mavCalibrate(1.0, 0.0, std::cos(yaw), std::sin(yaw));
         }
         ROS_INFO("ConnectCheckNode: Drone connected.");
         return BT::NodeStatus::SUCCESS;

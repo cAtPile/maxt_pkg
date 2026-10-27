@@ -125,7 +125,7 @@ BT::NodeStatus NavNode::onRunning() {
     mavros_msgs::PositionTarget target;
     target.header.stamp = now;
     target.header.frame_id = "map";
-    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
+    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
     target.type_mask = TYPE_MASK;
     target.position.x = tx_;
     target.position.y = ty_;

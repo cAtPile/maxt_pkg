@@ -30,10 +30,23 @@ void MavKit::twistCb(const geometry_msgs::TwistStamped::ConstPtr& msg) {
 
 void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
     std::lock_guard<std::mutex> lock(data_mtx_);
+    auto publish_hold = [&]() {
+        auto hold = current_pose_;
+        if (has_default_yaw_) {
+            tf2::Quaternion q;
+            q.setRPY(0.0, 0.0, default_yaw_);
+            hold.pose.orientation.x = q.x();
+            hold.pose.orientation.y = q.y();
+            hold.pose.orientation.z = q.z();
+            hold.pose.orientation.w = q.w();
+        }
+        hold.header.stamp = ros::Time::now();
+        setpoint_pub_.publish(hold);
+    };
     // 如果处于心跳模式，发布当前位置作为设置点
     if (setpoint_mode_ == SetpointMode::HEARTBEAT )
     {
-        setpoint_pub_.publish(current_pose_);
+        publish_hold();
     }else if(setpoint_mode_ == SetpointMode::CONTROL){
         // 发布目标位置 (world -> SLAM)
         geometry_msgs::PoseStamped control_pose = target_pose_;
@@ -63,7 +76,7 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
             velocity_transition_ = false;
             setpoint_mode_ = transition_end_mode_;
             if (transition_end_mode_ == SetpointMode::HEARTBEAT) {
-                setpoint_pub_.publish(current_pose_);
+                publish_hold();
             } else {
                 auto raw = raw_target_;
                 calib_.transRaw(raw);
@@ -133,6 +146,14 @@ double MavKit::get_current_yaw() const {
     return yaw;
 }
 
+void MavKit::setDefaultYaw(double yaw) {
+    std::lock_guard<std::mutex> lock(data_mtx_);
+    default_yaw_ = yaw;
+    has_default_yaw_ = true;
+    ROS_INFO("MavKit: Default yaw locked to %.4f rad (%.2f deg)",
+             yaw, yaw * 180.0 / M_PI);
+}
+
 //todo 相对化处理home
 void MavKit::setTargetPose(double x, double y, double z) {
     std::lock_guard<std::mutex> lock(data_mtx_);
@@ -141,8 +162,12 @@ void MavKit::setTargetPose(double x, double y, double z) {
     target_pose_.pose.position.x = x;
     target_pose_.pose.position.y = y;
     target_pose_.pose.position.z = z;
-    // 默认保持平稳姿态 (Quaternion 0,0,0,1)
-    target_pose_.pose.orientation.w = 1.0;
+    tf2::Quaternion q;
+    q.setRPY(0.0, 0.0, default_yaw_);
+    target_pose_.pose.orientation.x = q.x();
+    target_pose_.pose.orientation.y = q.y();
+    target_pose_.pose.orientation.z = q.z();
+    target_pose_.pose.orientation.w = q.w();
 }
 
 bool MavKit::isReached(double x, double y, double z, double tolerance) const {

@@ -99,6 +99,7 @@ void MavKit::setSetpointMode(SetpointMode mode) {
 }
 
 void MavKit::mavCalibrate(double mapx, double mapy, double factx, double facty) {
+    std::lock_guard<std::mutex> lock(data_mtx_);
     calib_.setMap(mapx, mapy);
     calib_.setFact(factx, facty);
     ROS_INFO("MavKit: Calibrated yaw_offset=%.4f rad (%.2f deg)",

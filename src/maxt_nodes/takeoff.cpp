@@ -20,6 +20,9 @@ BT::NodeStatus TakeoffNode::onStart() {
 
     if (!getInput<double>("target_alt", target_alt_)) target_alt_ = 0.5;
 
+    hold_yaw_ = mav_.get_current_yaw();
+    mav_.setDefaultYaw(hold_yaw_);
+
     phase_ = Phase::ARM;
     start_time_ = ros::Time::now();
 
@@ -75,8 +78,7 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
         mavros_msgs::PositionTarget target;
         target.header.frame_id = "map";
-        target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
-        hold_yaw_ = mav_.get_current_yaw();
+        target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
 
         target.type_mask =
             mavros_msgs::PositionTarget::IGNORE_PZ |

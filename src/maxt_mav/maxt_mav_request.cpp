@@ -52,6 +52,12 @@ geometry_msgs::PoseStamped MavKit::getHomePose() const {
 void MavKit::setRawTarget(const mavros_msgs::PositionTarget& target) {
     std::lock_guard<std::mutex> lock(data_mtx_);
     raw_target_ = target;
+    if (has_default_yaw_) {
+        raw_target_.yaw = default_yaw_;
+        raw_target_.yaw_rate = 0.0;
+        raw_target_.type_mask &= ~mavros_msgs::PositionTarget::IGNORE_YAW;
+        raw_target_.type_mask |= mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+    }
 }
 
 void MavKit::setQuinticCurveTarget(const Eigen::Vector3d& position) {
@@ -149,8 +155,9 @@ void MavKit::loadCurveRaw(const ros::Time& now) {
                     curve_state_.acceleration.x(), curve_state_.acceleration.y(), curve_state_.acceleration.z());
     curve_raw_target_.header.stamp = now;
     curve_raw_target_.header.frame_id = "map";
-    curve_raw_target_.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
+    curve_raw_target_.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
     curve_raw_target_.type_mask = mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+    curve_raw_target_.yaw = default_yaw_;
     curve_raw_target_.position.x = curve_state_.position.x();
     curve_raw_target_.position.y = curve_state_.position.y();
     curve_raw_target_.position.z = curve_state_.position.z();

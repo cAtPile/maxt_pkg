@@ -147,6 +147,9 @@ public:
      * @return double 偏航角 (rad)
      */
     double get_current_yaw() const;
+
+    // 起飞前锁定 MAVROS 本地 ENU 偏航，供后续设点统一保持。
+    void setDefaultYaw(double yaw);
     
     /**
      * @brief 检查是否到达（带参数，灵活度高）
@@ -196,6 +199,8 @@ private:
     geometry_msgs::TwistStamped current_twist_;
     geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped target_pose_;
+    double default_yaw_{0.0};
+    bool has_default_yaw_{false};
     mavros_msgs::PositionTarget raw_target_;
     mavros_msgs::PositionTarget curve_raw_target_;
     CurveState curve_state_;
