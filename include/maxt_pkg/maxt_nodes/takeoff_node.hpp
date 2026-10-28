@@ -17,16 +17,17 @@ public:
 
 private:
     enum class Phase : uint8_t {
-        ARM,
+        WAIT_ARM,
         OFFBOARD,
         INIT,
         ASCEND,
         DONE
-    } phase_{Phase::ARM};
+    } phase_{Phase::WAIT_ARM};
 
     double target_alt_{1.5};
     double ascent_speed_{0.5};
-    double timeout_{20.0};
+    double timeout_{30.0};
+    double arm_timeout_{60.0};
 
     double hold_x_{0.0}, hold_y_{0.0};
     double hold_yaw_{0.0};

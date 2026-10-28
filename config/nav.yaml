@@ -16,7 +16,8 @@ capture_pose:
   timeout: 10.0
 takeoff:
   ascent_speed: 0.5
-  timeout: 60.0
+  arm_timeout: 60.0  # 等待外部解锁的超时，s，须为正；Takeoff 不主动解锁
+  timeout: 60.0  # 解锁后切换 OFFBOARD 与爬升的超时，s
 touch_down:
   descent_speed: -0.3
   timeout: 60.0

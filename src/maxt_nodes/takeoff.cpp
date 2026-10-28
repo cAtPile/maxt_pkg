@@ -1,4 +1,5 @@
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
+#include <cmath>
 
 namespace maxt {
 
@@ -17,16 +18,24 @@ BT::NodeStatus TakeoffNode::onStart() {
     ros::NodeHandle params("~takeoff");
     params.param("ascent_speed", ascent_speed_, 0.5);
     params.param("timeout", timeout_, 30.0);
+    params.param("arm_timeout", arm_timeout_, 60.0);
+    if (!std::isfinite(arm_timeout_) || arm_timeout_ <= 0.0) {
+        ROS_ERROR("TakeoffNode: arm_timeout must be finite and positive!");
+        mav_.setSetpointMode(SetpointMode::HEARTBEAT);
+        return BT::NodeStatus::FAILURE;
+    }
 
     if (!getInput<double>("target_alt", target_alt_)) target_alt_ = 0.5;
 
     hold_yaw_ = mav_.get_current_yaw();
     mav_.setDefaultYaw(hold_yaw_);
 
-    phase_ = Phase::ARM;
+    phase_ = Phase::WAIT_ARM;
     start_time_ = ros::Time::now();
 
-    ROS_INFO("TakeoffNode: target_alt=%.2f m, ascent_speed=%.2f m/s", target_alt_, ascent_speed_);
+    mav_.setSetpointMode(SetpointMode::HEARTBEAT);
+    ROS_INFO("TakeoffNode: Waiting for external arming (timeout=%.1f s), target_alt=%.2f m, ascent_speed=%.2f m/s",
+             arm_timeout_, target_alt_, ascent_speed_);
     return BT::NodeStatus::RUNNING;
 }
 
@@ -34,8 +43,8 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
     ros::Time now = ros::Time::now();
 
-    //起飞超时检测
-    if ((now - start_time_).toSec() > timeout_) {
+    // 解锁等待独立计时；解锁后才开始 OFFBOARD 和爬升超时计时。
+    if (phase_ != Phase::WAIT_ARM && (now - start_time_).toSec() > timeout_) {
         ROS_ERROR("TakeoffNode: Timeout (%.1f s)!", timeout_);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::FAILURE;
@@ -43,12 +52,17 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
     switch (phase_) {
 
-    //解锁
-    case Phase::ARM: {
+    // 只等待外部解锁，不主动请求 arming。
+    case Phase::WAIT_ARM: {
         if (!mav_.isArmed()) {
-            mav_.requestArm(true);
+            if ((now - start_time_).toSec() > arm_timeout_) {
+                ROS_ERROR("TakeoffNode: Waiting for arming timed out (%.1f s)!", arm_timeout_);
+                mav_.setSetpointMode(SetpointMode::HEARTBEAT);
+                return BT::NodeStatus::FAILURE;
+            }
             return BT::NodeStatus::RUNNING;
         }
+        start_time_ = now;
         ROS_INFO("TakeoffNode: Armed, switching to OFFBOARD...");
         phase_ = Phase::OFFBOARD;
         return BT::NodeStatus::RUNNING;

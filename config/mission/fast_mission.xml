@@ -1,0 +1,11 @@
+<root main_tree_to_execute="FastMission">
+    <include path="subtree/RegionTraverse.xml"/>
+    <BehaviorTree ID="FastMission">
+        <Sequence>
+            <ConnectCheck/>
+            <Takeoff target_alt="4"/>
+            <SubTreePlus origin_x="0" origin_y="0" length_x="6" length_y="6" coverage_step="1.0" altitude="4.0" ID="RegionTraverse" result="{region_search_result_2}"/>
+            <TouchDown/>
+        </Sequence>
+    </BehaviorTree>
+</root>

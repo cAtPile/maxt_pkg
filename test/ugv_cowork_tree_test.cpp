@@ -5,7 +5,7 @@
 #include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 #include <maxt_pkg/maxt_nodes/nav_node.hpp>
-#include <maxt_pkg/maxt_nodes/region_traverse_node.hpp>
+#include <maxt_pkg/maxt_nodes/traverse_path_generator_node.hpp>
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>
 #include <maxt_pkg/maxt_nodes/ugv_cowork_node.hpp>
@@ -57,6 +57,7 @@ public:
             return scenario_.name == "return_failed" ? BT::NodeStatus::FAILURE
                                                        : BT::NodeStatus::SUCCESS;
         } else if (kind_ == "Nav") {
+            check(getInput<double>("z").value() == 4.5, "lost subtree altitude");
             return BT::NodeStatus::RUNNING;
         } else if (kind_ == "UgvCowork") {
             check(getInput<bool>("follow_drone").value(), "follow mode missing");
@@ -124,7 +125,7 @@ void run(const std::string& xml, const std::string& name, const std::string& exp
     registerLeaf<maxt::GuidanceNode>(factory, "Guidance", scenario);
     registerLeaf<maxt::UgvCoworkNode>(factory, "UgvCowork", scenario);
     registerLeaf<maxt::TouchDownNode>(factory, "TouchDown", scenario);
-    factory.registerNodeType<maxt::RegionTraverseNode>("RegionTraverse");
+    factory.registerNodeType<maxt::TraversePathGeneratorNode>("TraversePathGenerator");
     factory.registerNodeType<maxt::GetRegionWaypointNode>("GetRegionWaypoint");
     auto blackboard = BT::Blackboard::create();
     auto tree = factory.createTreeFromFile(xml, blackboard);
@@ -134,6 +135,11 @@ void run(const std::string& xml, const std::string& name, const std::string& exp
     check(status == (name == "return_failed" ? BT::NodeStatus::FAILURE : BT::NodeStatus::SUCCESS),
           name + ": wrong root status");
     check(blackboard->get<std::string>("cowork_result") == expected, name + ": wrong result");
+    check(blackboard->get<std::string>("region_search_result") ==
+              (name == "search_failed" ? "failed" : name == "not_found" ? "complete" : "found"),
+          name + ": wrong subtree result");
+    check(!blackboard->getAny("region_waypoints") &&
+          !blackboard->getAny("region_waypoint_index"), "subtree internals leaked");
     check(scenario.returned && scenario.landed == (name != "return_failed"), name + ": return/landing missing");
     if (expected == "ugv_reached") {
         check(scenario.ugv_ticks >= 5, name + ": Guidance ended cowork early");

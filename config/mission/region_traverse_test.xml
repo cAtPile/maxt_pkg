@@ -1,36 +1,13 @@
 <root main_tree_to_execute="RegionTraverseTest">
+    <include path="subtree/RegionTraverse.xml" />
     <BehaviorTree ID="RegionTraverseTest">
         <Sequence>
             <ConnectCheck />
             <Takeoff target_alt="4.0" />
-            <RegionTraverse reg_point_1_x="0" reg_point_1_y="0"
-                            reg_point_2_x="-6" reg_point_2_y="0"
-                            reg_point_3_x="-6" reg_point_3_y="6"
-                            reg_point_4_x="0" reg_point_4_y="6"
-                            coverage_step="1"
-                            waypoints="{region_waypoints}"
-                            waypoint_count="{region_waypoint_count}" />
-            <SetBlackboard output_key="region_waypoint_index" value="0" />
-            <!-- 命中时记录搜索结果，并 halt 正在运行的导航。 -->
-            <ReactiveFallback>
-                <Sequence>
-                    <FoundCheck topic="/aruco_center/is_found" />
-                    <SetBlackboard output_key="region_search_result" value="found" />
-                </Sequence>
-                <Sequence>
-                    <!-- 每轮取出一个航点；Nav 完成后再进入下一轮。 -->
-                    <Repeat num_cycles="{region_waypoint_count}">
-                        <Sequence>
-                            <GetRegionWaypoint waypoints="{region_waypoints}"
-                                               index="{region_waypoint_index}"
-                                               next_index="{region_waypoint_index}"
-                                               x="{region_target_x}" y="{region_target_y}" />
-                            <Nav x="{region_target_x}" y="{region_target_y}" z="4.0" tolerance="0.15" timeout="45.0" />
-                        </Sequence>
-                    </Repeat>
-                    <SetBlackboard output_key="region_search_result" value="complete" />
-                </Sequence>
-            </ReactiveFallback>
+            <SubTreePlus ID="RegionTraverse"
+                     origin_x="0" origin_y="0" length_x="-6" length_y="6"
+                     coverage_step="1" altitude="4.0"
+                     result="{region_search_result}" />
             <!-- 使用搜索时记录的结果；短暂丢失目标不会跳过已经触发的跟踪。 -->
             <Switch2 variable="{region_search_result}" case_1="found" case_2="complete">
                 <!-- 跟踪成功或失败都进入后续降落，失败原因保留在 guidance_message。 -->

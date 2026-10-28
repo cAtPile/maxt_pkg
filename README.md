@@ -158,7 +158,7 @@ rosrun maxt_pkg maxt_test_node \
 
 通常直接使用 `mission.launch` 更方便，它会完成参数加载。`Nav` 的速度、加速度及 PID 参数来自私有 `nav/` 参数，而非 XML 输入端口。
 
-当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`RegionTraverse`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
+当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
 
 #### 视觉识别：aruco_center.py
 
@@ -424,7 +424,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `Round` | `center_x/center_y/center_z`、`radius(0)`、`angular_speed(30)`、`total_angle(360)`、`tolerance(0.3)`、`timeout(60)`、`ramp_time(2)` | 无 |
 | `TouchDown` | 无 | 无 |
 | `Guidance` | `target_id`、`timeout(30)`、`tracking_duration(0)` | `message` |
-| `RegionTraverse` | `reg_point_1_x/y` 至 `reg_point_4_x/y`、`coverage_step` | `waypoints`、`waypoint_count` |
+| `TraversePathGenerator` | `origin_x/y`、`length_x/y`、`coverage_step` | `waypoints`、`waypoint_count` |
 | `GetRegionWaypoint` | `waypoints`、`index` | `x`、`y`、`next_index` |
 | `FoundCheck` | `topic(/aruco_center/is_found)` | 无 |
 | `UgvCowork` | `action_name(/ugv_mover)`、`timeout(60)`、`follow_drone(false)`、`update_period(0.2)`、`target_tolerance(0.2)`、`settle_time(1)` | `message` |
@@ -435,7 +435,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | --- | --- |
 | `~connect_check/` | `timeout: 60.0` |
 | `~capture_pose/` | `timeout: 10.0` |
-| `~takeoff/` | `ascent_speed: 0.5`、`timeout: 30.0` |
+| `~takeoff/` | `ascent_speed: 0.5`、`timeout: 30.0`、`arm_timeout: 60.0` |
 | `~touch_down/` | `descent_speed: -0.5`、`timeout: 60.0`、`ground_timeout: 3.0`、`height_tol: 0.3`、`vel_tol: 0.2` |
 | `~guidance/` | `tolerance: 5.0`、`downward_camera: false`、`kp: 0.01` |
 | `~found_check/` | `timeout: 0.5` |
@@ -462,7 +462,7 @@ roslaunch maxt_pkg mission.launch bt_xml_path:=/path/custom.xml nav_config:=/pat
 | `MavKit` | 管理 MAVROS 通信、状态快照、设点缓存和定时发布；飞行节点通过其接口控制无人机 |
 | `MavActionNode` | 继承 `BT::StatefulActionNode`，保存注入的 `MavKit&`，作为飞行动作公共基类 |
 | `FoundCheckNode` | 继承 `BT::ConditionNode`，根据检测值与消息新鲜度返回 SUCCESS/FAILURE |
-| `RegionTraverseNode`、`GetRegionWaypointNode` | 同步规划和航点读取，不直接控制飞行 |
+| `TraversePathGeneratorNode`、`GetRegionWaypointNode` | 同步规划和航点读取，不直接控制飞行 |
 | `GuidanceNode` | 视觉 Action 客户端，根据反馈计算水平速度，管理等待、跟踪和完成状态 |
 | `UgvCoworkNode` | 小车 Action 客户端，支持单目标及持续跟随无人机模式 |
 | `QuinticCurve`、`CurveState` | 生成、采样三轴五次曲线，并保存参考位置/速度/加速度 |
@@ -514,7 +514,7 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 
 ### 新增行为树节点
 
-1. 根据职责选择基类：飞行动作继承 `MavActionNode`；短时计算参考 `RegionTraverseNode` 或 `GetRegionWaypointNode`；状态判断参考 `FoundCheckNode`。
+1. 根据职责选择基类：飞行动作继承 `MavActionNode`；短时计算参考 `TraversePathGeneratorNode` 或 `GetRegionWaypointNode`；状态判断参考 `FoundCheckNode`。
 2. 创建头文件和源文件，声明 `providedPorts()`。持续动作实现 `onStart()`、`onRunning()`、`onHalted()`，同时处理成功、失败、超时和抢占时的清理。Action 客户端只取消本节点持有的目标，避免影响其他客户端。
 3. 将源文件加入 `CMakeLists.txt` 的 `add_library(${PROJECT_NAME} ...)`。新增消息、库或 ROS 包依赖时同步更新 `package.xml` 和 CMake。
 4. 在 `src/maxt_core.cpp` 包含头文件并注册。需要 MavKit 的节点使用 builder 注入已有实例，例如新增的 `InspectNode`：
@@ -576,3 +576,25 @@ rosrun maxt_pkg ugv_cowork_tree_test \
 该测试覆盖任务分支与抢占流程，不能代替真实节点的控制验证。飞行相关修改应在仿真中检查实测轨迹、视觉反馈、超时和中断后的设点行为；可用 `rostopic hz` 检查发布频率，用 `rostopic echo` 查看状态与业务结果。只用行为树最终 SUCCESS 无法区分导航末端强制成功、跟踪失败后继续降落等情况。
 
 本次仅补充开发文档，未执行上述编译、流程测试或仿真命令。
+
+### 牛耕遍历子树
+
+`config/mission/subtree/RegionTraverse.xml` 封装路径生成、逐点导航和目标检测。
+父树先通过 `<include path="subtree/RegionTraverse.xml" />` 引入，再调用：
+
+```xml
+<SubTreePlus ID="RegionTraverse"
+             origin_x="0" origin_y="0" length_x="-6" length_y="6"
+             coverage_step="1" altitude="4.0"
+             result="{search_result}" />
+```
+
+输入矩形原点 `origin_x/y` 和沿坐标轴的有符号边长 `length_x/y`；边长为负表示沿对应轴负方向延伸，边长不能为零。航带沿 X 方向往返，沿 Y 方向推进；坐标系沿用 `Nav`。
+`coverage_step` 为航带间距，`altitude` 为导航高度，均以米计。
+`result` 输出 `found`（发现目标）、`complete`（遍历完成）或 `failed`（规划/导航失败）。
+前两种情况返回 SUCCESS，失败返回 FAILURE；发现目标会立即中断正在运行的导航。
+内部固定检测话题 `/aruco_center/is_found`、导航容差 0.15m、单航点超时 45s。
+使用 BehaviorTree.CPP v3 的 `SubTreePlus` 传入常量或黑板映射，不启用自动映射，航点和索引保存在独立黑板中。
+起飞、后续跟踪、协同、返航和降落由父树负责。两份测试任务 XML 已采用此子树。
+
+`Takeoff` 等待外部解锁，不主动发送解锁请求。`config/nav.yaml` 中 `takeoff.arm_timeout` 设置等待解锁的超时（默认 60s，须为有限正数）；超时返回 FAILURE。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。

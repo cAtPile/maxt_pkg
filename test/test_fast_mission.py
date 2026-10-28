@@ -39,6 +39,8 @@ class FastMissionPortsTest(unittest.TestCase):
                    "hover": "hover", "round": "round", "guidance": "guidance"}
         for name, tag, ports in mission.MISSIONS:
             with self.subTest(node=tag):
+                if tag == "RegionTraverse":
+                    continue  # 子树接口在独立测试中验证。
                 actual = input_ports((PACKAGE / "src/maxt_nodes" /
                                       (sources[name] + ".cpp")).read_text())
                 self.assertEqual(dict(ports).keys(), actual.keys())
@@ -57,9 +59,46 @@ class FastMissionPortsTest(unittest.TestCase):
         self.assertEqual(sequence[0].attrib, {})
         self.assertEqual(sequence[-1].attrib, {})
         for node, (tag, parameters) in zip(list(sequence)[1:-1], tasks):
-            self.assertEqual(node.tag, tag)
-            self.assertEqual(node.attrib, parameters)
+            if tag == "RegionTraverse":
+                self.assertEqual(node.tag, "SubTreePlus")
+                self.assertEqual(node.attrib, {
+                    **parameters, "ID": tag,
+                    "result": "{region_search_result_%d}" % list(sequence).index(node)})
+            else:
+                self.assertEqual(node.tag, tag)
+                self.assertEqual(node.attrib, parameters)
         self.assertEqual(input_ports((PACKAGE / "src/maxt_nodes/touch_down.cpp").read_text()), {})
+
+    def test_region_subtree_cli_and_repeated_instances(self):
+        index, definition = next((i, item) for i, item in enumerate(mission.MISSIONS, 1)
+                                 if item[1] == "RegionTraverse")
+        values = ["0", "0", "-6", "6", "1", "4"]
+        with tempfile.TemporaryDirectory() as folder:
+            destination = Path(folder) / "mission.xml"
+            with patch("sys.argv", ["fast_mission.py"]), \
+                    patch("builtins.input", side_effect=[str(index)] + values + ["0"]), \
+                    patch.object(mission, "output_path", return_value=destination), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(mission.main(), 0)
+            root = ET.parse(destination).getroot()
+            self.assertEqual(root.find("include").get("path"), "subtree/RegionTraverse.xml")
+            node = root.find(".//SubTreePlus")
+            parameters = dict(zip((port for port, _ in definition[2]), values))
+            self.assertEqual(node.attrib, {**parameters, "ID": "RegionTraverse",
+                                          "result": "{region_search_result_1}"})
+        root = ET.fromstring(mission.build_xml([("RegionTraverse", parameters)] * 2))
+        self.assertEqual(len(root.findall("include")), 1)
+        nodes = root.findall(".//SubTreePlus")
+        self.assertNotEqual(nodes[0].get("result"), nodes[1].get("result"))
+        subtree = ET.parse(PACKAGE / "config/mission/subtree/RegionTraverse.xml")
+        planner = subtree.find(".//TraversePathGenerator")
+        for port in parameters:
+            expected = "{%s}" % port
+            if port == "altitude":
+                self.assertEqual(subtree.find(".//Nav").get("z"), expected)
+            else:
+                self.assertEqual(planner.get(port), expected)
+        self.assertIsNone(ET.fromstring(mission.build_xml([])).find("include"))
 
     def test_cli_prompts_and_saves_current_guidance_ports(self):
         index = next(i for i, item in enumerate(mission.MISSIONS, 1)

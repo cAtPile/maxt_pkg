@@ -163,3 +163,17 @@
                 3. 文件整理
                 4. 任务优化
                 5. 避障部署
+
+10-28
+[13:30] done：  1. 取消自动解锁 ing; wait test ;done
+        plan:   1. 遍历算法 ing; wait test;
+                2. _test
+                3. 解耦
+                4. 分支
+                5. sim自动化
+                6. python无头仿真
+                7. tui python无头
+        
+```
+rosservice call /mavros/cmd/arming "value: true"
+```
