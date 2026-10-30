@@ -1,0 +1,107 @@
+material Maxt/Competition/0
+{
+ technique
+ {
+  pass
+  {
+   lighting off
+   cull_hardware none
+   cull_software none
+   texture_unit
+   {
+    texture dict_4x4_50_id0.png
+    filtering none
+   }
+  }
+ }
+}
+
+material Maxt/Competition/1
+{
+ technique
+ {
+  pass
+  {
+   lighting off
+   cull_hardware none
+   cull_software none
+   texture_unit
+   {
+    texture dict_4x4_50_id1.png
+    filtering none
+   }
+  }
+ }
+}
+
+material Maxt/Competition/2
+{
+ technique
+ {
+  pass
+  {
+   lighting off
+   cull_hardware none
+   cull_software none
+   texture_unit
+   {
+    texture dict_4x4_50_id2.png
+    filtering none
+   }
+  }
+ }
+}
+
+material Maxt/Competition/3
+{
+ technique
+ {
+  pass
+  {
+   lighting off
+   cull_hardware none
+   cull_software none
+   texture_unit
+   {
+    texture dict_4x4_50_id3.png
+    filtering none
+   }
+  }
+ }
+}
+
+material Maxt/Competition/4
+{
+ technique
+ {
+  pass
+  {
+   lighting off
+   cull_hardware none
+   cull_software none
+   texture_unit
+   {
+    texture dict_4x4_50_id4.png
+    filtering none
+   }
+  }
+ }
+}
+
+material Maxt/Competition/5
+{
+ technique
+ {
+  pass
+  {
+   lighting off
+   cull_hardware none
+   cull_software none
+   texture_unit
+   {
+    texture dict_4x4_50_id5.png
+    filtering none
+   }
+  }
+ }
+}

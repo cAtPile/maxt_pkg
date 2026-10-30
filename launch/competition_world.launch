@@ -1,0 +1,148 @@
+<launch>
+  <!-- 在这里修改地图；单位：米。修改后重启仿真。 -->
+  <arg name="world" default="$(find maxt_pkg)/worlds/competition.world"/>
+  <arg name="gui" default="true"/>
+  <arg name="paused" default="false"/>
+
+  <arg name="background_x" default="15"/>
+  <arg name="background_y" default="15"/>
+  <arg name="background_size" default="30"/>
+  <arg name="takeoff_size" default="4"/>
+  <!-- ArUco 黑色码边长；贴图还包含每边 12.5% 的白边。 -->
+  <arg name="aruco_size" default="2"/>
+  <!-- 自动计算含白边的贴图尺寸，无需修改。 -->
+  <arg name="aruco_panel_size" default="$(eval float(arg('aruco_size')) * 1.25)"/>
+
+  <arg name="takeoff_0_x" default="-7"/>
+  <arg name="takeoff_0_y" default="15"/>
+  <arg name="takeoff_1_x" default="15"/>
+  <arg name="takeoff_1_y" default="-7"/>
+  <arg name="takeoff_2_x" default="37"/>
+  <arg name="takeoff_2_y" default="15"/>
+  <arg name="takeoff_3_x" default="15"/>
+  <arg name="takeoff_3_y" default="37"/>
+
+  <arg name="aruco_0_x" default="1.5"/>
+  <arg name="aruco_0_y" default="5.2"/>
+  <arg name="aruco_1_x" default="8"/>
+  <arg name="aruco_1_y" default="7"/>
+  <arg name="aruco_2_x" default="25"/>
+  <arg name="aruco_2_y" default="17.7"/>
+  <arg name="aruco_3_x" default="21"/>
+  <arg name="aruco_3_y" default="10"/>
+  <arg name="aruco_4_x" default="4.3"/>
+  <arg name="aruco_4_y" default="2.6"/>
+  <arg name="aruco_5_x" default="18.8"/>
+  <arg name="aruco_5_y" default="17.9"/>
+
+  <env name="GAZEBO_MODEL_PATH" value="$(find maxt_pkg)/models:$(optenv GAZEBO_MODEL_PATH)"/>
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg world)"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="true"/>
+  </include>
+
+  <!-- 以下为固定模型描述，日常调整只需修改上面的 arg。 -->
+  <group ns="competition_background">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='competition_background'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='ground'&gt;
+      &lt;collision name='collision'&gt;&lt;geometry&gt;&lt;plane&gt;&lt;normal&gt;0 0 1&lt;/normal&gt;&lt;size&gt;$(arg background_size) $(arg background_size)&lt;/size&gt;&lt;/plane&gt;&lt;/geometry&gt;&lt;/collision&gt;
+      &lt;visual name='visual'&gt;&lt;geometry&gt;&lt;plane&gt;&lt;normal&gt;0 0 1&lt;/normal&gt;&lt;size&gt;$(arg background_size) $(arg background_size)&lt;/size&gt;&lt;/plane&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;ambient&gt;0.8 0.8 0.8 1&lt;/ambient&gt;&lt;diffuse&gt;0.8 0.8 0.8 1&lt;/diffuse&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model competition_background -x $(arg background_x) -y $(arg background_y) -z 0"/>
+  </group>
+
+  <group ns="takeoff_0">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='takeoff_0'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg takeoff_size) $(arg takeoff_size) $(arg takeoff_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://A_H/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://A_H&lt;/uri&gt;&lt;name&gt;Maxt/TakeoffMarker&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model takeoff_0 -x $(arg takeoff_0_x) -y $(arg takeoff_0_y) -z 0.01"/>
+  </group>
+  <group ns="takeoff_1">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='takeoff_1'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg takeoff_size) $(arg takeoff_size) $(arg takeoff_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://A_H/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://A_H&lt;/uri&gt;&lt;name&gt;Maxt/TakeoffMarker&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model takeoff_1 -x $(arg takeoff_1_x) -y $(arg takeoff_1_y) -z 0.01"/>
+  </group>
+  <group ns="takeoff_2">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='takeoff_2'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg takeoff_size) $(arg takeoff_size) $(arg takeoff_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://A_H/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://A_H&lt;/uri&gt;&lt;name&gt;Maxt/TakeoffMarker&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model takeoff_2 -x $(arg takeoff_2_x) -y $(arg takeoff_2_y) -z 0.01"/>
+  </group>
+  <group ns="takeoff_3">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='takeoff_3'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg takeoff_size) $(arg takeoff_size) $(arg takeoff_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://A_H/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://A_H&lt;/uri&gt;&lt;name&gt;Maxt/TakeoffMarker&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model takeoff_3 -x $(arg takeoff_3_x) -y $(arg takeoff_3_y) -z 0.01"/>
+  </group>
+
+  <group ns="aruco_0">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='aruco_0'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg aruco_panel_size) $(arg aruco_panel_size) $(arg aruco_panel_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://targets/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://targets/materials/textures&lt;/uri&gt;&lt;name&gt;Maxt/Competition/0&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model aruco_0 -x $(arg aruco_0_x) -y $(arg aruco_0_y) -z 0.01"/>
+  </group>
+  <group ns="aruco_1">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='aruco_1'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg aruco_panel_size) $(arg aruco_panel_size) $(arg aruco_panel_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://targets/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://targets/materials/textures&lt;/uri&gt;&lt;name&gt;Maxt/Competition/1&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model aruco_1 -x $(arg aruco_1_x) -y $(arg aruco_1_y) -z 0.01"/>
+  </group>
+  <group ns="aruco_2">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='aruco_2'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg aruco_panel_size) $(arg aruco_panel_size) $(arg aruco_panel_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://targets/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://targets/materials/textures&lt;/uri&gt;&lt;name&gt;Maxt/Competition/2&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model aruco_2 -x $(arg aruco_2_x) -y $(arg aruco_2_y) -z 0.01"/>
+  </group>
+  <group ns="aruco_3">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='aruco_3'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg aruco_panel_size) $(arg aruco_panel_size) $(arg aruco_panel_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://targets/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://targets/materials/textures&lt;/uri&gt;&lt;name&gt;Maxt/Competition/3&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model aruco_3 -x $(arg aruco_3_x) -y $(arg aruco_3_y) -z 0.01"/>
+  </group>
+  <group ns="aruco_4">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='aruco_4'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg aruco_panel_size) $(arg aruco_panel_size) $(arg aruco_panel_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://targets/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://targets/materials/textures&lt;/uri&gt;&lt;name&gt;Maxt/Competition/4&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model aruco_4 -x $(arg aruco_4_x) -y $(arg aruco_4_y) -z 0.01"/>
+  </group>
+  <group ns="aruco_5">
+    <param name="description" value="&lt;sdf version='1.6'&gt;&lt;model name='aruco_5'&gt;&lt;static&gt;true&lt;/static&gt;&lt;link name='panel'&gt;
+      &lt;visual name='image'&gt;&lt;pose&gt;0 0 0 0 1.5707963267948966 0&lt;/pose&gt;
+        &lt;geometry&gt;&lt;mesh&gt;&lt;uri&gt;model://tracking_target/meshes/panel.dae&lt;/uri&gt;&lt;scale&gt;$(arg aruco_panel_size) $(arg aruco_panel_size) $(arg aruco_panel_size)&lt;/scale&gt;&lt;/mesh&gt;&lt;/geometry&gt;
+        &lt;material&gt;&lt;script&gt;&lt;uri&gt;model://targets/materials/scripts&lt;/uri&gt;&lt;uri&gt;model://targets/materials/textures&lt;/uri&gt;&lt;name&gt;Maxt/Competition/5&lt;/name&gt;&lt;/script&gt;&lt;/material&gt;
+      &lt;/visual&gt;&lt;/link&gt;&lt;/model&gt;&lt;/sdf&gt;"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn" output="screen"
+          args="-sdf -param description -model aruco_5 -x $(arg aruco_5_x) -y $(arg aruco_5_y) -z 0.01"/>
+  </group>
+</launch>
