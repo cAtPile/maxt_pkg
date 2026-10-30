@@ -173,6 +173,11 @@
                 5. sim自动化
                 6. python无头仿真
                 7. tui python无头
+
+10-30
+[17:27] plan:   1. 接入语音模块
+                2. 伺服法遍历
+                3. 深度法遍历（
         
 ```
 rosservice call /mavros/cmd/arming "value: true"
