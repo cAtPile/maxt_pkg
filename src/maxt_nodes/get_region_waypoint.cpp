@@ -1,4 +1,5 @@
 #include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
+#include <ros/ros.h>
 
 namespace maxt {
 
@@ -22,6 +23,8 @@ BT::NodeStatus GetRegionWaypointNode::tick() {
     setOutput("x", waypoints[index][0]);
     setOutput("y", waypoints[index][1]);
     setOutput("next_index", index + 1);
+    ROS_INFO("[GetRegionWaypoint] index=%d waypoint=(%.3f, %.3f)",
+             index, waypoints[index][0], waypoints[index][1]);
     return BT::NodeStatus::SUCCESS;
 }
 

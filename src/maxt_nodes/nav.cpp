@@ -107,7 +107,8 @@ BT::NodeStatus NavNode::onRunning() {
     }
 
     if (err < tolerance_) {
-        ROS_INFO("[Nav] REACHED: pos_err=%.3f elapsed=%.2fs",
+        ROS_INFO("[Nav] REACHED: pos=(%.3f, %.3f, %.3f) pos_err=%.3f elapsed=%.2fs",
+                 pose.pose.position.x, pose.pose.position.y, pose.pose.position.z,
                  err, elapsed);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;

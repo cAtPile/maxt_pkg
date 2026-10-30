@@ -4,7 +4,8 @@
         <Sequence>
             <ConnectCheck/>
             <Takeoff target_alt="4"/>
-            <SubTreePlus origin_x="0" origin_y="0" length_x="6" length_y="6" coverage_step="1.0" altitude="4.0" ID="RegionTraverse" result="{region_search_result_2}"/>
+            <SubTreePlus origin_x="0" origin_y="0" length_x="6" length_y="-6" coverage_step="1.0" altitude="4.0" ID="RegionTraverse" result="{region_search_result_2}"/>
+            <Nav x="0" y="0" z="4" tolerance="0.1" timeout="60.0"/>
             <TouchDown/>
         </Sequence>
     </BehaviorTree>

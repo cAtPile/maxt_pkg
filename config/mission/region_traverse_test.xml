@@ -1,10 +1,10 @@
 <root main_tree_to_execute="RegionTraverseTest">
-    <include path="subtree/RegionTraverse.xml" />
+    <include path="subtree/VisionRegionTraverse.xml" />
     <BehaviorTree ID="RegionTraverseTest">
         <Sequence>
             <ConnectCheck />
             <Takeoff target_alt="4.0" />
-            <SubTreePlus ID="RegionTraverse"
+            <SubTreePlus ID="VisionRegionTraverse"
                      origin_x="0" origin_y="0" length_x="-6" length_y="6"
                      coverage_step="1" altitude="4.0"
                      result="{region_search_result}" />

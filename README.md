@@ -579,11 +579,17 @@ rosrun maxt_pkg ugv_cowork_tree_test \
 
 ### 牛耕遍历子树
 
-`config/mission/subtree/RegionTraverse.xml` 封装路径生成、逐点导航和目标检测。
-父树先通过 `<include path="subtree/RegionTraverse.xml" />` 引入，再调用：
+`config/mission/subtree/RegionTraverse.xml` 提供不含视觉检测的完整区域遍历。
+输入与下述视觉子树一致，通过 `<include path="subtree/RegionTraverse.xml" />`
+和 `<SubTreePlus ID="RegionTraverse" ... result="{traverse_result}" />` 调用。
+依次导航至全部航点后输出 `complete` 并返回 SUCCESS；规划或导航失败输出 `failed` 并返回 FAILURE。
+`fast_mission.py` 的 `region_traverse` 菜单生成此子树，`vision_region_traverse` 菜单生成视觉搜索子树；可混合添加，结果黑板按任务隔离。
+
+`config/mission/subtree/VisionRegionTraverse.xml` 封装路径生成、逐点导航和目标检测。
+父树先通过 `<include path="subtree/VisionRegionTraverse.xml" />` 引入，再调用：
 
 ```xml
-<SubTreePlus ID="RegionTraverse"
+<SubTreePlus ID="VisionRegionTraverse"
              origin_x="0" origin_y="0" length_x="-6" length_y="6"
              coverage_step="1" altitude="4.0"
              result="{search_result}" />

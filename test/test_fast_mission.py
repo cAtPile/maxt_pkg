@@ -39,7 +39,7 @@ class FastMissionPortsTest(unittest.TestCase):
                    "hover": "hover", "round": "round", "guidance": "guidance"}
         for name, tag, ports in mission.MISSIONS:
             with self.subTest(node=tag):
-                if tag == "RegionTraverse":
+                if tag in ("RegionTraverse", "VisionRegionTraverse"):
                     continue  # 子树接口在独立测试中验证。
                 actual = input_ports((PACKAGE / "src/maxt_nodes" /
                                       (sources[name] + ".cpp")).read_text())
@@ -59,7 +59,7 @@ class FastMissionPortsTest(unittest.TestCase):
         self.assertEqual(sequence[0].attrib, {})
         self.assertEqual(sequence[-1].attrib, {})
         for node, (tag, parameters) in zip(list(sequence)[1:-1], tasks):
-            if tag == "RegionTraverse":
+            if tag in ("RegionTraverse", "VisionRegionTraverse"):
                 self.assertEqual(node.tag, "SubTreePlus")
                 self.assertEqual(node.attrib, {
                     **parameters, "ID": tag,
@@ -71,7 +71,7 @@ class FastMissionPortsTest(unittest.TestCase):
 
     def test_region_subtree_cli_and_repeated_instances(self):
         index, definition = next((i, item) for i, item in enumerate(mission.MISSIONS, 1)
-                                 if item[1] == "RegionTraverse")
+                                 if item[1] == "VisionRegionTraverse")
         values = ["0", "0", "-6", "6", "1", "4"]
         with tempfile.TemporaryDirectory() as folder:
             destination = Path(folder) / "mission.xml"
@@ -81,16 +81,16 @@ class FastMissionPortsTest(unittest.TestCase):
                     contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(mission.main(), 0)
             root = ET.parse(destination).getroot()
-            self.assertEqual(root.find("include").get("path"), "subtree/RegionTraverse.xml")
+            self.assertEqual(root.find("include").get("path"), "subtree/VisionRegionTraverse.xml")
             node = root.find(".//SubTreePlus")
             parameters = dict(zip((port for port, _ in definition[2]), values))
-            self.assertEqual(node.attrib, {**parameters, "ID": "RegionTraverse",
+            self.assertEqual(node.attrib, {**parameters, "ID": "VisionRegionTraverse",
                                           "result": "{region_search_result_1}"})
-        root = ET.fromstring(mission.build_xml([("RegionTraverse", parameters)] * 2))
+        root = ET.fromstring(mission.build_xml([("VisionRegionTraverse", parameters)] * 2))
         self.assertEqual(len(root.findall("include")), 1)
         nodes = root.findall(".//SubTreePlus")
         self.assertNotEqual(nodes[0].get("result"), nodes[1].get("result"))
-        subtree = ET.parse(PACKAGE / "config/mission/subtree/RegionTraverse.xml")
+        subtree = ET.parse(PACKAGE / "config/mission/subtree/VisionRegionTraverse.xml")
         planner = subtree.find(".//TraversePathGenerator")
         for port in parameters:
             expected = "{%s}" % port
@@ -99,6 +99,37 @@ class FastMissionPortsTest(unittest.TestCase):
             else:
                 self.assertEqual(planner.get(port), expected)
         self.assertIsNone(ET.fromstring(mission.build_xml([])).find("include"))
+
+    def test_plain_region_traverse_and_mixed_subtrees(self):
+        definition = next(item for item in mission.MISSIONS if item[1] == "RegionTraverse")
+        parameters = {port: default or "1" for port, default in definition[2]}
+        tasks = [(tag, parameters) for tag in
+                 ("RegionTraverse", "VisionRegionTraverse", "RegionTraverse")]
+        root = ET.fromstring(mission.build_xml(tasks))
+        self.assertEqual([node.get("path") for node in root.findall("include")],
+                         ["subtree/RegionTraverse.xml", "subtree/VisionRegionTraverse.xml"])
+        nodes = root.findall(".//SubTreePlus")
+        self.assertEqual([node.get("ID") for node in nodes], [tag for tag, _ in tasks])
+        self.assertEqual(len({node.get("result") for node in nodes}), 3)
+        plain = ET.fromstring(mission.build_xml([tasks[0]]))
+        self.assertEqual([node.get("path") for node in plain.findall("include")],
+                         ["subtree/RegionTraverse.xml"])
+        subtree = ET.parse(PACKAGE / "config/mission/subtree/RegionTraverse.xml")
+        self.assertEqual(subtree.find("BehaviorTree").get("ID"), "RegionTraverse")
+        self.assertIsNone(subtree.find(".//FoundCheck"))
+        sequence = subtree.find("BehaviorTree/Sequence")
+        self.assertEqual([node.tag for node in sequence],
+                         ["SetBlackboard", "TraversePathGenerator", "SetBlackboard",
+                          "Repeat", "SetBlackboard"])
+        self.assertEqual(sequence[0].get("value"), "failed")
+        self.assertEqual(sequence[-1].get("value"), "complete")
+        self.assertEqual(sequence.find("Repeat").get("num_cycles"), "{region_waypoint_count}")
+        self.assertEqual([node.tag for node in sequence.find("Repeat/Sequence")],
+                         ["GetRegionWaypoint", "Nav"])
+        planner = sequence.find("TraversePathGenerator")
+        for port in parameters:
+            node, attribute = (subtree.find(".//Nav"), "z") if port == "altitude" else (planner, port)
+            self.assertEqual(node.get(attribute), "{%s}" % port)
 
     def test_cli_prompts_and_saves_current_guidance_ports(self):
         index = next(i for i, item in enumerate(mission.MISSIONS, 1)

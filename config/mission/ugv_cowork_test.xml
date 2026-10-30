@@ -1,5 +1,5 @@
 <root main_tree_to_execute="UgvCoworkTest">
-    <include path="subtree/RegionTraverse.xml" />
+    <include path="subtree/VisionRegionTraverse.xml" />
     <BehaviorTree ID="UgvCoworkTest">
         <Sequence>
             <ConnectCheck />
@@ -12,7 +12,7 @@
             <ForceSuccess>
                 <Sequence>
                     <SetBlackboard output_key="cowork_result" value="search_failed" />
-                    <SubTreePlus ID="RegionTraverse"
+                    <SubTreePlus ID="VisionRegionTraverse"
                              origin_x="0" origin_y="0" length_x="-6" length_y="6"
                              coverage_step="1" altitude="{return_z}"
                              result="{region_search_result}" />
