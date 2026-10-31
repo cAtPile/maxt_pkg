@@ -46,7 +46,9 @@ void MavKit::updateHomePose() {
 
 geometry_msgs::PoseStamped MavKit::getHomePose() const {
     std::lock_guard<std::mutex> lock(data_mtx_);
-    return home_pose_;
+    geometry_msgs::PoseStamped out = home_pose_;
+    calib_.untransPose(out);
+    return out;
 }
 
 void MavKit::setRawTarget(const mavros_msgs::PositionTarget& target) {

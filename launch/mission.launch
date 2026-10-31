@@ -5,16 +5,17 @@
     <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml" />
     <arg name="bt_tick_rate" default="20.0" />
     <arg name="heartbeat_rate" default="20.0" />
-    <!-- true：启动仿真（含 MAVROS）；false：启动实机 MAVROS。 -->
+    <!-- sim=true：任务和完整仿真；sim=false 时由 run_uav 决定是否启动实机 MAVROS。 -->
     <arg name="sim" default="true" />
-    <!-- 保留旧入口传入的参数以兼容，MAVROS 现由 sim 统一选择。 -->
+    <arg name="run_uav" default="false" />
+    <!-- 旧参数仅保留接口兼容；使用 run_uav 控制实机 MAVROS。 -->
     <arg name="run_mavros" default="false" />
     <arg name="run_fast_lio" default="false" />
     <arg name="run_camera" default="false" />
 
     <include if="$(arg sim)"
              file="$(find maxt_pkg)/launch/sim.launch" />
-    <include unless="$(arg sim)"
+    <include if="$(eval not arg('sim') and arg('run_uav'))"
              file="$(find maxt_pkg)/launch/mavros.launch" />
     <include if="$(arg run_fast_lio)"
              file="$(find tutorial_navigation)/launch/mid360.launch" />

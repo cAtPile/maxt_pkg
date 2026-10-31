@@ -87,7 +87,17 @@ PX4 的具体版本未在本仓库锁定；本包不包含 PX4 源码或 SITL �
    - 无人机仿真：先在外部完成 PX4 SITL 配置和构建，确保 `rospack find px4`、`rospack find mavlink_sitl_gazebo` 可解析，然后运行 `sim.launch`。
    - 实机任务：先启动 MAVROS 和定位系统，再启动任务入口。任务 XML 会实际请求解锁、OFFBOARD 和飞行，执行前需核对坐标、高度及运动范围。
 
-`mission.launch` 通过 `sim` 选择运行环境：默认 `sim:=true` 同步启动本包的 `sim.launch`（含 MAVROS），`sim:=false` 启动本包的 `mavros.launch` 连接实机。旧参数 `run_mavros` 仅为兼容已有入口保留，不再控制启动。可选组件 `run_fast_lio` 使用 `tutorial_navigation/launch/mid360.launch`，`run_camera` 使用 `tutorial_vision/launch/simple_camera_driver.launch`；这两个外部包不随本项目提供，开关默认均为 `false`。
+任务入口使用 `sim` 和 `run_uav` 选择运行环境（默认 `sim:=true run_uav:=false`）：
+
+| 参数 | 行为 |
+| --- | --- |
+| `sim:=true` | 启动任务和完整仿真（PX4、Gazebo、MAVROS）；忽略 `run_uav` |
+| `sim:=false run_uav:=false` | 仅启动任务，复用已经启动的仿真或 MAVROS |
+| `sim:=false run_uav:=true` | 启动任务和实机 MAVROS，连接 `/dev/ttyACM0:57600` |
+
+以上适用于 `mission.launch`、`mission_t66.launch`、`mission_fast.launch`、`mission_2_2_2.launch` 和 `mission_05.launch`。`region_traverse_test.launch`、`ugv_cowork_test.launch` 同样支持这两个参数，但默认 `sim:=false`，复用已有环境。`vision_test.launch`、`guidance_test.launch` 继续通过 `run_sim` 控制仿真，内部任务入口不重复启动仿真或 MAVROS。旧参数 `run_mavros` 仅为兼容保留，不控制启动。
+
+可选组件 `run_fast_lio` 使用 `tutorial_navigation/launch/mid360.launch`，`run_camera` 使用 `tutorial_vision/launch/simple_camera_driver.launch`；这两个外部包不随本项目提供，开关默认均为 `false`。
 
 ## 使用方法
 
@@ -136,10 +146,10 @@ TUI 默认后台连接 ROS 进行只读监看，未加载 ROS 或 master 尚未�
 输入 `0` 后覆盖包内 `config/mission/fast_mission.xml`，树名固定为 `FastMission`。脚本始终保留首项 `<ConnectCheck />` 和末项 `<TouchDown />`，中间按添加顺序生成 XML。脚本只生成文件；执行任务使用：
 
 ```bash
-roslaunch maxt_pkg fast_mission.launch
+roslaunch maxt_pkg mission_fast.launch
 ```
 
-`fast_mission.launch` 自动加载 `config/nav.yaml` 并执行最近保存的快速任务。默认复用已启动的 MAVROS、定位和相机；支持 `nav_config`、`bt_tick_rate`、`heartbeat_rate` 及 `run_mavros/run_fast_lio/run_camera` 参数，与 `mission.launch` 一致。
+`mission_fast.launch` 自动加载 `config/nav.yaml` 并执行最近保存的快速任务。默认启动完整仿真；使用 `sim:=false run_uav:=false` 复用已有环境，使用 `sim:=false run_uav:=true` 连接实机。支持 `nav_config`、`bt_tick_rate`、`heartbeat_rate` 及 `sim/run_uav/run_fast_lio/run_camera` 参数，与 `mission.launch` 一致。
 
 该顺序树中，前面的任务失败会使整棵树失败，后续降落节点也不会执行。
 
@@ -247,7 +257,7 @@ rosrun maxt_pkg ugv_cowork_tree_test \
 | 启动文件 | 功能与默认行为 |
 | --- | --- |
 | `mission.launch` | 通用任务入口，必须传入 `bt_xml_path`，自动加载导航配置 |
-| `fast_mission.launch` | 执行 `config/mission/fast_mission.xml`，自动加载导航配置 |
+| `mission_fast.launch` | 执行 `config/mission/fast_mission.xml`，自动加载导航配置 |
 | `basic_test.launch` | 起飞 1m，导航至 `(-2,2,1)`，悬停 60s 后降落 |
 | `navigation_test.launch` | 起飞 1m，依次导航至 `(0,0,1)`、`(2,0,1)`、`(2,2,1)`、`(0,0,1)` 并悬停，最后降落 |
 | `round_test.launch` | 起飞 1m，绕圆心 `(1,0,1)`、半径 1m 顺时针一圈，角速度 20°/s，返回 `(0,0,1)` 后降落 |
@@ -270,12 +280,12 @@ roslaunch maxt_pkg sim.launch
 然后在另一个终端选择一个任务执行：
 
 ```bash
-roslaunch maxt_pkg basic_test.launch
+roslaunch maxt_pkg mission_t66.launch sim:=false run_uav:=false
 # 或使用自定义 XML：
-roslaunch maxt_pkg mission.launch bt_xml_path:=/absolute/path/to/task.xml
+roslaunch maxt_pkg mission.launch bt_xml_path:=/absolute/path/to/task.xml sim:=false run_uav:=false
 ```
 
-`mission.launch` 支持 `sim`（默认 `true`，实机使用 `sim:=false`）、`nav_config`（默认 `config/nav.yaml`，包含所有任务共用的无人机参数）、`bt_tick_rate` 和 `heartbeat_rate`（均默认 20Hz），以及前述可选组件开关。需要选择实机、自定义导航配置或启动相机时可直接使用 `mission.launch`。
+`mission.launch` 支持 `sim`（默认 `true`）、`run_uav`（默认 `false`，实机使用 `sim:=false run_uav:=true`）、`nav_config`（默认 `config/nav.yaml`，包含所有任务共用的无人机参数）、`bt_tick_rate` 和 `heartbeat_rate`（均默认 20Hz），以及前述可选组件开关。需要选择实机、自定义导航配置或启动相机时可直接使用 `mission.launch`。
 
 航点使用当前 MavKit 坐标系的绝对坐标，单位为米；默认连接检查不进行坐标标定。起飞高度和航点 Z 的含义需结合定位原点核对。`Nav` 末端等待超过 3s 可能强制返回 SUCCESS，任务成功日志不能单独证明航点误差达标。
 

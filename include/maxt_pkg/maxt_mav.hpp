@@ -163,8 +163,8 @@ public:
 
     // --- Home点管理 ---
     /**
-     * @brief 获取无人机 Home点
-     * @return geometry_msgs::PoseStamped Home点
+     * @brief 获取经过标定矫正的无人机 Home点
+     * @return geometry_msgs::PoseStamped 世界坐标系下的 Home点
      */ 
     geometry_msgs::PoseStamped getHomePose() const;
 

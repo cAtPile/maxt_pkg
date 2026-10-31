@@ -17,6 +17,9 @@
     </include>
 
     <include file="$(find maxt_pkg)/launch/mission.launch">
+        <!-- 仿真由上方 run_sim 控制，任务入口复用已有环境。 -->
+        <arg name="sim" value="false" />
+        <arg name="run_uav" value="false" />
         <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/vision_test.xml" />
         <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />
         <arg name="heartbeat_rate" value="$(arg heartbeat_rate)" />

@@ -3,8 +3,9 @@
     <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml" />
     <arg name="bt_tick_rate" default="20.0" />
     <arg name="heartbeat_rate" default="20.0" />
-    <!-- true：仿真；false：实机。 -->
+    <!-- sim=true 启动完整仿真；sim=false 时 run_uav=true 启动实机，否则复用已有环境。 -->
     <arg name="sim" default="true" />
+    <arg name="run_uav" default="false" />
     <arg name="run_mavros" default="false" />
     <arg name="run_fast_lio" default="false" />
     <arg name="run_camera" default="false" />
@@ -15,6 +16,7 @@
         <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />
         <arg name="heartbeat_rate" value="$(arg heartbeat_rate)" />
         <arg name="sim" value="$(arg sim)" />
+        <arg name="run_uav" value="$(arg run_uav)" />
         <arg name="run_mavros" value="$(arg run_mavros)" />
         <arg name="run_fast_lio" value="$(arg run_fast_lio)" />
         <arg name="run_camera" value="$(arg run_camera)" />
