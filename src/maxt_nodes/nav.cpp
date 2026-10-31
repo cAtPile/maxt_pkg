@@ -54,6 +54,12 @@ BT::NodeStatus NavNode::onStart() {
     getInput<double>("tolerance", tolerance_);
     getInput<double>("timeout", timeout_);
 
+    // 输入为相对 home 的偏移，统一转换为控制坐标。
+    const auto home = mav_.getHomePose();
+    tx_ += home.pose.position.x;
+    ty_ += home.pose.position.y;
+    tz_ += home.pose.position.z;
+
     // 曲线由 MavKit 维护，BT 只负责生命周期和末端闭环。
     mav_.setQuinticCurveTarget(Eigen::Vector3d(tx_, ty_, tz_));
     T_ = mav_.getCurveTime();
