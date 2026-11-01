@@ -79,6 +79,8 @@ BT::NodeStatus TouchDownNode::onRunning() {
 
         mav_.setSetpointMode(SetpointMode::RAW_CTRL);
 
+        mav_.playAudio("music-sua.wav");
+
         ROS_INFO("TouchDownNode: Descending from (%.2f, %.2f) at %.2f m/s",
                  hold_x_, hold_y_, descent_speed_);
         phase_ = Phase::DESCEND;
@@ -86,11 +88,7 @@ BT::NodeStatus TouchDownNode::onRunning() {
     }
 
     case Phase::DESCEND: {
-        // 降落过程中仅提交一次；重新执行本节点时重置。
-        if (!descent_audio_sent_) {
-            mav_.playAudio("cn-welcome-sua.wav");
-            descent_audio_sent_ = true;
-        }
+
         auto current = mav_.getCurrentPose();
         auto twist = mav_.getCurrentTwist();
         double current_z = current.pose.position.z;

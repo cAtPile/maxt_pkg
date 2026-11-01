@@ -7,6 +7,7 @@
     <arg name="heartbeat_rate" default="20.0" />
     <!-- sim=true：任务和完整仿真；sim=false 时由 run_uav 决定是否启动实机 MAVROS。 -->
     <arg name="sim" default="true" />
+    <arg name="run_fake_audio" default="false" />
     <arg name="run_uav" default="false" />
     <!-- 旧参数仅保留接口兼容；使用 run_uav 控制实机 MAVROS。 -->
     <arg name="run_mavros" default="false" />
@@ -15,6 +16,9 @@
 
     <include if="$(arg sim)"
              file="$(find maxt_pkg)/launch/sim.launch" />
+    <!-- 模拟音频服务独立控制，不随仿真自动启动。 -->
+    <node if="$(arg run_fake_audio)" pkg="maxt_pkg" type="fake_audio.py"
+          name="fake_audio" output="screen" />
     <include if="$(eval not arg('sim') and arg('run_uav'))"
              file="$(find maxt_pkg)/launch/mavros.launch" />
     <include if="$(arg run_fast_lio)"

@@ -83,6 +83,7 @@ BT::NodeStatus TakeoffNode::onRunning() {
         hold_x_ = home.pose.position.x;
         hold_y_ = home.pose.position.y;
         target_z_ = home.pose.position.z + target_alt_;
+        mav_.playAudio("cn-takeoff.wav");
         ROS_INFO("TakeoffNode: OFFBOARD confirmed, home=(%.2f, %.2f, %.2f)",
                  hold_x_, hold_y_, home.pose.position.z);
         phase_ = Phase::INIT;
@@ -91,7 +92,7 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
     //初始化
     case Phase::INIT: {
-        mav_.playAudio("cn-takeoff.wav");
+        
         auto current = mav_.getCurrentPose();
 
         mavros_msgs::PositionTarget target;
@@ -115,18 +116,13 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
         ROS_INFO("TakeoffNode: Ascending from z=%.2f to z=%.2f at %.2f m/s, yaw=%.2f",
                  current.pose.position.z, target_z_, ascent_speed_, hold_yaw_);
+        mav_.playAudio("sample-6s.wav");
         phase_ = Phase::ASCEND;
         return BT::NodeStatus::RUNNING;
     }
 
     //上升
     case Phase::ASCEND: {
-
-        // 每次起飞的爬升阶段只触发一次，不随 tick 重复提交。
-        if (!ascent_audio_sent_) {
-            mav_.playAudio("sample-6s.wav");
-            ascent_audio_sent_ = true;
-        }
 
         auto current = mav_.getCurrentPose();
         double current_z = current.pose.position.z;

@@ -97,6 +97,8 @@ PX4 的具体版本未在本仓库锁定；本包不包含 PX4 源码或 SITL �
 
 以上适用于 `mission.launch`、`mission_t66.launch`、`mission_fast.launch`、`mission_2_2_2.launch` 和 `mission_05.launch`。`region_traverse_test.launch`、`ugv_cowork_test.launch` 同样支持这两个参数，但默认 `sim:=false`，复用已有环境。`vision_test.launch`、`guidance_test.launch` 继续通过 `run_sim` 控制仿真，内部任务入口不重复启动仿真或 MAVROS。旧参数 `run_mavros` 仅为兼容保留，不控制启动。
 
+mission 系列入口通过 `run_fake_audio:=true` 启动模拟音频服务，默认 `false`，与 `sim` 独立。例如：`roslaunch maxt_pkg mission_t66.launch sim:=true run_fake_audio:=true`。
+
 可选组件 `run_fast_lio` 使用 `tutorial_navigation/launch/mid360.launch`，`run_camera` 使用 `tutorial_vision/launch/simple_camera_driver.launch`；这两个外部包不随本项目提供，开关默认均为 `false`。
 
 ## 使用方法
@@ -186,6 +188,8 @@ MavKit 创建时提交 `cn-welcome.wav`；`ConnectCheck` 确认飞控连接并�
 
 `PlayAudio` 每次执行只提交一次请求，立即返回 SUCCESS；音频服务缺失或拒绝不影响任务。缺少必填 `filename` 输入时返回 FAILURE。在循环或重新执行的树中，每次执行都会再次提交。
 
+`mission_t66.xml` 在起飞成功后播放 `cn-mission-start.wav`，在 `RegionTraverse` 子树成功完成后播放 `cn-return.wav`，随后返航降落。
+
 无需音频设备的联调方式（编译并加载工作空间后）：
 
 ```bash
@@ -193,7 +197,7 @@ rosrun maxt_pkg fake_audio.py _duration:=3.0
 rosservice call /audio/play "filename: 'cn-ready.wav'"
 ```
 
-模拟服务立即响应，默认 3 秒内返回 busy，不检查真实文件，也不发声。真实播放需另行启动 `uav_audio` 节点，并在服务端包的 `audio/` 目录中放置对应 WAV。
+模拟服务立即响应，每次默认模拟播放 3 秒；新的合法请求抢占当前播放并重新计时，不返回 busy，非法请求不会中断当前播放。不检查真实文件，也不发声。真实 `uav_audio` 服务仍采用忙时拒绝策略。`mission*.launch` 仅在 `run_fake_audio:=true` 时通过公共入口 `mission.launch` 启动 `fake_audio`；默认关闭，不受 `sim` 影响。真实播放需另行启动 `uav_audio` 节点，并在服务端包的 `audio/` 目录中放置对应 WAV。
 
 #### 视觉识别：aruco_center.py
 
