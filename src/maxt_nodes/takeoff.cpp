@@ -31,6 +31,7 @@ BT::NodeStatus TakeoffNode::onStart() {
     mav_.setDefaultYaw(hold_yaw_);
 
     phase_ = Phase::WAIT_ARM;
+    ascent_audio_sent_ = false;
     start_time_ = ros::Time::now();
 
     mav_.setSetpointMode(SetpointMode::HEARTBEAT);
@@ -64,6 +65,8 @@ BT::NodeStatus TakeoffNode::onRunning() {
         }
         start_time_ = now;
         ROS_INFO("TakeoffNode: Armed, switching to OFFBOARD...");
+        // 确认已解锁后只触发一次，随阶段切换避免每个 tick 重复播报。
+        mav_.playAudio("cn-armed.wav");
         phase_ = Phase::OFFBOARD;
         return BT::NodeStatus::RUNNING;
     }
@@ -88,6 +91,7 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
     //初始化
     case Phase::INIT: {
+        mav_.playAudio("cn-takeoff.wav");
         auto current = mav_.getCurrentPose();
 
         mavros_msgs::PositionTarget target;
@@ -117,6 +121,12 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
     //上升
     case Phase::ASCEND: {
+
+        // 每次起飞的爬升阶段只触发一次，不随 tick 重复提交。
+        if (!ascent_audio_sent_) {
+            mav_.playAudio("sample-6s.wav");
+            ascent_audio_sent_ = true;
+        }
 
         auto current = mav_.getCurrentPose();
         double current_z = current.pose.position.z;

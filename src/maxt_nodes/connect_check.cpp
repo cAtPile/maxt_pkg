@@ -57,6 +57,8 @@ BT::NodeStatus ConnectCheckNode::onRunning() {
             mav_.mavCalibrate(1.0, 0.0, std::cos(yaw), std::sin(yaw));
         }
         ROS_INFO("ConnectCheckNode: Drone connected.");
+        // 本次连接检查成功时提交一次提示，不等待播放结果。
+        mav_.playAudio("cn-ready.wav");
         return BT::NodeStatus::SUCCESS;
     }
 

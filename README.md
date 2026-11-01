@@ -168,7 +168,32 @@ rosrun maxt_pkg maxt_test_node \
 
 通常直接使用 `mission.launch` 更方便，它会完成参数加载。`Nav` 的速度、加速度及 PID 参数来自私有 `nav/` 参数，而非 XML 输入端口。
 
-当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
+当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
+
+#### 语音播报
+
+MavKit 创建时提交 `cn-welcome.wav`；`ConnectCheck` 确认飞控连接并完成标定、即将返回 SUCCESS 时提交一次 `cn-ready.wav`。重新执行连接检查并成功时会再次提交，单纯断开重连不会自动播报。`stateCb` 只更新状态，不执行任何播放操作；解锁和上锁提示由起飞和降落行为树节点确认对应状态后触发。
+
+`Takeoff` 在等待解锁阶段确认已解锁时提交一次 `cn-armed.wav`；OFFBOARD 确认后、初始化爬升时提交 `cn-takeoff.wav`，进入爬升阶段后提交一次 `sample-6s.wav`。每次重新执行起飞节点会重置爬升播报触发。`TouchDown` 在已解锁、开始降落时提交 `cn-landing.wav`，进入下降阶段后提交一次 `cn-welcome-sua.wav`；在等待上锁阶段确认已上锁时提交 `cn-disarmed.wav`。每次重新执行降落节点会重置下降播报触发；节点启动时已经上锁则直接成功，不播报降落或上锁提示。未执行对应行为树节点时，外部解锁/上锁不会触发这两条提示。
+
+所有事件复用 `AudioCaller` 调用 `/audio/play`，类型为本包生成的 `maxt_pkg/PlayAudio`，与相同定义及 MD5 的 `uav_audio/PlayAudio` 兼容。服务检查和调用在单个后台线程中执行；主任务不等待结果，析构也不等待正在进行的服务调用。服务不存在、服务端 busy、客户端正在调用或已有待发请求时均可能丢弃播报，不重试。相邻事件的提示可能被丢弃，例如解锁提示尚在播放时起飞提示不会排队；该功能不保证每条音频实际播出。
+
+行为树可通过文件名触发自定义播报（不是文本转语音）：
+
+```xml
+<PlayAudio filename="cn-mission-start.wav" />
+```
+
+`PlayAudio` 每次执行只提交一次请求，立即返回 SUCCESS；音频服务缺失或拒绝不影响任务。缺少必填 `filename` 输入时返回 FAILURE。在循环或重新执行的树中，每次执行都会再次提交。
+
+无需音频设备的联调方式（编译并加载工作空间后）：
+
+```bash
+rosrun maxt_pkg fake_audio.py _duration:=3.0
+rosservice call /audio/play "filename: 'cn-ready.wav'"
+```
+
+模拟服务立即响应，默认 3 秒内返回 busy，不检查真实文件，也不发声。真实播放需另行启动 `uav_audio` 节点，并在服务端包的 `audio/` 目录中放置对应 WAV。
 
 #### 视觉识别：aruco_center.py
 
@@ -427,6 +452,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | --- | --- | --- |
 | `ConnectCheck` | `map_x/map_y/fact_x/fact_y(0)` | 无 |
 | `CapturePose` | `height_offset(0)` | `x`、`y`、`z` |
+| `PlayAudio` | `filename` | 无 |
 | `Takeoff` | `target_alt(0.5)` | 无 |
 | `Nav` | `x/y/z`、`tolerance(0.1)`、`timeout(60)` | 无 |
 | `WaitStep` | `wait_duration(1)` | 无 |

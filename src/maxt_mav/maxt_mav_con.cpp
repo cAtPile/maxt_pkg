@@ -7,8 +7,8 @@
 
 namespace maxt {
 
-MavKit::MavKit(ros::NodeHandle& nh) : nh_(nh) {
-    // 保持轻量化
+MavKit::MavKit(ros::NodeHandle& nh) : nh_(nh), audio_(nh) {
+    playAudio("cn-welcome.wav");
 }
 
 bool MavKit::mavInit(ros::NodeHandle& nh) {

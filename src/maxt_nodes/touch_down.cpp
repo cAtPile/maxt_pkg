@@ -28,8 +28,10 @@ BT::NodeStatus TouchDownNode::onStart() {
     }
 
     phase_ = Phase::INIT;
+    mav_.playAudio("cn-landing.wav");
     start_time_ = ros::Time::now();
     land_confirming_ = false;
+    descent_audio_sent_ = false;
     home_z_ = mav_.getHomePose().pose.position.z;
 
     ROS_INFO("TouchDownNode: Start, home_z=%.2f, descent_speed=%.2f, timeout=%.1f, "
@@ -84,6 +86,11 @@ BT::NodeStatus TouchDownNode::onRunning() {
     }
 
     case Phase::DESCEND: {
+        // 降落过程中仅提交一次；重新执行本节点时重置。
+        if (!descent_audio_sent_) {
+            mav_.playAudio("cn-welcome-sua.wav");
+            descent_audio_sent_ = true;
+        }
         auto current = mav_.getCurrentPose();
         auto twist = mav_.getCurrentTwist();
         double current_z = current.pose.position.z;
@@ -121,6 +128,7 @@ BT::NodeStatus TouchDownNode::onRunning() {
     case Phase::DISARM: {
         if (!mav_.isArmed()) {
             ROS_INFO("TouchDownNode: Disarmed, touchdown complete.");
+            mav_.playAudio("cn-disarmed.wav");
             phase_ = Phase::DONE;
             return BT::NodeStatus::SUCCESS;
         }

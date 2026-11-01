@@ -1,4 +1,5 @@
 #include <maxt_pkg/maxt_core.hpp>
+#include <maxt_pkg/maxt_nodes/play_audio_node.hpp>
 #include <maxt_pkg/maxt_nodes/traverse_path_generator_node.hpp>
 #include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
@@ -68,6 +69,10 @@ bool MaxtCore::init() {
 }
 
 void MaxtCore::registerNodes() {
+    factory_.registerBuilder<PlayAudioNode>("PlayAudio",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<PlayAudioNode>(name, config, *mav_);
+        });
     factory_.registerBuilder<CapturePoseNode>("CapturePose",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<CapturePoseNode>(name, config, *mav_);

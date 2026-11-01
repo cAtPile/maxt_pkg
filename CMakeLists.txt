@@ -25,9 +25,11 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 add_action_files(FILES Guidance.action ugv_mover.action)
+add_service_files(FILES PlayAudio.srv)
 generate_messages(DEPENDENCIES actionlib_msgs std_msgs)
 
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(Threads REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(gazebo REQUIRED)
 
@@ -118,6 +120,8 @@ target_link_libraries(maxt_moving_target_plugin ${GAZEBO_LIBRARIES} ${catkin_LIB
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
+  src/audio_caller.cpp
+  src/maxt_nodes/play_audio.cpp
   src/maxt_core.cpp
   src/maxt_mav/maxt_mav_cb.cpp
   src/maxt_mav/maxt_mav_con.cpp
@@ -164,6 +168,7 @@ add_dependencies(maxt_test_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXP
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
 
 )
 
@@ -189,6 +194,7 @@ target_link_libraries(maxt_test_node
 
 catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py script/aruco_center.py script/ugv_sim.py script/ugv_controller.py
   script/fast_mission/fast_mission.py
+  script/fake_audio.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

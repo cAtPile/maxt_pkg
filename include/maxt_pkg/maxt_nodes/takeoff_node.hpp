@@ -33,6 +33,7 @@ private:
     double hold_yaw_{0.0};
     double target_z_{0.0};
     ros::Time start_time_;
+    bool ascent_audio_sent_{false};
 };
 
 } // namespace maxt

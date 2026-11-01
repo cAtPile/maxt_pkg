@@ -38,6 +38,7 @@ private:
     ros::Time start_time_;
     ros::Time land_confirm_time_;
     bool land_confirming_{false};
+    bool descent_audio_sent_{false};
     ros::Time disarm_request_time_;
 };
 

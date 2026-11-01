@@ -16,6 +16,7 @@
 #include <mavros_msgs/PositionTarget.h>
 #include <maxt_pkg/calibrate_tools.hpp>
 #include <maxt_pkg/quintic_curve.hpp>
+#include <maxt_pkg/audio_caller.hpp>
 #include <Eigen/Core>
 #include <mutex>
 #include <atomic>
@@ -58,6 +59,9 @@ public:
      * @return true 初始化成功
      */
     bool mavInit(ros::NodeHandle& nh);
+
+    // 尽力提交播报，不等待音频服务或播放结果。
+    void playAudio(const std::string& filename) { audio_.play(filename); }
 
     /**
      * @brief 标定：根据参照点计算 SLAM 坐标系偏航偏移
@@ -188,6 +192,7 @@ private:
     void captureCurveState(const ros::Time& now);
 
     ros::NodeHandle nh_;
+    AudioCaller audio_;
     
     // 线程安全保障
     mutable std::mutex data_mtx_;
