@@ -649,3 +649,4 @@ rosrun maxt_pkg ugv_cowork_tree_test \
 
 - [重复逻辑与函数抽取建议](docs/repeated_logic_review.md)：当前源码中的重复实现、建议抽取边界与优先级。
 - [大规模重构测试文件计划](docs/refactor_test_plan.md)：分层测试、文件清单、关键场景与实施顺序。
+- [项目重构实施计划](docs/refactor_plan.md)：分阶段范围、依赖顺序、兼容约束、验收与回退方案。
