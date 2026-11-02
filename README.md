@@ -615,7 +615,16 @@ rosrun maxt_pkg ugv_cowork_tree_test \
 
 该测试覆盖任务分支与抢占流程，不能代替真实节点的控制验证。飞行相关修改应在仿真中检查实测轨迹、视觉反馈、超时和中断后的设点行为；可用 `rostopic hz` 检查发布频率，用 `rostopic echo` 查看状态与业务结果。只用行为树最终 SUCCESS 无法区分导航末端强制成功、跟踪失败后继续降落等情况。
 
-本次仅补充开发文档，未执行上述编译、流程测试或仿真命令。
+标定工具单元测试无需启动 ROS master，覆盖默认变换、标定更新、XY 旋转方向、
+消息字段转换及保留字段。`untransRaw(PositionTarget&)` 当前只逆变换位置和速度，
+不会逆变换加速度；测试按此接口行为验证。
+
+```bash
+cd ~/catkin_ws
+catkin_make --pkg maxt_pkg -DCATKIN_ENABLE_TESTING=ON --make-args test_calibrate_tools
+source devel/setup.bash
+rosrun maxt_pkg test_calibrate_tools
+```
 
 ### 牛耕遍历子树
 
