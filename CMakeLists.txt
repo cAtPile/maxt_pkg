@@ -235,6 +235,11 @@ install(DIRECTORY launch config
 #############
 
 if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_calibrate_tools test/unit/test_calibrate_tools.cpp)
+  if(TARGET test_calibrate_tools)
+    target_link_libraries(test_calibrate_tools ${catkin_LIBRARIES})
+  endif()
+
   add_executable(ugv_cowork_tree_test test/ugv_cowork_tree_test.cpp)
   add_dependencies(ugv_cowork_tree_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
   target_link_libraries(ugv_cowork_tree_test ${PROJECT_NAME} ${catkin_LIBRARIES})
