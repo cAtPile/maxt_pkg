@@ -644,3 +644,8 @@ rosrun maxt_pkg ugv_cowork_tree_test \
 起飞、后续跟踪、协同、返航和降落由父树负责。两份测试任务 XML 已采用此子树。
 
 `Takeoff` 等待外部解锁，不主动发送解锁请求。`config/nav.yaml` 中 `takeoff.arm_timeout` 设置等待解锁的超时（默认 60s，须为有限正数）；超时返回 FAILURE。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
+
+## 代码维护参考
+
+- [重复逻辑与函数抽取建议](docs/repeated_logic_review.md)：当前源码中的重复实现、建议抽取边界与优先级。
+- [大规模重构测试文件计划](docs/refactor_test_plan.md)：分层测试、文件清单、关键场景与实施顺序。
