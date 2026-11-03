@@ -170,7 +170,7 @@ rosrun maxt_pkg maxt_test_node \
 
 通常直接使用 `mission.launch` 更方便，它会完成参数加载。`Nav` 的速度、加速度及 PID 参数来自私有 `nav/` 参数，而非 XML 输入端口。
 
-当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
+当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`HeadingNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
 
 #### 语音播报
 
@@ -448,6 +448,16 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 
 视觉误差单位必须与控制增益、容差匹配，现有 ArUco 服务使用像素误差。小车目标是绝对 XY，单位为米，Action 定义约定为 MAVROS 本地 ENU；服务端不负责坐标转换。`UgvCowork` 可通过 `action_name` 更改小车服务名，Guidance 当前使用 `/guidance`。
 
+#### HeadingNav 固定航向导航
+
+`HeadingNav` 从每次启动时的飞机位置出发，沿指定航向水平航行 `nav_dis` 米，保持启动时的高度。`heading_angle` 单位为弧度，使用 MavKit 控制坐标系，0 沿 +X，π/2 沿 +Y，逆时针为正；它表示航行方向，机头偏航仍沿用 MavKit 的起飞锁定值。
+
+```xml
+<HeadingNav heading_angle="1.5707963267948966" nav_dis="2.0" tolerance="0.1" timeout="60"/>
+```
+
+节点复用 `Nav` 的五次曲线、末端 PID、`nav/` 参数和中断减速逻辑，需加载 `config/nav.yaml`。与 `Nav` 一样，曲线结束后末端等待超过 3 秒可能强制返回 SUCCESS；成功状态不保证距离误差达标。
+
 #### 行为树端口
 
 端口定义以各节点 `providedPorts()` 为准。下表列出当前接口；未标注默认值的输入需要调用方提供，任务 XML 可以覆盖默认值。
@@ -459,6 +469,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `PlayAudio` | `filename` | 无 |
 | `Takeoff` | `target_alt(0.5)` | 无 |
 | `Nav` | `x/y/z`、`tolerance(0.1)`、`timeout(60)` | 无 |
+| `HeadingNav` | `heading_angle`、`nav_dis`、`tolerance(0.1)`、`timeout(60)` | 无 |
 | `WaitStep` | `wait_duration(1)` | 无 |
 | `Hover` | `hover_duration(1)` | 无 |
 | `Round` | `center_x/center_y/center_z`、`radius(0)`、`angular_speed(30)`、`total_angle(360)`、`tolerance(0.3)`、`timeout(60)`、`ramp_time(2)` | 无 |

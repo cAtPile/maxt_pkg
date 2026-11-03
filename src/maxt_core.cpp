@@ -15,6 +15,7 @@
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/heading_nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/found_check_node.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <std_msgs/String.h>
@@ -96,6 +97,11 @@ void MaxtCore::registerNodes() {
     factory_.registerBuilder<NavNode>("Nav",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<NavNode>(name, config, *mav_, nh_);
+        });
+
+    factory_.registerBuilder<HeadingNavNode>("HeadingNav",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<HeadingNavNode>(name, config, *mav_, nh_);
         });
 
     factory_.registerBuilder<WaitStepNode>("WaitStep",
