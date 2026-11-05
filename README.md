@@ -122,7 +122,7 @@ python3 script/fast_mission/fast_mission.py --tui
 # 或：rosrun maxt_pkg fast_mission.py --tui
 ```
 
-界面采用 Claude 陶橙色主题和 VS Code 式工作区：左侧任务库选择 `takeoff/nav/hover` 等任务，中间展示编排序列，右侧显示运行监看，下方参数输入框用于填写具体参数，底栏说明快捷键。支持 256 色的终端使用橙色与深灰背景，低色或无色终端自动降级。窗口较小时自动切换单栏，Tab 在任务库、编排序列和监看之间切换，`m` 直接切换到监看，列表随选中项滚动。
+界面采用 Claude 陶橙色主题和 VS Code 式工作区：左侧任务库选择 `takeoff/nav/heading_nav/hover` 等任务，中间展示编排序列，右侧显示运行监看，下方参数输入框用于填写具体参数，底栏说明快捷键。支持 256 色的终端使用橙色与深灰背景，低色或无色终端自动降级。窗口较小时自动切换单栏，Tab 在任务库、编排序列和监看之间切换，`m` 直接切换到监看，列表随选中项滚动。
 
 上下键选择任务，Enter 添加或编辑；编排序列中 `d` 删除、`J/K` 下移或上移。参数输入框支持左右键移动光标、Backspace/Delete 删除、Ctrl+U 清空；Enter/Tab 确认当前参数并进入下一项，最后一项确认后提交任务，↑ 返回上一项，Esc 放弃本次编辑。`p` 在中央面板预览 XML，`s` 覆盖保存，`q` 退出。保存后可以继续编辑，每次启动从空序列开始，退出丢弃尚未保存的编辑；连接检查与降落固定在序列首尾。
 
@@ -130,7 +130,7 @@ TUI 默认后台连接 ROS 进行只读监看，未加载 ROS 或 master 尚未�
 
 当前任务来自执行器发布的 `/maxt_test_node/mission_status`（`std_msgs/String`，JSON），包含 `state`、`xml_path`、墙钟 `stamp`，以及可选的 `active` 节点数组（`uid/name/type`）；没有运行节点时省略 `active`。支持显示并行运行的多个动作，与编辑器选中项分别显示。需要重新编译并加载工作空间后，执行器才会发布该话题；旧执行器没有此话题时显示“等待状态”。TUI 保留本次连接期间收到的最终状态，执行器退出后再打开界面无法恢复上一次结果。此侧栏为后续完整任务监看器预留，当前不提供任务控制或历史回放。
 
-按编号添加 `takeoff`、`nav`、`hover`、`waitstep`、`round` 或 `guidance`，逐项输入端口参数，回车使用显示的默认值。可重复添加同一任务；`u` 撤销最后一项，`q` 或 Ctrl+C / Ctrl+D 退出且不保存。距离单位为米、时间为秒，圆周角度为度；`guidance` 的误差容差使用像素。
+按编号添加 `takeoff`、`nav`、`heading_nav`、`hover`、`waitstep`、`round` 或 `guidance`，逐项输入端口参数，回车使用显示的默认值。可重复添加同一任务；`u` 撤销最后一项，`q` 或 Ctrl+C / Ctrl+D 退出且不保存。距离单位为米、时间为秒，`HeadingNav.heading_angle` 和圆周角度均为度；`guidance` 的误差容差使用像素。
 
 生成器按当前 `providedPorts()` 填写任务输入，命令行和 TUI 共用同一份端口定义：
 
@@ -138,12 +138,13 @@ TUI 默认后台连接 ROS 进行只读监看，未加载 ROS 或 master 尚未�
 | --- | --- |
 | `takeoff` | `target_alt` |
 | `nav` | `x`、`y`、`z`、`tolerance`、`timeout` |
+| `heading_nav` | `heading_angle`（deg）、`nav_dis`（m）、`tolerance`、`timeout` |
 | `hover` | `hover_duration` |
 | `waitstep` | `wait_duration` |
 | `round` | `center_x/y/z`、`radius`、`angular_speed`、`total_angle`、`tolerance`、`timeout`、`ramp_time` |
 | `guidance` | `target_id`、`timeout`、`tracking_duration`（0 表示仅对齐） |
 
-`Takeoff` 的上升速度及超时、`ConnectCheck` 的超时、`TouchDown` 的全部控制参数，以及 `Guidance` 的 `tolerance/downward_camera/kp` 从 `config/nav.yaml` 对应模块读取，不再作为这些节点的 XML 属性生成。`Nav`、`Round` 和 `Guidance` 的任务 `timeout` 仍是 BT 输入端口。`Guidance.message` 为输出端口，当前生成器不要求填写。运行 `python3 -B -m unittest discover -s test -p 'test_fast_mission.py'` 可检查生成器定义、端口默认值和 XML 是否与节点源码一致。
+`Takeoff` 的上升速度及超时、`ConnectCheck` 的超时、`TouchDown` 的全部控制参数，以及 `Guidance` 的 `tolerance/downward_camera/kp` 从 `config/nav.yaml` 对应模块读取，不再作为这些节点的 XML 属性生成。`Nav`、`HeadingNav`、`Round` 和 `Guidance` 的任务 `timeout` 仍是 BT 输入端口。`Guidance.message` 为输出端口，当前生成器不要求填写。运行 `python3 -B -m unittest discover -s test -p 'test_fast_mission.py'` 可检查生成器定义、端口默认值和 XML 是否与节点源码一致。
 
 输入 `0` 后覆盖包内 `config/mission/fast_mission.xml`，树名固定为 `FastMission`。脚本始终保留首项 `<ConnectCheck />` 和末项 `<TouchDown />`，中间按添加顺序生成 XML。脚本只生成文件；执行任务使用：
 
@@ -450,13 +451,24 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 
 #### HeadingNav 固定航向导航
 
-`HeadingNav` 从每次启动时的飞机位置出发，沿指定航向水平航行 `nav_dis` 米，保持启动时的高度。`heading_angle` 单位为弧度，使用 MavKit 控制坐标系，0 沿 +X，π/2 沿 +Y，逆时针为正；它表示航行方向，机头偏航仍沿用 MavKit 的起飞锁定值。
+`HeadingNav` 从每次启动时的飞机位置出发，沿指定航向水平航行 `nav_dis` 米，保持启动时的高度。`heading_angle` 单位为度（°），使用 MavKit 控制坐标系，0° 沿 +X，90° 沿 +Y，逆时针为正；它表示航行方向，机头偏航仍沿用 MavKit 的起飞锁定值。
 
 ```xml
-<HeadingNav heading_angle="1.5707963267948966" nav_dis="2.0" tolerance="0.1" timeout="60"/>
+<HeadingNav heading_angle="90.0" nav_dis="2.0" tolerance="0.1" timeout="60"/>
 ```
 
-节点复用 `Nav` 的五次曲线、末端 PID、`nav/` 参数和中断减速逻辑，需加载 `config/nav.yaml`。与 `Nav` 一样，曲线结束后末端等待超过 3 秒可能强制返回 SUCCESS；成功状态不保证距离误差达标。
+节点独立实现与 `Nav` 相似的导航逻辑，通过 MavKit 执行五次曲线，结束后进行三轴 PID 对齐，中断时请求减速；共用 `nav/` 参数，需加载 `config/nav.yaml`。与 `Nav` 一样，曲线结束后末端等待超过 3 秒可能强制返回 SUCCESS；成功状态不保证距离误差达标。
+
+测试任务位于 `config/mission/heading_nav_test.xml`：起飞至 1m，沿 0°、90°、180°、−90° 四个航向各航行 1m，每段后悬停 2s，最后降落。每段以实际启动位置为起点，累计误差可能导致终点偏离起点。
+
+```bash
+# 启动完整仿真和测试任务；Takeoff 等待外部解锁。
+roslaunch maxt_pkg heading_nav_test.launch
+# 复用已启动的 MAVROS 和飞行环境：
+roslaunch maxt_pkg heading_nav_test.launch sim:=false
+```
+
+launch 支持 `nav_config`、`bt_tick_rate`、`heartbeat_rate`、`run_fake_audio`、`run_uav`、`run_fast_lio` 和 `run_camera` 参数，与通用任务入口一致。
 
 #### 行为树端口
 

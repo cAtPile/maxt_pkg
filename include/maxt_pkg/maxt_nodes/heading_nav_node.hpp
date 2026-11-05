@@ -1,12 +1,12 @@
 #ifndef MAXT_NODES_HEADING_NAV_HPP
 #define MAXT_NODES_HEADING_NAV_HPP
 
-#include <maxt_pkg/maxt_nodes/nav_node.hpp>
-#include <memory>
+#include <maxt_pkg/maxt_nodes.hpp>
+#include <maxt_pkg/pid_controller.hpp>
 
 namespace maxt {
 
-// 将固定航向和距离转换为航点，导航生命周期交给 NavNode。
+// 根据航向和距离生成目标，独立管理轨迹及末端闭环。
 class HeadingNavNode : public MavActionNode {
 public:
     HeadingNavNode(const std::string& name, const BT::NodeConfiguration& config,
@@ -18,8 +18,18 @@ public:
     void onHalted() override;
 
 private:
-    ros::NodeHandle nh_;
-    std::unique_ptr<NavNode> nav_;
+    ros::NodeHandle nav_nh_;
+    double tx_{0.0}, ty_{0.0}, tz_{0.0};
+    double tolerance_{0.1};
+    double timeout_{60.0};
+    double pid_kp_{1.0}, pid_ki_{0.05}, pid_kd_{0.0};
+    double T_{1.0};
+    ros::Time traj_start_;
+    ros::Time start_time_;
+    ros::Time last_time_;
+    ros::Time hold_start_;
+    bool holding_{false};
+    PIDController pid_x_, pid_y_, pid_z_;
 };
 
 } // namespace maxt

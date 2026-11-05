@@ -1,0 +1,16 @@
+<root main_tree_to_execute="HeadingNavTest">
+    <BehaviorTree ID="HeadingNavTest">
+        <Sequence>
+            <ConnectCheck />
+            <Takeoff target_alt="1.0" />
+            <!-- 航向使用控制坐标系的角度值（°），每段从该节点启动时的位置出发。 -->
+            <HeadingNav heading_angle="30.0" nav_dis="1.0" tolerance="0.1" timeout="30.0" />
+            <HeadingNav heading_angle="90.0" nav_dis="1.0" tolerance="0.1" timeout="30.0" />
+            <HeadingNav heading_angle="150.0" nav_dis="1.0" tolerance="0.1" timeout="30.0" />
+            <HeadingNav heading_angle="210.0" nav_dis="1.0" tolerance="0.1" timeout="30.0" />
+            <HeadingNav heading_angle="270.0" nav_dis="1.0" tolerance="0.1" timeout="30.0" />
+            <HeadingNav heading_angle="230.0" nav_dis="1.0" tolerance="0.1" timeout="30.0" />
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>

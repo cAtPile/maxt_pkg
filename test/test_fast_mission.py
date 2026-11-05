@@ -29,14 +29,17 @@ def input_ports(source):
     for name, default in re.findall(
             r'BT::InputPort<[^>]+>\(\s*"([^"]+)"\s*(?:,\s*([^,)]+))?',
             declaration):
-        ports[name] = default.strip() or None
+        # double 必填端口的第二个参数也可能是说明文字。
+        value = default.strip()
+        ports[name] = None if not value or value.startswith('"') else value
     return ports
 
 
 class FastMissionPortsTest(unittest.TestCase):
     def test_input_names_and_defaults_match_nodes(self):
         sources = {"waitstep": "waitstep", "takeoff": "takeoff", "nav": "nav",
-                   "hover": "hover", "round": "round", "guidance": "guidance"}
+                   "hover": "hover", "round": "round", "guidance": "guidance",
+                   "heading_nav": "heading_nav"}
         for name, tag, ports in mission.MISSIONS:
             with self.subTest(node=tag):
                 if tag in ("RegionTraverse", "VisionRegionTraverse"):

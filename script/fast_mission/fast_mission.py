@@ -40,6 +40,9 @@ MISSIONS = (
     ("guidance", "Guidance", (
         ("target_id", None), ("timeout", "30.0"),
         ("tracking_duration", "0.0"))),
+    ("heading_nav", "HeadingNav", (
+        ("heading_angle", None), ("nav_dis", None),
+        ("tolerance", "0.1"), ("timeout", "60.0"))),
 )
 
 
@@ -49,6 +52,7 @@ MISSION_HINTS = {
     "VisionRegionTraverse": "填写原点 origin_x/y 和有符号边长 length_x/y（非零，负值表示反向）；航带沿 X 往返、沿 Y 推进；coverage_step 为航带间距，altitude 为高度（m）。发现目标即结束搜索；起飞需单独添加。",
     "Takeoff": "等待外部解锁；ROS 配置 takeoff/: arm_timeout、ascent_speed、timeout；此处仅填写起飞高度。",
     "Nav": "目标、tolerance、timeout 填写在 XML；速度、加速度、PID 配置见 nav/。",
+    "HeadingNav": "从当前位置保持高度航行；heading_angle 为控制坐标系航向（deg，0° 沿 +X，90° 沿 +Y），nav_dis 为距离（m）；机头偏航保持锁定，控制参数见 nav/。",
     "Hover": "hover_duration 为悬停时长，单位 s。",
     "WaitStep": "wait_duration 为等待时长，单位 s。",
     "Round": "圆心、半径、角速度、总角度、容差、超时及 ramp_time 均为 XML 端口。",
@@ -56,6 +60,8 @@ MISSION_HINTS = {
 }
 
 PORT_LABELS = {
+    "heading_angle": "heading_angle (航向角, deg)",
+    "nav_dis": "nav_dis (航行距离, m)",
     "origin_x": "origin_x (原点 X, m)",
     "origin_y": "origin_y (原点 Y, m)",
     "length_x": "length_x (X 方向有符号边长, m)",
@@ -680,7 +686,7 @@ def main():
     tasks = []
     print("快速 BT XML 任务编排器（距离 m，时间 s，角度 °）")
     print("参数回车使用默认值；Ctrl+C / Ctrl+D 退出且不保存。")
-    print("起降速度与超时、视觉控制参数见 config/nav.yaml；Nav/Round/Guidance 的任务超时仍在 XML 中填写。")
+    print("起降速度与超时、视觉控制参数见 config/nav.yaml；Nav/HeadingNav/Round/Guidance 的任务超时仍在 XML 中填写。")
     while True:
         print("\nmission list:")
         for index, (name, _, _) in enumerate(MISSIONS, 1):
