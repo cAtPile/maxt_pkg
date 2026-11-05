@@ -1,3 +1,6 @@
+//TODO 需要重构 获取raw数据xy即可
+//TODO 需要构造 MavKit::GetHomeRawAltitude 获取起飞点的高度
+//TODO 需要构造 MavKit::RecoredHomeRawAltitude 记录起飞点的高度，用于确定真实高度和降落接地检查
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
 #include <cmath>
 
@@ -93,7 +96,7 @@ BT::NodeStatus TakeoffNode::onRunning() {
     //初始化
     case Phase::INIT: {
         
-        auto current = mav_.getCurrentPose();
+        auto current = mav_.GetCalibratePose();
 
         mavros_msgs::PositionTarget target;
         target.header.frame_id = "map";
@@ -124,7 +127,7 @@ BT::NodeStatus TakeoffNode::onRunning() {
     //上升
     case Phase::ASCEND: {
 
-        auto current = mav_.getCurrentPose();
+        auto current = mav_.GetCalibratePose();
         double current_z = current.pose.position.z;
 
         //到达位置后停止

@@ -15,6 +15,7 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
 #include <maxt_pkg/calibrate_tools.hpp>
+#include <maxt_pkg/mavkit/get_pose.hpp>
 #include <maxt_pkg/quintic_curve.hpp>
 #include <maxt_pkg/audio_caller.hpp>
 #include <Eigen/Core>
@@ -138,7 +139,14 @@ public:
      * @brief 获取无人机当前位姿
      * @return geometry_msgs::PoseStamped 当前位姿
      */
-    geometry_msgs::PoseStamped getCurrentPose() const;
+    // 原始 MAVROS 坐标；以下查询均返回持锁复制的快照。
+    geometry_msgs::PoseStamped GetRawPose() const;
+    // 原始坐标减去 Home 的 XYZ，不做角度标定。
+    geometry_msgs::PoseStamped GetHomeOffsetPose() const;
+    // 先抵消 Home，再将 XY 逆向旋转到工程世界坐标。
+    geometry_msgs::PoseStamped GetHomeCalibratePose() const;
+    // 仅标定 XY，不抵消 Home；保持既有导航坐标语义。
+    geometry_msgs::PoseStamped GetCalibratePose() const;
 
     /**
      * @brief 获取无人机当前速度

@@ -54,8 +54,8 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
         control_pose.header.stamp = ros::Time::now();
         setpoint_pub_.publish(control_pose);
     }else if(setpoint_mode_ == SetpointMode::RAW_CTRL){
+        // 原始目标直接发布，不做 Home 偏移或标定转换。
         mavros_msgs::PositionTarget raw = raw_target_;
-        calib_.transRaw(raw);
         raw.header.stamp = ros::Time::now();
         raw_setpoint_pub_.publish(raw);
     }else if(setpoint_mode_ == SetpointMode::CURVE_CTRL){
@@ -79,7 +79,6 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
                 publish_hold();
             } else {
                 auto raw = raw_target_;
-                calib_.transRaw(raw);
                 raw.header.stamp = now;
                 raw_setpoint_pub_.publish(raw);
             }
@@ -118,13 +117,6 @@ bool MavKit::isLand() const {
 std::string MavKit::getMode() const {
     std::lock_guard<std::mutex> lock(data_mtx_);
     return current_state_.mode;
-}
-
-geometry_msgs::PoseStamped MavKit::getCurrentPose() const {
-    std::lock_guard<std::mutex> lock(data_mtx_);
-    geometry_msgs::PoseStamped out = current_pose_;
-    calib_.untransPose(out);
-    return out;
 }
 
 geometry_msgs::TwistStamped MavKit::getCurrentTwist() const {
@@ -171,7 +163,7 @@ void MavKit::setTargetPose(double x, double y, double z) {
 }
 
 bool MavKit::isReached(double x, double y, double z, double tolerance) const {
-    geometry_msgs::PoseStamped curr = getCurrentPose();  // world coords
+    geometry_msgs::PoseStamped curr = GetCalibratePose();  // world coords
     double dx = curr.pose.position.x - x;
     double dy = curr.pose.position.y - y;
     double dz = curr.pose.position.z - z;

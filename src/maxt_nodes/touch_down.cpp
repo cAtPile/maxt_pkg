@@ -1,3 +1,5 @@
+//TODO 需要重构 获取raw数据xy即可
+//TODO 需要构造 MavKit::GetHomeRawAltitude 获取起飞点的高度
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>
 #include <cmath>
 
@@ -56,7 +58,7 @@ BT::NodeStatus TouchDownNode::onRunning() {
     switch (phase_) {
 
     case Phase::INIT: {
-        auto current = mav_.getCurrentPose();
+        auto current = mav_.GetCalibratePose();
         hold_x_ = current.pose.position.x;
         hold_y_ = current.pose.position.y;
 
@@ -89,7 +91,7 @@ BT::NodeStatus TouchDownNode::onRunning() {
 
     case Phase::DESCEND: {
 
-        auto current = mav_.getCurrentPose();
+        auto current = mav_.GetCalibratePose();
         auto twist = mav_.getCurrentTwist();
         double current_z = current.pose.position.z;
         double vz = twist.twist.linear.z;

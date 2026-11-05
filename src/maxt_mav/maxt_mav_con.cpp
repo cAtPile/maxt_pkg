@@ -82,7 +82,7 @@ void MavKit::setSetpointMode(SetpointMode mode) {
             // 相同速度目标不重新计时，确保重复发布也能完成过渡。
             if (transition_end_mode_ == SetpointMode::RAW_CTRL &&
                 (velocity - transition_velocity_).squaredNorm() < 1e-12) return;
-            startVelocityTransition(velocity, now);
+            startVelocityTransition(velocity, now);//TODO：这是什么？
             transition_end_mode_ = SetpointMode::RAW_CTRL;
             return;
         }

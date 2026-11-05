@@ -22,7 +22,7 @@ BT::NodeStatus CapturePoseNode::onStart() {
 }
 
 BT::NodeStatus CapturePoseNode::onRunning() {
-    const auto pose = mav_.getCurrentPose();
+    const auto pose = mav_.GetCalibratePose();
     // MavKit 初始化时尚未收到定位，不能把默认零坐标当成起飞点。
     if (!pose.header.stamp.isZero()) {
         setOutput("x", pose.pose.position.x);

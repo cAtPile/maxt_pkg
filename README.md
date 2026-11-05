@@ -527,7 +527,11 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 | `getInput()` / `setOutput()` | 读取端口输入、将结果写到端口映射的黑板键 |
 | `MavKit::requestArm(bool)` / `requestMode(string)` | 发起解锁或模式请求；实际状态应通过查询接口确认 |
 | `isConnected()` / `isArmed()` / `isLand()` / `getMode()` | 获取连接、解锁、接地和模式状态 |
-| `getCurrentPose()` / `getCurrentTwist()` | 获取状态快照，XY 已按标定偏移逆向旋转到工程世界坐标 |
+| `GetRawPose()` | 获取原始 MAVROS 位姿，不做 Home 抵消或角度标定 |
+| `GetHomeOffsetPose()` | 原始坐标减去 Home 的 XYZ，不做角度标定 |
+| `GetHomeCalibratePose()` | 先抵消 Home 的 XYZ，再按标定偏移逆向旋转 XY |
+| `GetCalibratePose()` | 仅逆向旋转 XY 到工程世界坐标，不抵消 Home |
+| `getCurrentTwist()` | 获取速度快照，XY 已按标定偏移逆向旋转到工程世界坐标 |
 | `get_current_yaw()` | 从接收的姿态计算 yaw，不额外应用标定偏移 |
 | `setTargetPose(x,y,z)` | 更新位置目标缓存，随后选择 CONTROL；姿态默认单位四元数 |
 | `setRawTarget(target)` | 更新 PositionTarget 缓存，随后选择 RAW_CTRL，并明确坐标帧及 type_mask |
@@ -536,6 +540,12 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 | `isReached(x,y,z,tolerance)` | 判断实测位置到目标的三维欧氏距离是否小于容差；各行为节点可能另有判定逻辑 |
 | `updateHomePose()` / `getHomePose()` | 更新和查询 MavKit 内部 home 快照；与 CapturePose 写入的黑板键分别管理 |
 | `mavCalibrate(mapx,mapy,factx,facty)` | 根据两组参考方向计算 XY 旋转，无平移、Z 或姿态补偿 |
+
+点获取逻辑集中在 `include/maxt_pkg/mavkit/get_pose.hpp` 和 `src/mavkit/get_pose.cpp`。
+四种查询通过 `maxt::MavKit` 调用，均保留原始消息的 header 和 orientation；
+角度标定只作用于位置 XY，不改变 Z 或姿态。Home 使用 `updateHomePose()`
+记录的原始 MAVROS 快照，未记录时默认为零；它与 CapturePose 的黑板输出分别管理。
+现有导航节点使用 `GetCalibratePose()`，目标设点的坐标语义保持不变。
 
 `setTargetPose()`、`setRawTarget()` 更新缓存，实际消息由 MavKit 定时器发布。各模式语义如下：
 

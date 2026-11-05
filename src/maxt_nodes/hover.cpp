@@ -16,7 +16,7 @@ BT::NodeStatus HoverNode::onStart() {
         hover_duration_ = 1.0;
     }
 
-    start_hover_pose_ = mav_.getCurrentPose();
+    start_hover_pose_ = mav_.GetCalibratePose();
     start_hover_yaw_ = mav_.get_current_yaw();
     start_time_ = ros::Time::now();
 
