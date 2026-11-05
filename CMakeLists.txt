@@ -144,6 +144,8 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/touch_down.cpp
 
   src/maxt_nodes/nav.cpp
+  src/maxt_nodes/base_point_azimuth_fix.cpp
+  src/maxt_nodes/azimuth_fix_nav.cpp
 )
 
 ## Add cmake target dependencies of the library

@@ -137,7 +137,7 @@ TUI 默认后台连接 ROS 进行只读监看，未加载 ROS 或 master 尚未�
 | 任务 | 可填写的 XML 输入端口 |
 | --- | --- |
 | `takeoff` | `target_alt` |
-| `nav` | `x`、`y`、`z`、`tolerance`、`timeout` |
+| `nav` | `x`、`y`、`z`、`timeout` |
 | `hover` | `hover_duration` |
 | `waitstep` | `wait_duration` |
 | `round` | `center_x/y/z`、`radius`、`angular_speed`、`total_angle`、`tolerance`、`timeout`、`ramp_time` |
@@ -168,9 +168,25 @@ rosrun maxt_pkg maxt_test_node \
   _bt_tick_rate:=20.0 _heartbeat_rate:=20.0
 ```
 
-通常直接使用 `mission.launch` 更方便，它会完成参数加载。`Nav` 的速度、加速度及 PID 参数来自私有 `nav/` 参数，而非 XML 输入端口。
+通常直接使用 `mission.launch` 更方便，它会完成参数加载。`Nav` 的速度、加速度及 PID 参数来自私有 `nav/` 参数；到达位置容差使用 `config/nav.yaml` 的 `reach_check/position_pose_tolerance`（默认 0.1 m），不再提供 XML `tolerance` 端口。
 
-当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
+当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`BasePointAzimuthFix`、`AzimuthFixNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
+
+方位角固定航行使用 `BasePointAzimuthFix` 和 `AzimuthFixNav`。前者在一次 tick 内调用 `GetRawPose()`，将当前原始位置写入黑板；后者以该基点为原点，按照 `config/nav.yaml` 中的 `nav/azimuth_angle` 投影位移。角度单位为度，0° 沿原始 X 正向，90° 沿原始 Y 正向；`nav_n` 沿该方向，`nav_t` 正向为左侧，`nav_a` 为相对基点的 Z 增量，距离单位为米。每个目标都相对于保存的基点，不累计上一段位移，也不设置机头朝向。
+
+目标原始坐标为 `x = bp_x_raw + nav_n*cos(angle) - nav_t*sin(angle)`、`y = bp_y_raw + nav_n*sin(angle) + nav_t*cos(angle)`、`z = bp_z_raw + nav_a`。新节点复用五次曲线和 PID 工具，在 BT tick 中采样曲线并通过 `RAW_CTRL` 发布原始位置、速度、加速度，不应用 Home 偏移或标定旋转。曲线起点采用当前原始位置，起终点参考速度和加速度均为零；与已有 Nav 的连续参考重规划不同。速度、加速度、PID 配置仍使用 `nav/`，到达位置容差使用 `reach_check/position_pose_tolerance`。沿用 Nav 的 60 秒默认超时、末端 3 秒强制成功及中断减速逻辑；尚未进行仿真飞行验证。
+
+例如，在完成连接和起飞后记录基点，再沿配置方向移动 2 m 并保持基点高度：
+
+```xml
+<Sequence>
+    <BasePointAzimuthFix bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}" />
+    <AzimuthFixNav nav_n="2" nav_t="0" nav_a="0"
+                   bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}"
+                   timeout="60" />
+</Sequence>
+```
+
 
 #### 语音播报
 
@@ -458,7 +474,9 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `CapturePose` | `height_offset(0)` | `x`、`y`、`z` |
 | `PlayAudio` | `filename` | 无 |
 | `Takeoff` | `target_alt(0.5)` | 无 |
-| `Nav` | `x/y/z`、`tolerance(0.1)`、`timeout(60)` | 无 |
+| `Nav` | `x/y/z`、`timeout(60)` | 无 |
+| `BasePointAzimuthFix` | 无 | `bp_x_raw/bp_y_raw/bp_z_raw` |
+| `AzimuthFixNav` | `nav_n/nav_t/nav_a`、`bp_x_raw/bp_y_raw/bp_z_raw`、`timeout(60)` | 无 |
 | `WaitStep` | `wait_duration(1)` | 无 |
 | `Hover` | `hover_duration(1)` | 无 |
 | `Round` | `center_x/center_y/center_z`、`radius(0)`、`angular_speed(30)`、`total_angle(360)`、`tolerance(0.3)`、`timeout(60)`、`ramp_time(2)` | 无 |

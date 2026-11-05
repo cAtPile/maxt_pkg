@@ -26,7 +26,7 @@
                                                index="{region_waypoint_index}"
                                                next_index="{region_waypoint_index}"
                                                x="{region_target_x}" y="{region_target_y}" />
-                            <Nav x="{region_target_x}" y="{region_target_y}" z="{altitude}" tolerance="0.15" timeout="45.0" />
+                            <Nav x="{region_target_x}" y="{region_target_y}" z="{altitude}" timeout="45.0" />
                         </Sequence>
                     </Repeat>
                     <SetBlackboard output_key="result" value="complete" />

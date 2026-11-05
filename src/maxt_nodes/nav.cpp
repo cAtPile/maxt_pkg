@@ -14,7 +14,6 @@ BT::PortsList NavNode::providedPorts() {
         BT::InputPort<double>("x"),
         BT::InputPort<double>("y"),
         BT::InputPort<double>("z"),
-        BT::InputPort<double>("tolerance", 0.1, "arrival tolerance (m)"),
         BT::InputPort<double>("timeout", 60.0, "timeout (s)")
     };
 }
@@ -24,6 +23,7 @@ NavNode::NavNode(const std::string& name,
                                MavKit& mav, const ros::NodeHandle& nh)
     : MavActionNode(name, config, mav), nav_nh_(nh, "nav")
 {
+    nh.param<double>("reach_check/position_pose_tolerance", tolerance_, 0.1);
 }
 
 BT::NodeStatus NavNode::onStart() {
@@ -51,7 +51,6 @@ BT::NodeStatus NavNode::onStart() {
         ROS_ERROR("[Nav] Missing target coordinates!");
         return BT::NodeStatus::FAILURE;
     }
-    getInput<double>("tolerance", tolerance_);
     getInput<double>("timeout", timeout_);
 
     // 输入为相对 home 的偏移，统一转换为控制坐标。
