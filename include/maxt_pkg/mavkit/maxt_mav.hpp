@@ -15,7 +15,6 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
 #include <maxt_pkg/calibrate_tools.hpp>
-#include <maxt_pkg/mavkit/get_pose.hpp>
 #include <maxt_pkg/quintic_curve.hpp>
 #include <maxt_pkg/audio_caller.hpp>
 #include <Eigen/Core>
@@ -23,6 +22,13 @@
 #include <atomic>
 
 namespace maxt {
+namespace pose_tools {
+
+// 在同一原始坐标系中抵消 Home，保留当前消息的时间戳和姿态。
+geometry_msgs::PoseStamped offsetHome(const geometry_msgs::PoseStamped& pose,
+                                      const geometry_msgs::PoseStamped& home);
+
+} // namespace pose_tools
 
 /**
  * @brief Setpoint 模式枚举

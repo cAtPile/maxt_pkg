@@ -1,4 +1,4 @@
-#include <maxt_pkg/maxt_mav.hpp>
+#include <maxt_pkg/mavkit/maxt_mav.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 

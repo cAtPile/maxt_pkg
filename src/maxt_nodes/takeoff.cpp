@@ -1,8 +1,6 @@
-//TODO 需要重构 获取raw数据xy即可
 //TODO 需要构造 MavKit::GetHomeRawAltitude 获取起飞点的高度
 //TODO 需要构造 MavKit::RecoredHomeRawAltitude 记录起飞点的高度，用于确定真实高度和降落接地检查
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
-#include <cmath>
 
 namespace maxt {
 
@@ -21,12 +19,6 @@ BT::NodeStatus TakeoffNode::onStart() {
     ros::NodeHandle params("~takeoff");
     params.param("ascent_speed", ascent_speed_, 0.5);
     params.param("timeout", timeout_, 30.0);
-    params.param("arm_timeout", arm_timeout_, 60.0);
-    if (!std::isfinite(arm_timeout_) || arm_timeout_ <= 0.0) {
-        ROS_ERROR("TakeoffNode: arm_timeout must be finite and positive!");
-        mav_.setSetpointMode(SetpointMode::HEARTBEAT);
-        return BT::NodeStatus::FAILURE;
-    }
 
     if (!getInput<double>("target_alt", target_alt_)) target_alt_ = 0.5;
 
@@ -34,12 +26,11 @@ BT::NodeStatus TakeoffNode::onStart() {
     mav_.setDefaultYaw(hold_yaw_);
 
     phase_ = Phase::WAIT_ARM;
-    ascent_audio_sent_ = false;
     start_time_ = ros::Time::now();
 
     mav_.setSetpointMode(SetpointMode::HEARTBEAT);
-    ROS_INFO("TakeoffNode: Waiting for external arming (timeout=%.1f s), target_alt=%.2f m, ascent_speed=%.2f m/s",
-             arm_timeout_, target_alt_, ascent_speed_);
+    ROS_INFO("TakeoffNode: Waiting for external arming, target_alt=%.2f m, ascent_speed=%.2f m/s",
+             target_alt_, ascent_speed_);
     return BT::NodeStatus::RUNNING;
 }
 
@@ -47,7 +38,7 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
     ros::Time now = ros::Time::now();
 
-    // 解锁等待独立计时；解锁后才开始 OFFBOARD 和爬升超时计时。
+    // 持续等待外部解锁；解锁后才开始 OFFBOARD 和爬升超时计时。
     if (phase_ != Phase::WAIT_ARM && (now - start_time_).toSec() > timeout_) {
         ROS_ERROR("TakeoffNode: Timeout (%.1f s)!", timeout_);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
@@ -59,11 +50,6 @@ BT::NodeStatus TakeoffNode::onRunning() {
     // 只等待外部解锁，不主动请求 arming。
     case Phase::WAIT_ARM: {
         if (!mav_.isArmed()) {
-            if ((now - start_time_).toSec() > arm_timeout_) {
-                ROS_ERROR("TakeoffNode: Waiting for arming timed out (%.1f s)!", arm_timeout_);
-                mav_.setSetpointMode(SetpointMode::HEARTBEAT);
-                return BT::NodeStatus::FAILURE;
-            }
             return BT::NodeStatus::RUNNING;
         }
         start_time_ = now;
@@ -82,13 +68,8 @@ BT::NodeStatus TakeoffNode::onRunning() {
             mav_.requestMode("OFFBOARD");
             return BT::NodeStatus::RUNNING;
         }
-        auto home = mav_.getHomePose();
-        hold_x_ = home.pose.position.x;
-        hold_y_ = home.pose.position.y;
-        target_z_ = home.pose.position.z + target_alt_;
         mav_.playAudio("cn-takeoff.wav");
-        ROS_INFO("TakeoffNode: OFFBOARD confirmed, home=(%.2f, %.2f, %.2f)",
-                 hold_x_, hold_y_, home.pose.position.z);
+        ROS_INFO("TakeoffNode: OFFBOARD confirmed");
         phase_ = Phase::INIT;
         return BT::NodeStatus::RUNNING;
     }
@@ -96,13 +77,14 @@ BT::NodeStatus TakeoffNode::onRunning() {
     //初始化
     case Phase::INIT: {
         
-        auto current = mav_.GetCalibratePose();
+        const auto current = mav_.GetRawPose();
+        aim_altitude_raw_ = current.pose.position.z + target_alt_;
 
-        mavros_msgs::PositionTarget target;
-        target.header.frame_id = "map";
-        target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+        mavros_msgs::PositionTarget takeoff_raw_target;
+        takeoff_raw_target.header.frame_id = "map";
+        takeoff_raw_target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
 
-        target.type_mask =
+        takeoff_raw_target.type_mask =
             mavros_msgs::PositionTarget::IGNORE_PZ |
             mavros_msgs::PositionTarget::IGNORE_VX |
             mavros_msgs::PositionTarget::IGNORE_VY |
@@ -110,15 +92,15 @@ BT::NodeStatus TakeoffNode::onRunning() {
             mavros_msgs::PositionTarget::IGNORE_AFY |
             mavros_msgs::PositionTarget::IGNORE_AFZ |
             mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
-        target.position.x = hold_x_;
-        target.position.y = hold_y_;
-        target.yaw = hold_yaw_;
-        target.velocity.z = ascent_speed_;
-        mav_.setRawTarget(target);
+        takeoff_raw_target.position.x = current.pose.position.x;
+        takeoff_raw_target.position.y = current.pose.position.y;
+        takeoff_raw_target.yaw = hold_yaw_;
+        takeoff_raw_target.velocity.z = ascent_speed_;
+        mav_.setRawTarget(takeoff_raw_target);
         mav_.setSetpointMode(SetpointMode::RAW_CTRL);
 
         ROS_INFO("TakeoffNode: Ascending from z=%.2f to z=%.2f at %.2f m/s, yaw=%.2f",
-                 current.pose.position.z, target_z_, ascent_speed_, hold_yaw_);
+                 current.pose.position.z, aim_altitude_raw_, ascent_speed_, hold_yaw_);
         mav_.playAudio("sample-6s.wav");
         phase_ = Phase::ASCEND;
         return BT::NodeStatus::RUNNING;
@@ -127,13 +109,9 @@ BT::NodeStatus TakeoffNode::onRunning() {
     //上升
     case Phase::ASCEND: {
 
-        auto current = mav_.GetCalibratePose();
-        double current_z = current.pose.position.z;
-
-        //到达位置后停止
-        if (current_z >= target_z_) {
-            ROS_INFO("TakeoffNode: Reached target altitude (%.2f >= %.2f)!",
-                     current_z, target_z_);
+        // 使用原始局部坐标高度判定，不应用 Home 偏移或标定。
+        if (mav_.ReachAltitudeCheck(aim_altitude_raw_)) {
+            ROS_INFO("TakeoffNode: Reached target raw altitude %.2f m!", aim_altitude_raw_);
             phase_ = Phase::DONE;
             return BT::NodeStatus::RUNNING;
         }

@@ -390,7 +390,7 @@ maxt_pkg/
 ├── nodes/maxt_test_node.cpp          # 创建 MaxtCore，初始化并运行任务
 ├── include/maxt_pkg/
 │   ├── maxt_core.hpp                # 行为树调度核心
-│   ├── maxt_mav.hpp                 # MavKit、SetpointMode、CurveState
+│   ├── mavkit/maxt_mav.hpp          # MavKit、SetpointMode、CurveState、点获取辅助接口
 │   ├── maxt_nodes.hpp               # 飞行动作基类 MavActionNode
 │   ├── maxt_nodes/                  # 各行为树节点声明及 RegionWaypoints 类型
 │   ├── quintic_curve.hpp            # 三轴五次曲线
@@ -475,7 +475,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | --- | --- |
 | `~connect_check/` | `timeout: 60.0` |
 | `~capture_pose/` | `timeout: 10.0` |
-| `~takeoff/` | `ascent_speed: 0.5`、`timeout: 30.0`、`arm_timeout: 60.0` |
+| `~takeoff/` | `ascent_speed: 0.5`、`timeout: 30.0` |
 | `~touch_down/` | `descent_speed: -0.5`、`timeout: 60.0`、`ground_timeout: 3.0`、`height_tol: 0.3`、`vel_tol: 0.2` |
 | `~guidance/` | `tolerance: 5.0`、`downward_camera: false`、`kp: 0.01` |
 | `~found_check/` | `timeout: 0.5` |
@@ -515,7 +515,7 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 
 #### 函数介绍
 
-以下是扩展飞行动作时最常用的接口，完整声明见 [maxt_mav.hpp](include/maxt_pkg/maxt_mav.hpp) 和 [maxt_nodes.hpp](include/maxt_pkg/maxt_nodes.hpp)。
+以下是扩展飞行动作时最常用的接口，完整声明见 [maxt_mav.hpp](include/maxt_pkg/mavkit/maxt_mav.hpp) 和 [maxt_nodes.hpp](include/maxt_pkg/maxt_nodes.hpp)。
 
 | 函数 | 用途与调用约定 |
 | --- | --- |
@@ -543,14 +543,14 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 | `updateHomePose()` / `getHomePose()` | 更新和查询 MavKit 内部 home 快照；与 CapturePose 写入的黑板键分别管理 |
 | `mavCalibrate(mapx,mapy,factx,facty)` | 根据两组参考方向计算 XY 旋转，无平移、Z 或姿态补偿 |
 
-点获取逻辑集中在 `include/maxt_pkg/mavkit/get_pose.hpp` 和 `src/mavkit/get_pose.cpp`。
+点获取逻辑集中在 `include/maxt_pkg/mavkit/maxt_mav.hpp` 和 `src/mavkit/get_pose.cpp`。
 四种查询通过 `maxt::MavKit` 调用，均保留原始消息的 header 和 orientation；
 角度标定只作用于位置 XY，不改变 Z 或姿态。Home 使用 `updateHomePose()`
 记录的原始 MAVROS 快照，未记录时默认为零；它与 CapturePose 的黑板输出分别管理。
 现有导航节点使用 `GetCalibratePose()`，目标设点的坐标语义保持不变。
 
 到达检查由 `MavKit` 直接管理容差和判定逻辑，实现位于 `src/mavkit/reach_check.cpp`，
-可通过 `include/maxt_pkg/maxt_mav.hpp` 引入接口。
+可通过 `include/maxt_pkg/mavkit/maxt_mav.hpp` 引入接口。
 输入目标须使用 MAVROS 原始局部坐标（高度是该坐标系的 Z，不是相对 Home 高度），
 检查不做 Home 抵消或角度标定，也不检查目标姿态。速度目标为零，容差边界包含等号。
 `config/nav.yaml` 的 `reach_check` 配置由 MavKit 在 `mavInit()` 时通过传入的 NodeHandle 读取，
@@ -675,4 +675,6 @@ rosrun maxt_pkg test_calibrate_tools
 使用 BehaviorTree.CPP v3 的 `SubTreePlus` 传入常量或黑板映射，不启用自动映射，航点和索引保存在独立黑板中。
 起飞、后续跟踪、协同、返航和降落由父树负责。两份测试任务 XML 已采用此子树。
 
-`Takeoff` 等待外部解锁，不主动发送解锁请求。`config/nav.yaml` 中 `takeoff.arm_timeout` 设置等待解锁的超时（默认 60s，须为有限正数）；超时返回 FAILURE。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
+`Takeoff` 持续等待外部解锁，不主动发送解锁请求，不设置等待解锁超时。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
+
+初始化爬升时读取 `GetRawPose()`，保持该原始局部坐标的 XY，以 `takeoff.ascent_speed` 恒定垂直速度通过 `setRawTarget()` 和 `RAW_CTRL` 上升。目标原始高度为该次读取的 Z 加 `target_alt`，通过 `ReachAltitudeCheck()` 判定到达，随后切回 HEARTBEAT。

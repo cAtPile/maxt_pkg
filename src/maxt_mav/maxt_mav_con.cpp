@@ -3,7 +3,7 @@
  * @brief maxt的mav组件实现
  * @date 4-14
  */
-#include <maxt_pkg/maxt_mav.hpp>
+#include <maxt_pkg/mavkit/maxt_mav.hpp>
 
 namespace maxt {
 

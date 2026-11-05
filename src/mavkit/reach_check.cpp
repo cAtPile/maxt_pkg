@@ -1,14 +1,13 @@
-#include <maxt_pkg/maxt_mav.hpp>
+#include <maxt_pkg/mavkit/maxt_mav.hpp>
 #include <cmath>
 
 namespace maxt {
 
 bool MavKit::ReachAltitudeCheck(double altitude_raw) const {
-    // 同时读取原始位置与速度，不应用 Home 偏移或角度标定。
+    // 同时读取原始位置，不应用 Home 偏移或角度标定。
     std::lock_guard<std::mutex> lock(data_mtx_);
     const double altitude_error = current_pose_.pose.position.z - altitude_raw;
-    return std::abs(altitude_error) <= vertical_alt_tolerance_ &&
-           std::abs(current_twist_.twist.linear.z) <= vertical_vel_tolerance_;
+    return std::abs(altitude_error) <= vertical_alt_tolerance_;
 }
 
 bool MavKit::ReachPoseCheck(geometry_msgs::PoseStamped pose_raw) const {
