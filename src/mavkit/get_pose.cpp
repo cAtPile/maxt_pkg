@@ -19,6 +19,17 @@ geometry_msgs::PoseStamped MavKit::GetRawPose() const {
     return current_pose_;
 }
 
+void MavKit::RecordRawHomePose() {
+    std::lock_guard<std::mutex> lock(data_mtx_);
+    // 完整保留 MAVROS 原始消息，不应用 Home 偏移或角度标定。
+    raw_home_pose_ = current_pose_;
+}
+
+geometry_msgs::PoseStamped MavKit::GetRawHomePose() const {
+    std::lock_guard<std::mutex> lock(data_mtx_);
+    return raw_home_pose_;
+}
+
 geometry_msgs::PoseStamped MavKit::GetHomeOffsetPose() const {
     std::lock_guard<std::mutex> lock(data_mtx_);
     return pose_tools::offsetHome(current_pose_, home_pose_);

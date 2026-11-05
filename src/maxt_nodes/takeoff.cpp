@@ -1,5 +1,4 @@
 //TODO 需要构造 MavKit::GetHomeRawAltitude 获取起飞点的高度
-//TODO 需要构造 MavKit::RecoredHomeRawAltitude 记录起飞点的高度，用于确定真实高度和降落接地检查
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
 
 namespace maxt {
@@ -76,7 +75,7 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
     //初始化
     case Phase::INIT: {
-        
+        mav_.RecordRawHomePose();
         const auto current = mav_.GetRawPose();
         aim_altitude_raw_ = current.pose.position.z + target_alt_;
 

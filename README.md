@@ -528,6 +528,8 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 | `MavKit::requestArm(bool)` / `requestMode(string)` | 发起解锁或模式请求；实际状态应通过查询接口确认 |
 | `isConnected()` / `isArmed()` / `isLand()` / `getMode()` | 获取连接、解锁、接地和模式状态 |
 | `GetRawPose()` | 获取原始 MAVROS 位姿，不做 Home 抵消或角度标定 |
+| `RecordRawHomePose()` | 起飞前将完整原始位姿保存至 `raw_home_pose_`，独立于用于坐标偏移的 Home |
+| `GetRawHomePose()` | 返回已记录的起飞前原始位姿快照，不做 Home 抵消或角度标定 |
 | `GetHomeOffsetPose()` | 原始坐标减去 Home 的 XYZ，不做角度标定 |
 | `GetHomeCalibratePose()` | 先抵消 Home 的 XYZ，再按标定偏移逆向旋转 XY |
 | `GetCalibratePose()` | 仅逆向旋转 XY 到工程世界坐标，不抵消 Home |
@@ -677,4 +679,6 @@ rosrun maxt_pkg test_calibrate_tools
 
 `Takeoff` 持续等待外部解锁，不主动发送解锁请求，不设置等待解锁超时。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
 
-初始化爬升时读取 `GetRawPose()`，保持该原始局部坐标的 XY，以 `takeoff.ascent_speed` 恒定垂直速度通过 `setRawTarget()` 和 `RAW_CTRL` 上升。目标原始高度为该次读取的 Z 加 `target_alt`，通过 `ReachAltitudeCheck()` 判定到达，随后切回 HEARTBEAT。
+初始化爬升时先调用 `RecordRawHomePose()` 记录未经处理的起飞位姿，再读取 `GetRawPose()`，保持该原始局部坐标的 XY，以 `takeoff.ascent_speed` 恒定垂直速度通过 `setRawTarget()` 和 `RAW_CTRL` 上升。目标原始高度为该次读取的 Z 加 `target_alt`，通过 `ReachAltitudeCheck()` 判定到达，随后切回 HEARTBEAT。
+
+`TouchDown` 使用 `GetRawPose()` 的 XY 作为下降保持位置，通过 `RAW_CTRL` 按配置速度下降。接地高度基准取自起飞前 `RecordRawHomePose()` 保存的位姿，即 `GetRawHomePose()` 的 Z；当前高度同样读取原始位姿，不做 Home 偏移或角度标定。原有高度、垂直速度、接地状态联合确认及持续确认时间、超时和上锁流程保持不变。
