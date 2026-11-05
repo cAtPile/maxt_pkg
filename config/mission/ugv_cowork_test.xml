@@ -45,8 +45,7 @@
                 </Sequence>
             </ForceSuccess>
             <!-- 使用 Nav 返航；返航失败时不执行后续降落。 -->
-            <Nav name="ReturnHome" x="{home_x}" y="{home_y}" z="{return_z}"
-                  tolerance="0.15" timeout="90.0" />
+            <Nav name="ReturnHome" x="{home_x}" y="{home_y}" z="{return_z}" timeout="90.0" />
             <TouchDown />
         </Sequence>
     </BehaviorTree>

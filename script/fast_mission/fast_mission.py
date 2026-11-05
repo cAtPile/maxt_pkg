@@ -21,7 +21,7 @@ MISSIONS = (
     ("takeoff", "Takeoff", (("target_alt", "0.5"),)),
     ("nav", "Nav", (
         ("x", None), ("y", None), ("z", None),
-        ("tolerance", "0.1"), ("timeout", "60.0"))),
+        ("timeout", "60.0"))),
     ("hover", "Hover", (("hover_duration", "1.0"),)),
     ("waitstep", "WaitStep", (("wait_duration", "1.0"),)),
     ("round", "Round", (
@@ -47,8 +47,8 @@ MISSIONS = (
 MISSION_HINTS = {
     "RegionTraverse": "填写原点 origin_x/y 和有符号边长 length_x/y（非零，负值表示反向）；航带沿 X 往返、沿 Y 推进；coverage_step 为航带间距，altitude 为高度（m）。完整遍历区域，不检测视觉目标；起飞需单独添加。",
     "VisionRegionTraverse": "填写原点 origin_x/y 和有符号边长 length_x/y（非零，负值表示反向）；航带沿 X 往返、沿 Y 推进；coverage_step 为航带间距，altitude 为高度（m）。发现目标即结束搜索；起飞需单独添加。",
-    "Takeoff": "等待外部解锁；ROS 配置 takeoff/: arm_timeout、ascent_speed、timeout；此处仅填写起飞高度。",
-    "Nav": "目标、tolerance、timeout 填写在 XML；速度、加速度、PID 配置见 nav/。",
+    "Takeoff": "持续等待外部解锁；ROS 配置 takeoff/: ascent_speed、timeout（解锁后）；此处仅填写起飞高度。",
+    "Nav": "目标、timeout 填写在 XML；到达容差见 reach_check/position_pose_tolerance，速度、加速度、PID 配置见 nav/。",
     "Hover": "hover_duration 为悬停时长，单位 s。",
     "WaitStep": "wait_duration 为等待时长，单位 s。",
     "Round": "圆心、半径、角速度、总角度、容差、超时及 ramp_time 均为 XML 端口。",

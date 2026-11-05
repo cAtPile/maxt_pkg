@@ -3,7 +3,7 @@
  * @brief maxt的mav组件实现
  * @date 4-14
  */
-#include <maxt_pkg/maxt_mav.hpp>
+#include <maxt_pkg/mavkit/maxt_mav.hpp>
 
 namespace maxt {
 
@@ -23,6 +23,11 @@ bool MavKit::mavInit(ros::NodeHandle& nh) {
     nh_.param<double>("heartbeat_rate", heartbeat_rate, 20.0);
     nh_.param<double>("nav/slow_down_time", slow_down_time_, 1.0);
     nh_.param<double>("nav/stop_velocity_tolerance", stop_velocity_tolerance_, 0.01);
+
+    nh_.param<double>("reach_check/vertical_alt_tolerance", vertical_alt_tolerance_, 0.1);
+    nh_.param<double>("reach_check/vertical_vel_tolerance", vertical_vel_tolerance_, 0.2);
+    nh_.param<double>("reach_check/position_pose_tolerance", position_pose_tolerance_, 0.1);
+    nh_.param<double>("reach_check/position_vel_tolerance", position_vel_tolerance_, 0.2);
 
     // 3. 初始化 ROS 通信对象
     state_sub_ = nh_.subscribe<mavros_msgs::State>(
@@ -82,7 +87,7 @@ void MavKit::setSetpointMode(SetpointMode mode) {
             // 相同速度目标不重新计时，确保重复发布也能完成过渡。
             if (transition_end_mode_ == SetpointMode::RAW_CTRL &&
                 (velocity - transition_velocity_).squaredNorm() < 1e-12) return;
-            startVelocityTransition(velocity, now);
+            startVelocityTransition(velocity, now);//TODO：这是什么？
             transition_end_mode_ = SetpointMode::RAW_CTRL;
             return;
         }

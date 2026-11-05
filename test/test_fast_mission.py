@@ -191,7 +191,7 @@ class MissionWorkspaceTest(unittest.TestCase):
     def test_backtracking_cannot_commit_an_empty_required_field(self):
         definition = next(item for item in mission.MISSIONS if item[1] == "Nav")
         form = mission.ParameterForm(definition, {
-            "x": "1", "y": "2", "z": "3", "tolerance": "0.1", "timeout": "60"})
+            "x": "1", "y": "2", "z": "3", "timeout": "60"})
         form.handle("\n")
         form.handle("\x15")
         form.handle(mission.curses.KEY_UP)

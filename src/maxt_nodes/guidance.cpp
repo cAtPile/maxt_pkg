@@ -54,7 +54,7 @@ BT::NodeStatus GuidanceNode::onStart() {
     pid_v_ = PIDController(kp_, ki_, kd_, integral_max_, max_speed_);
 
     //维持
-    hold_z_ = mav_.getCurrentPose().pose.position.z;
+    hold_z_ = mav_.GetCalibratePose().pose.position.z;
     hold_yaw_ = mav_.get_current_yaw();
 
     //超时

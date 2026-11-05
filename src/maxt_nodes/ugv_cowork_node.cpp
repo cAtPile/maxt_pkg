@@ -36,7 +36,7 @@ BT::NodeStatus UgvCoworkNode::onStart() {
     // 使用核心的 AsyncSpinner 处理回调；每次启动建立独立客户端。
     client_.reset(new Client(action_name, false));
 
-    const auto position = mav_.getCurrentPose().pose.position;
+    const auto position = mav_.GetCalibratePose().pose.position;
     goal_.target_x = position.x;
     goal_.target_y = position.y;
 
@@ -67,7 +67,7 @@ BT::NodeStatus UgvCoworkNode::onRunning() {
     }
     if (!goal_sent_) {
         if (client_->isServerConnected()) {
-            const auto position = mav_.getCurrentPose().pose.position;
+            const auto position = mav_.GetCalibratePose().pose.position;
             sendGoal(follow_drone_ ? position.x : goal_.target_x,
                      follow_drone_ ? position.y : goal_.target_y);
         }
@@ -83,7 +83,7 @@ BT::NodeStatus UgvCoworkNode::onRunning() {
         return finish(BT::NodeStatus::FAILURE, "UGV_FAILED: unsuccessful result");
     }
     if (follow_drone_) {
-        const auto position = mav_.getCurrentPose().pose.position;
+        const auto position = mav_.GetCalibratePose().pose.position;
         const double movement = std::hypot(position.x - goal_.target_x,
                                            position.y - goal_.target_y);
         const double age = (ros::WallTime::now() - goal_updated_).toSec();

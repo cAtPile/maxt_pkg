@@ -42,7 +42,7 @@ BT::NodeStatus ConnectCheckNode::onRunning() {
         if (map_x_ != 0.0 || map_y_ != 0.0) {
             mav_.mavCalibrate(map_x_, map_y_, fact_x_, fact_y_);
         } else {
-            const auto pose = mav_.getCurrentPose();
+            const auto pose = mav_.GetCalibratePose();
             const auto& orientation = pose.pose.orientation;
             Eigen::Quaterniond q(orientation.w, orientation.x, orientation.y, orientation.z);
             const double norm = q.norm();

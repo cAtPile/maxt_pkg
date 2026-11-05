@@ -27,13 +27,10 @@ private:
     double target_alt_{1.5};
     double ascent_speed_{0.5};
     double timeout_{30.0};
-    double arm_timeout_{60.0};
 
-    double hold_x_{0.0}, hold_y_{0.0};
     double hold_yaw_{0.0};
-    double target_z_{0.0};
+    double aim_altitude_raw_{0.0};
     ros::Time start_time_;
-    bool ascent_audio_sent_{false};
 };
 
 } // namespace maxt

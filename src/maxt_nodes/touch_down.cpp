@@ -32,7 +32,8 @@ BT::NodeStatus TouchDownNode::onStart() {
     start_time_ = ros::Time::now();
     land_confirming_ = false;
     descent_audio_sent_ = false;
-    home_z_ = mav_.getHomePose().pose.position.z;
+    // 接地高度使用起飞前记录的原始 Z，与下降过程的坐标系一致。
+    home_z_ = mav_.GetRawHomePose().pose.position.z;
 
     ROS_INFO("TouchDownNode: Start, home_z=%.2f, descent_speed=%.2f, timeout=%.1f, "
              "ground_timeout=%.1f, height_tol=%.2f, vel_tol=%.2f",
@@ -56,7 +57,7 @@ BT::NodeStatus TouchDownNode::onRunning() {
     switch (phase_) {
 
     case Phase::INIT: {
-        auto current = mav_.getCurrentPose();
+        auto current = mav_.GetRawPose();
         hold_x_ = current.pose.position.x;
         hold_y_ = current.pose.position.y;
 
@@ -89,7 +90,7 @@ BT::NodeStatus TouchDownNode::onRunning() {
 
     case Phase::DESCEND: {
 
-        auto current = mav_.getCurrentPose();
+        auto current = mav_.GetRawPose();
         auto twist = mav_.getCurrentTwist();
         double current_z = current.pose.position.z;
         double vz = twist.twist.linear.z;

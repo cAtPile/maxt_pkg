@@ -1,4 +1,4 @@
-#include <maxt_pkg/maxt_mav.hpp>
+#include <maxt_pkg/mavkit/maxt_mav.hpp>
 #include <algorithm>
 #include <cmath>
 
@@ -42,13 +42,6 @@ void MavKit::updateHomePose() {
     } else {
         ROS_WARN_THROTTLE(1.0, "MavKit: Cannot update Home, no pose data yet!");
     }
-}
-
-geometry_msgs::PoseStamped MavKit::getHomePose() const {
-    std::lock_guard<std::mutex> lock(data_mtx_);
-    geometry_msgs::PoseStamped out = home_pose_;
-    calib_.untransPose(out);
-    return out;
 }
 
 void MavKit::setRawTarget(const mavros_msgs::PositionTarget& target) {

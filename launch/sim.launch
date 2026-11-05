@@ -3,18 +3,18 @@
     <!-- MAVROS posix SITL environment launch script -->
     <!-- launches MAVROS, PX4 SITL, Gazebo environment, and spawns vehicle -->
     <!-- vehicle pose -->
-    <arg name="x" default="1"/>
-    <arg name="y" default="1"/>
+    <arg name="x" default="0"/>
+    <arg name="y" default="0"/>
     <arg name="z" default="0"/>
     <arg name="R" default="0"/>
     <arg name="P" default="0"/>
-    <arg name="Y" default="1.57"/>
+    <arg name="Y" default="0"/>
     <!-- vehicle model and world -->
     <arg name="est" default="ekf2"/>
     <!-- PX4 airframe stays iris; Gazebo adds the body-mounted camera via SDF. -->
     <arg name="vehicle" default="iris"/>
     <arg name="gazebo_model" default="iris_downward_depth_camera"/>
-    <arg name="world" default="$(find maxt_pkg)/worlds/tracking_test.world"/>
+    <arg name="world" default="$(find maxt_pkg)/worlds/competition.world"/>
     <arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg gazebo_model)/$(arg gazebo_model).sdf"/>
 
     <!-- Resolve tracking_target while preserving existing PX4 model paths. -->

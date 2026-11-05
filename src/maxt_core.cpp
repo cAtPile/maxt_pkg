@@ -15,6 +15,8 @@
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/base_point_azimuth_fix_node.hpp>
+#include <maxt_pkg/maxt_nodes/azimuth_fix_nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/found_check_node.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <std_msgs/String.h>
@@ -69,6 +71,14 @@ bool MaxtCore::init() {
 }
 
 void MaxtCore::registerNodes() {
+    factory_.registerBuilder<BasePointAzimuthFixNode>("BasePointAzimuthFix",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<BasePointAzimuthFixNode>(name, config, *mav_);
+        });
+    factory_.registerBuilder<AzimuthFixNavNode>("AzimuthFixNav",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<AzimuthFixNavNode>(name, config, *mav_, nh_);
+        });
     factory_.registerBuilder<PlayAudioNode>("PlayAudio",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<PlayAudioNode>(name, config, *mav_);
