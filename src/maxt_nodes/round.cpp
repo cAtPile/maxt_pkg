@@ -38,7 +38,7 @@ BT::NodeStatus RoundNode::onStart() {
         return BT::NodeStatus::FAILURE;
     }
 
-    auto current_pose = mav_.getCurrentPose();
+    auto current_pose = mav_.GetCalibratePose();
     double curr_x = current_pose.pose.position.x;
     double curr_y = current_pose.pose.position.y;
 
@@ -240,7 +240,7 @@ BT::NodeStatus RoundNode::onRunning() {
     if (ramp_phase_ == RampPhase::FINAL) {
         double tolerance = 0.3;
         getInput<double>("tolerance", tolerance);
-        auto current_pose = mav_.getCurrentPose();
+        auto current_pose = mav_.GetCalibratePose();
         double ex = px - current_pose.pose.position.x;
         double ey = py - current_pose.pose.position.y;
         double ez = cz_ - current_pose.pose.position.z;

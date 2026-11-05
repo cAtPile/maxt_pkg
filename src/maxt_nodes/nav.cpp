@@ -101,7 +101,7 @@ BT::NodeStatus NavNode::onRunning() {
     }
 
     // 曲线结束后检查到达情况，保留 3 秒强制完成逻辑。
-    auto pose = mav_.getCurrentPose();
+    auto pose = mav_.GetCalibratePose();
     double err_x = tx_ - pose.pose.position.x;
     double err_y = ty_ - pose.pose.position.y;
     double err_z = tz_ - pose.pose.position.z;

@@ -22,6 +22,13 @@
 #include <atomic>
 
 namespace maxt {
+namespace pose_tools {
+
+// 在同一原始坐标系中抵消 Home，保留当前消息的时间戳和姿态。
+geometry_msgs::PoseStamped offsetHome(const geometry_msgs::PoseStamped& pose,
+                                      const geometry_msgs::PoseStamped& home);
+
+} // namespace pose_tools
 
 /**
  * @brief Setpoint 模式枚举
@@ -138,7 +145,18 @@ public:
      * @brief 获取无人机当前位姿
      * @return geometry_msgs::PoseStamped 当前位姿
      */
-    geometry_msgs::PoseStamped getCurrentPose() const;
+    // 原始 MAVROS 坐标；以下查询均返回持锁复制的快照。
+    geometry_msgs::PoseStamped GetRawPose() const;
+    // 起飞前保存原始位姿，独立于用于坐标偏移的 Home。
+    void RecordRawHomePose();
+    // 返回起飞前记录的原始位姿快照，不做偏移或标定。
+    geometry_msgs::PoseStamped GetRawHomePose() const;
+    // 原始坐标减去 Home 的 XYZ，不做角度标定。
+    geometry_msgs::PoseStamped GetHomeOffsetPose() const;
+    // 先抵消 Home，再将 XY 逆向旋转到工程世界坐标。
+    geometry_msgs::PoseStamped GetHomeCalibratePose() const;
+    // 仅标定 XY，不抵消 Home；保持既有导航坐标语义。
+    geometry_msgs::PoseStamped GetCalibratePose() const;
 
     /**
      * @brief 获取无人机当前速度
@@ -164,6 +182,10 @@ public:
      * @return true 到达
      */
     bool isReached(double x, double y, double z, double tolerance) const;
+
+    // 原始局部坐标下的到达检查，要求位置及零速度误差同时满足配置容差。
+    bool ReachAltitudeCheck(double altitude_raw) const;
+    bool ReachPoseCheck(geometry_msgs::PoseStamped pose_raw) const;
 
     // --- Home点管理 ---
     /**
@@ -203,6 +225,7 @@ private:
     geometry_msgs::PoseStamped current_pose_;
     geometry_msgs::TwistStamped current_twist_;
     geometry_msgs::PoseStamped home_pose_;
+    geometry_msgs::PoseStamped raw_home_pose_;
     geometry_msgs::PoseStamped target_pose_;
     double default_yaw_{0.0};
     bool has_default_yaw_{false};
@@ -231,6 +254,12 @@ private:
     
     // Setpoint 模式
     std::atomic<SetpointMode> setpoint_mode_;
+
+    // 到达检查容差：位置 m，速度 m/s。
+    double vertical_alt_tolerance_{0.1};
+    double vertical_vel_tolerance_{0.2};
+    double position_pose_tolerance_{0.1};
+    double position_vel_tolerance_{0.2};
 
     // 标定工具
     CalibrateTools calib_;

@@ -10,7 +10,7 @@
 #include <behaviortree_cpp_v3/bt_factory.h>
 #include <behaviortree_cpp_v3/loggers/bt_cout_logger.h>
 
-#include <maxt_pkg/maxt_mav.hpp>
+#include <maxt_pkg/mavkit/maxt_mav.hpp>
 
 namespace maxt {
 

@@ -390,7 +390,7 @@ maxt_pkg/
 ├── nodes/maxt_test_node.cpp          # 创建 MaxtCore，初始化并运行任务
 ├── include/maxt_pkg/
 │   ├── maxt_core.hpp                # 行为树调度核心
-│   ├── maxt_mav.hpp                 # MavKit、SetpointMode、CurveState
+│   ├── mavkit/maxt_mav.hpp          # MavKit、SetpointMode、CurveState、点获取辅助接口
 │   ├── maxt_nodes.hpp               # 飞行动作基类 MavActionNode
 │   ├── maxt_nodes/                  # 各行为树节点声明及 RegionWaypoints 类型
 │   ├── quintic_curve.hpp            # 三轴五次曲线
@@ -475,7 +475,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | --- | --- |
 | `~connect_check/` | `timeout: 60.0` |
 | `~capture_pose/` | `timeout: 10.0` |
-| `~takeoff/` | `ascent_speed: 0.5`、`timeout: 30.0`、`arm_timeout: 60.0` |
+| `~takeoff/` | `ascent_speed: 0.5`、`timeout: 30.0` |
 | `~touch_down/` | `descent_speed: -0.5`、`timeout: 60.0`、`ground_timeout: 3.0`、`height_tol: 0.3`、`vel_tol: 0.2` |
 | `~guidance/` | `tolerance: 5.0`、`downward_camera: false`、`kp: 0.01` |
 | `~found_check/` | `timeout: 0.5` |
@@ -515,7 +515,7 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 
 #### 函数介绍
 
-以下是扩展飞行动作时最常用的接口，完整声明见 [maxt_mav.hpp](include/maxt_pkg/maxt_mav.hpp) 和 [maxt_nodes.hpp](include/maxt_pkg/maxt_nodes.hpp)。
+以下是扩展飞行动作时最常用的接口，完整声明见 [maxt_mav.hpp](include/maxt_pkg/mavkit/maxt_mav.hpp) 和 [maxt_nodes.hpp](include/maxt_pkg/maxt_nodes.hpp)。
 
 | 函数 | 用途与调用约定 |
 | --- | --- |
@@ -527,15 +527,40 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 | `getInput()` / `setOutput()` | 读取端口输入、将结果写到端口映射的黑板键 |
 | `MavKit::requestArm(bool)` / `requestMode(string)` | 发起解锁或模式请求；实际状态应通过查询接口确认 |
 | `isConnected()` / `isArmed()` / `isLand()` / `getMode()` | 获取连接、解锁、接地和模式状态 |
-| `getCurrentPose()` / `getCurrentTwist()` | 获取状态快照，XY 已按标定偏移逆向旋转到工程世界坐标 |
+| `GetRawPose()` | 获取原始 MAVROS 位姿，不做 Home 抵消或角度标定 |
+| `RecordRawHomePose()` | 起飞前将完整原始位姿保存至 `raw_home_pose_`，独立于用于坐标偏移的 Home |
+| `GetRawHomePose()` | 返回已记录的起飞前原始位姿快照，不做 Home 抵消或角度标定 |
+| `GetHomeOffsetPose()` | 原始坐标减去 Home 的 XYZ，不做角度标定 |
+| `GetHomeCalibratePose()` | 先抵消 Home 的 XYZ，再按标定偏移逆向旋转 XY |
+| `GetCalibratePose()` | 仅逆向旋转 XY 到工程世界坐标，不抵消 Home |
+| `getCurrentTwist()` | 获取速度快照，XY 已按标定偏移逆向旋转到工程世界坐标 |
 | `get_current_yaw()` | 从接收的姿态计算 yaw，不额外应用标定偏移 |
 | `setTargetPose(x,y,z)` | 更新位置目标缓存，随后选择 CONTROL；姿态默认单位四元数 |
 | `setRawTarget(target)` | 更新 PositionTarget 缓存，随后选择 RAW_CTRL，并明确坐标帧及 type_mask |
 | `setQuinticCurveTarget(position)` / `getCurveTime()` | 设置世界坐标目标、获取估算时长，随后选择 CURVE_CTRL |
 | `setSetpointMode(mode)` | 切换发布方式，并处理减速或控制接管过渡 |
+| `ReachAltitudeCheck(altitude_raw)` | 原始高度误差和垂直速度绝对值均在配置容差内时返回 true |
+| `ReachPoseCheck(pose_raw)` | 原始三维位置距离和线速度模长均在配置容差内时返回 true |
 | `isReached(x,y,z,tolerance)` | 判断实测位置到目标的三维欧氏距离是否小于容差；各行为节点可能另有判定逻辑 |
 | `updateHomePose()` / `getHomePose()` | 更新和查询 MavKit 内部 home 快照；与 CapturePose 写入的黑板键分别管理 |
 | `mavCalibrate(mapx,mapy,factx,facty)` | 根据两组参考方向计算 XY 旋转，无平移、Z 或姿态补偿 |
+
+点获取逻辑集中在 `include/maxt_pkg/mavkit/maxt_mav.hpp` 和 `src/mavkit/get_pose.cpp`。
+四种查询通过 `maxt::MavKit` 调用，均保留原始消息的 header 和 orientation；
+角度标定只作用于位置 XY，不改变 Z 或姿态。Home 使用 `updateHomePose()`
+记录的原始 MAVROS 快照，未记录时默认为零；它与 CapturePose 的黑板输出分别管理。
+现有导航节点使用 `GetCalibratePose()`，目标设点的坐标语义保持不变。
+
+到达检查由 `MavKit` 直接管理容差和判定逻辑，实现位于 `src/mavkit/reach_check.cpp`，
+可通过 `include/maxt_pkg/mavkit/maxt_mav.hpp` 引入接口。
+输入目标须使用 MAVROS 原始局部坐标（高度是该坐标系的 Z，不是相对 Home 高度），
+检查不做 Home 抵消或角度标定，也不检查目标姿态。速度目标为零，容差边界包含等号。
+`config/nav.yaml` 的 `reach_check` 配置由 MavKit 在 `mavInit()` 时通过传入的 NodeHandle 读取，
+任务启动时位于节点私有命名空间：`vertical_alt_tolerance=0.1 m`、
+`vertical_vel_tolerance=0.2 m/s`、`position_pose_tolerance=0.1 m`、
+`position_vel_tolerance=0.2 m/s`，未配置时默认值相同。
+调用方应在定位与速度数据就绪后调用；每次检查使用持锁读取的原始状态，不要求持续停留时间。
+现有节点及 `isReached()` 的判断逻辑保持原样。
 
 `setTargetPose()`、`setRawTarget()` 更新缓存，实际消息由 MavKit 定时器发布。各模式语义如下：
 
@@ -652,4 +677,8 @@ rosrun maxt_pkg test_calibrate_tools
 使用 BehaviorTree.CPP v3 的 `SubTreePlus` 传入常量或黑板映射，不启用自动映射，航点和索引保存在独立黑板中。
 起飞、后续跟踪、协同、返航和降落由父树负责。两份测试任务 XML 已采用此子树。
 
-`Takeoff` 等待外部解锁，不主动发送解锁请求。`config/nav.yaml` 中 `takeoff.arm_timeout` 设置等待解锁的超时（默认 60s，须为有限正数）；超时返回 FAILURE。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
+`Takeoff` 持续等待外部解锁，不主动发送解锁请求，不设置等待解锁超时。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
+
+初始化爬升时先调用 `RecordRawHomePose()` 记录未经处理的起飞位姿，再读取 `GetRawPose()`，保持该原始局部坐标的 XY，以 `takeoff.ascent_speed` 恒定垂直速度通过 `setRawTarget()` 和 `RAW_CTRL` 上升。目标原始高度为该次读取的 Z 加 `target_alt`，通过 `ReachAltitudeCheck()` 判定到达，随后切回 HEARTBEAT。
+
+`TouchDown` 使用 `GetRawPose()` 的 XY 作为下降保持位置，通过 `RAW_CTRL` 按配置速度下降。接地高度基准取自起飞前 `RecordRawHomePose()` 保存的位姿，即 `GetRawHomePose()` 的 Z；当前高度同样读取原始位姿，不做 Home 偏移或角度标定。原有高度、垂直速度、接地状态联合确认及持续确认时间、超时和上锁流程保持不变。
