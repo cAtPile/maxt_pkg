@@ -9,6 +9,13 @@ nav:
   pid_ki: 0.05
   pid_kd: 0.0
 
+# MavKit 原始局部坐标到达判定，位置单位 m，速度单位 m/s。
+reach_check:
+  vertical_alt_tolerance: 0.1
+  vertical_vel_tolerance: 0.2
+  position_pose_tolerance: 0.1
+  position_vel_tolerance: 0.2
+
 # BT 节点的 ROS 参数：时间 s，速度 m/s，高度容差 m。
 connect_check:
   timeout: 60.0

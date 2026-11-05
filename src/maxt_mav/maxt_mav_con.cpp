@@ -24,6 +24,11 @@ bool MavKit::mavInit(ros::NodeHandle& nh) {
     nh_.param<double>("nav/slow_down_time", slow_down_time_, 1.0);
     nh_.param<double>("nav/stop_velocity_tolerance", stop_velocity_tolerance_, 0.01);
 
+    nh_.param<double>("reach_check/vertical_alt_tolerance", vertical_alt_tolerance_, 0.1);
+    nh_.param<double>("reach_check/vertical_vel_tolerance", vertical_vel_tolerance_, 0.2);
+    nh_.param<double>("reach_check/position_pose_tolerance", position_pose_tolerance_, 0.1);
+    nh_.param<double>("reach_check/position_vel_tolerance", position_vel_tolerance_, 0.2);
+
     // 3. 初始化 ROS 通信对象
     state_sub_ = nh_.subscribe<mavros_msgs::State>(
         "/mavros/state", 1, &MavKit::stateCb, this);

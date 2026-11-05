@@ -537,6 +537,8 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 | `setRawTarget(target)` | 更新 PositionTarget 缓存，随后选择 RAW_CTRL，并明确坐标帧及 type_mask |
 | `setQuinticCurveTarget(position)` / `getCurveTime()` | 设置世界坐标目标、获取估算时长，随后选择 CURVE_CTRL |
 | `setSetpointMode(mode)` | 切换发布方式，并处理减速或控制接管过渡 |
+| `ReachAltitudeCheck(altitude_raw)` | 原始高度误差和垂直速度绝对值均在配置容差内时返回 true |
+| `ReachPoseCheck(pose_raw)` | 原始三维位置距离和线速度模长均在配置容差内时返回 true |
 | `isReached(x,y,z,tolerance)` | 判断实测位置到目标的三维欧氏距离是否小于容差；各行为节点可能另有判定逻辑 |
 | `updateHomePose()` / `getHomePose()` | 更新和查询 MavKit 内部 home 快照；与 CapturePose 写入的黑板键分别管理 |
 | `mavCalibrate(mapx,mapy,factx,facty)` | 根据两组参考方向计算 XY 旋转，无平移、Z 或姿态补偿 |
@@ -546,6 +548,17 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 角度标定只作用于位置 XY，不改变 Z 或姿态。Home 使用 `updateHomePose()`
 记录的原始 MAVROS 快照，未记录时默认为零；它与 CapturePose 的黑板输出分别管理。
 现有导航节点使用 `GetCalibratePose()`，目标设点的坐标语义保持不变。
+
+到达检查由 `MavKit` 直接管理容差和判定逻辑，实现位于 `src/mavkit/reach_check.cpp`，
+可通过 `include/maxt_pkg/maxt_mav.hpp` 引入接口。
+输入目标须使用 MAVROS 原始局部坐标（高度是该坐标系的 Z，不是相对 Home 高度），
+检查不做 Home 抵消或角度标定，也不检查目标姿态。速度目标为零，容差边界包含等号。
+`config/nav.yaml` 的 `reach_check` 配置由 MavKit 在 `mavInit()` 时通过传入的 NodeHandle 读取，
+任务启动时位于节点私有命名空间：`vertical_alt_tolerance=0.1 m`、
+`vertical_vel_tolerance=0.2 m/s`、`position_pose_tolerance=0.1 m`、
+`position_vel_tolerance=0.2 m/s`，未配置时默认值相同。
+调用方应在定位与速度数据就绪后调用；每次检查使用持锁读取的原始状态，不要求持续停留时间。
+现有节点及 `isReached()` 的判断逻辑保持原样。
 
 `setTargetPose()`、`setRawTarget()` 更新缓存，实际消息由 MavKit 定时器发布。各模式语义如下：
 

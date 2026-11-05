@@ -173,6 +173,10 @@ public:
      */
     bool isReached(double x, double y, double z, double tolerance) const;
 
+    // 原始局部坐标下的到达检查，要求位置及零速度误差同时满足配置容差。
+    bool ReachAltitudeCheck(double altitude_raw) const;
+    bool ReachPoseCheck(geometry_msgs::PoseStamped pose_raw) const;
+
     // --- Home点管理 ---
     /**
      * @brief 获取经过标定矫正的无人机 Home点
@@ -239,6 +243,12 @@ private:
     
     // Setpoint 模式
     std::atomic<SetpointMode> setpoint_mode_;
+
+    // 到达检查容差：位置 m，速度 m/s。
+    double vertical_alt_tolerance_{0.1};
+    double vertical_vel_tolerance_{0.2};
+    double position_pose_tolerance_{0.1};
+    double position_vel_tolerance_{0.2};
 
     // 标定工具
     CalibrateTools calib_;
