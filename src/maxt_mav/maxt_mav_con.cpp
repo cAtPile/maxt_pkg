@@ -60,49 +60,6 @@ bool MavKit::mavInit(ros::NodeHandle& nh) {
     return true;
 }
 
-void MavKit::setSetpointMode(SetpointMode mode) {
-    std::lock_guard<std::mutex> lock(data_mtx_);
-    const ros::Time now = ros::Time::now();
-    if (mode == SetpointMode::SLOW_DOWN) {
-        // 重复停止请求不重置减速时间。
-        if (velocity_transition_ && transition_end_mode_ == SetpointMode::HEARTBEAT) return;
-        startVelocityTransition(Eigen::Vector3d::Zero(), now);
-        transition_end_mode_ = SetpointMode::HEARTBEAT;
-        return;
-    }
-    if (velocity_transition_ && setpoint_mode_ == SetpointMode::SLOW_DOWN) {
-        if (mode == SetpointMode::HEARTBEAT) {
-            // Guidance 初始化/等待反馈也会请求心跳，不能跳过尚未完成的减速。
-            if (transition_end_mode_ != SetpointMode::HEARTBEAT) {
-                startVelocityTransition(Eigen::Vector3d::Zero(), now);
-                transition_end_mode_ = SetpointMode::HEARTBEAT;
-            }
-            return;
-        }
-        if (mode == SetpointMode::RAW_CTRL) {
-            Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
-            if (!(raw_target_.type_mask & mavros_msgs::PositionTarget::IGNORE_VX)) velocity.x() = raw_target_.velocity.x;
-            if (!(raw_target_.type_mask & mavros_msgs::PositionTarget::IGNORE_VY)) velocity.y() = raw_target_.velocity.y;
-            if (!(raw_target_.type_mask & mavros_msgs::PositionTarget::IGNORE_VZ)) velocity.z() = raw_target_.velocity.z;
-            // 相同速度目标不重新计时，确保重复发布也能完成过渡。
-            if (transition_end_mode_ == SetpointMode::RAW_CTRL &&
-                (velocity - transition_velocity_).squaredNorm() < 1e-12) return;
-            startVelocityTransition(velocity, now);//TODO：这是什么？
-            transition_end_mode_ = SetpointMode::RAW_CTRL;
-            return;
-        }
-        if (mode == SetpointMode::CONTROL) {
-            setQuinticCurveTargetLocked(Eigen::Vector3d(target_pose_.pose.position.x,
-                                                       target_pose_.pose.position.y,
-                                                       target_pose_.pose.position.z), now);
-            setpoint_mode_ = SetpointMode::CURVE_CTRL;
-            return;
-        }
-    }
-    if (mode != SetpointMode::CURVE_CTRL) velocity_transition_ = false;
-    setpoint_mode_ = mode;
-}
-
 void MavKit::mavCalibrate(double mapx, double mapy, double factx, double facty) {
     std::lock_guard<std::mutex> lock(data_mtx_);
     calib_.setMap(mapx, mapy);

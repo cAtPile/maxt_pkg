@@ -44,22 +44,6 @@ void MavKit::updateHomePose() {
     }
 }
 
-void MavKit::setRawTarget(const mavros_msgs::PositionTarget& target) {
-    std::lock_guard<std::mutex> lock(data_mtx_);
-    raw_target_ = target;
-    if (has_default_yaw_) {
-        raw_target_.yaw = default_yaw_;
-        raw_target_.yaw_rate = 0.0;
-        raw_target_.type_mask &= ~mavros_msgs::PositionTarget::IGNORE_YAW;
-        raw_target_.type_mask |= mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
-    }
-}
-
-void MavKit::setQuinticCurveTarget(const Eigen::Vector3d& position) {
-    std::lock_guard<std::mutex> lock(data_mtx_);
-    setQuinticCurveTargetLocked(position, ros::Time::now());
-}
-
 void MavKit::captureCurveState(const ros::Time& now) {
     if (setpoint_mode_ == SetpointMode::CURVE_CTRL ||
         setpoint_mode_ == SetpointMode::SLOW_DOWN) {
@@ -90,29 +74,6 @@ void MavKit::captureCurveState(const ros::Time& now) {
             if (!(raw_target_.type_mask & acceleration_masks[i])) curve_state_.acceleration[i] = acceleration[i];
         }
     }
-}
-
-void MavKit::setQuinticCurveTargetLocked(const Eigen::Vector3d& position, const ros::Time& now) {
-    captureCurveState(now);
-    velocity_transition_ = false;
-
-    double v_max, a_max;
-    nh_.param<double>("nav/v_max", v_max, 2.5);
-    nh_.param<double>("nav/a_max", a_max, 1.2);
-    const double distance = (position - curve_state_.position).norm();
-    // 沿用 Nav 的时长估算；非零初始导数时并非严格限速求解器。
-    const double t_vel = distance * 1.875 / (0.9 * v_max);
-    const double t_acc = std::sqrt(distance * 5.774 / a_max);
-    curve_time_ = 1.2 * std::max({t_vel, t_acc, 0.5});
-    curve_.setBoundaries(
-        {curve_state_.position.x(), curve_state_.velocity.x(), curve_state_.acceleration.x()},
-        {position.x(), 0.0, 0.0}, curve_time_,
-        {curve_state_.position.y(), curve_state_.velocity.y(), curve_state_.acceleration.y()},
-        {position.y(), 0.0, 0.0},
-        {curve_state_.position.z(), curve_state_.velocity.z(), curve_state_.acceleration.z()},
-        {position.z(), 0.0, 0.0});
-    curve_start_ = now;
-    loadCurveRaw(now);
 }
 
 void MavKit::startVelocityTransition(const Eigen::Vector3d& velocity, const ros::Time& now) {

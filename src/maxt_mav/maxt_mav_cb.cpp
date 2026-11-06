@@ -45,30 +45,6 @@ double MavKit::get_current_yaw() const {
     return yaw;
 }
 
-void MavKit::setDefaultYaw(double yaw) {
-    std::lock_guard<std::mutex> lock(data_mtx_);
-    default_yaw_ = yaw;
-    has_default_yaw_ = true;
-    ROS_INFO("MavKit: Default yaw locked to %.4f rad (%.2f deg)",
-             yaw, yaw * 180.0 / M_PI);
-}
-
-//todo 相对化处理home
-void MavKit::setTargetPose(double x, double y, double z) {
-    std::lock_guard<std::mutex> lock(data_mtx_);
-    target_pose_.header.stamp = ros::Time::now();
-    target_pose_.header.frame_id = "map"; // 或者是你的坐标系名称
-    target_pose_.pose.position.x = x;
-    target_pose_.pose.position.y = y;
-    target_pose_.pose.position.z = z;
-    tf2::Quaternion q;
-    q.setRPY(0.0, 0.0, default_yaw_);
-    target_pose_.pose.orientation.x = q.x();
-    target_pose_.pose.orientation.y = q.y();
-    target_pose_.pose.orientation.z = q.z();
-    target_pose_.pose.orientation.w = q.w();
-}
-
 bool MavKit::isReached(double x, double y, double z, double tolerance) const {
     geometry_msgs::PoseStamped curr = GetCalibratePose();  // world coords
     double dx = curr.pose.position.x - x;
