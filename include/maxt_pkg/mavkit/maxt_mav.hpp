@@ -200,11 +200,13 @@ public:
     void updateHomePose();  
 
 private:
-    // 回调函数
+    // ROS 订阅回调，统一实现在 src/mavkit/callback.cpp。
     void stateCb(const mavros_msgs::State::ConstPtr& msg);
     void extendedStateCb(const mavros_msgs::ExtendedState::ConstPtr& msg);
     void poseCb(const geometry_msgs::PoseStamped::ConstPtr& msg);
     void twistCb(const geometry_msgs::TwistStamped::ConstPtr& msg);
+
+    // 定时器回调，实现在 src/mavkit/timer.cpp。
     void heartbeatTimerCallback(const ros::TimerEvent& event);
 
     // 调用方持有 data_mtx_，采样当前曲线并填充原始参考设点。

@@ -123,6 +123,8 @@ add_library(${PROJECT_NAME}
   src/audio_caller.cpp
   src/maxt_nodes/play_audio.cpp
   src/maxt_core.cpp
+  src/mavkit/callback.cpp
+  src/mavkit/timer.cpp
   src/mavkit/get_pose.cpp
   src/mavkit/reach_check.cpp
   src/maxt_mav/maxt_mav_cb.cpp
