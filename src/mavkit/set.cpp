@@ -40,6 +40,17 @@ void MavKit::setRawTarget(const mavros_msgs::PositionTarget& target) {
     }
 }
 
+void MavKit::SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target) {
+    std::lock_guard<std::mutex> lock(data_mtx_);
+    global_target_ = target;
+    if (has_default_yaw_) {
+        global_target_.yaw = default_yaw_;
+        global_target_.yaw_rate = 0.0;
+        global_target_.type_mask &= ~mavros_msgs::GlobalPositionTarget::IGNORE_YAW;
+        global_target_.type_mask |= mavros_msgs::GlobalPositionTarget::IGNORE_YAW_RATE;
+    }
+}
+
 void MavKit::setQuinticCurveTarget(const Eigen::Vector3d& position) {
     std::lock_guard<std::mutex> lock(data_mtx_);
     setQuinticCurveTargetLocked(position, ros::Time::now());

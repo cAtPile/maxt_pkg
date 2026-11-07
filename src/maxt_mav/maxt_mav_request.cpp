@@ -57,6 +57,14 @@ void MavKit::captureCurveState(const ros::Time& now) {
                                             pose.pose.position.z);
     curve_state_.velocity.setZero();
     curve_state_.acceleration.setZero();
+    if (setpoint_mode_ == SetpointMode::GLOBAL_RAW_CTRL) {
+        // 全球位置控制没有本地参考曲线，中断减速以实测速度作为起点。
+        auto twist = current_twist_;
+        calib_.untransTwist(twist);
+        curve_state_.velocity = Eigen::Vector3d(twist.twist.linear.x,
+                                                twist.twist.linear.y,
+                                                twist.twist.linear.z);
+    }
     if (setpoint_mode_ == SetpointMode::RAW_CTRL) {
         // 原始设点也在世界坐标系中；忽略的速度轴没有参考速度，保持零。
         const uint16_t velocity_masks[] = {mavros_msgs::PositionTarget::IGNORE_VX,

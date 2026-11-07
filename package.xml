@@ -23,6 +23,7 @@
   <build_depend>behaviortree_cpp_v3</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>sensor_msgs</build_depend>
+  <build_export_depend>sensor_msgs</build_export_depend>
   
   <exec_depend>roscpp</exec_depend>
   <exec_depend>mavros</exec_depend>
@@ -51,4 +52,5 @@
     <gazebo_ros plugin_path="${prefix}/../../lib"/>
   </export>
   <depend>eigen</depend>
+  <depend>geographiclib</depend>
 </package>

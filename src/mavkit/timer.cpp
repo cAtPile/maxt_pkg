@@ -33,6 +33,11 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
         mavros_msgs::PositionTarget raw = raw_target_;
         raw.header.stamp = ros::Time::now();
         raw_setpoint_pub_.publish(raw);
+    }else if(setpoint_mode_ == SetpointMode::GLOBAL_RAW_CTRL){
+        // 全球目标不经过局部 Home 偏移或标定旋转。
+        auto target = global_target_;
+        target.header.stamp = ros::Time::now();
+        global_raw_setpoint_pub_.publish(target);
     }else if(setpoint_mode_ == SetpointMode::CURVE_CTRL){
         loadCurveRaw(ros::Time::now());
         mavros_msgs::PositionTarget raw = curve_raw_target_;

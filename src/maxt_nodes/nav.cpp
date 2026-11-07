@@ -7,7 +7,6 @@ static constexpr uint16_t TYPE_MASK =
     mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
 
 static constexpr double DT_MIN = 1e-6;
-static constexpr double HOLD_TIMEOUT = 3.0;
 
 BT::PortsList NavNode::providedPorts() {
     return {
@@ -27,6 +26,7 @@ NavNode::NavNode(const std::string& name,
 }
 
 BT::NodeStatus NavNode::onStart() {
+    nav_nh_.param<double>("hold_timeout", hold_timeout_, 3.0);
 
     //获取参数
     if (!nav_nh_.getParam("pid_kp", pid_kp_) ||
@@ -99,7 +99,7 @@ BT::NodeStatus NavNode::onRunning() {
         return BT::NodeStatus::RUNNING;
     }
 
-    // 曲线结束后检查到达情况，保留 3 秒强制完成逻辑。
+    // 曲线结束后检查到达情况，按配置的末端对齐超时强制完成。
     auto pose = mav_.GetCalibratePose();
     double err_x = tx_ - pose.pose.position.x;
     double err_y = ty_ - pose.pose.position.y;
@@ -120,7 +120,7 @@ BT::NodeStatus NavNode::onRunning() {
     }
 
     double hold_elapsed = (now - hold_start_).toSec();
-    if (hold_elapsed > HOLD_TIMEOUT) {
+    if (hold_elapsed > hold_timeout_) {
         ROS_WARN("[Nav] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
                  hold_elapsed, err);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);

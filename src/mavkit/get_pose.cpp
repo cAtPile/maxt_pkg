@@ -58,4 +58,14 @@ geometry_msgs::PoseStamped MavKit::getHomePose() const {
     return out;
 }
 
+mavros_msgs::GlobalPositionTarget MavKit::GetGlobalPose() const {
+    std::lock_guard<std::mutex> lock(data_mtx_);
+    return global_pose_;
+}
+
+bool MavKit::hasGlobalPose() const {
+    std::lock_guard<std::mutex> lock(data_mtx_);
+    return has_global_fix_ && has_global_altitude_ && has_pose_;
+}
+
 } // namespace maxt

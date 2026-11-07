@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   mavros
   mavros_msgs
   geometry_msgs
+  sensor_msgs
   tf2
   tf2_ros
   behaviortree_cpp_v3
@@ -31,6 +32,8 @@ generate_messages(DEPENDENCIES actionlib_msgs std_msgs)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Threads REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GeographicLib REQUIRED geographiclib)
 find_package(gazebo REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -94,8 +97,8 @@ find_package(gazebo REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
-  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs
-  DEPENDS Boost Eigen3
+  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs
+  DEPENDS Boost Eigen3 GeographicLib
 )
 
 
@@ -110,10 +113,11 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  ${GeographicLib_INCLUDE_DIRS}
 )
 
 # Native target motion avoids synchronous ROS service calls during simulation.
-link_directories(${GAZEBO_LIBRARY_DIRS})
+link_directories(${GAZEBO_LIBRARY_DIRS} ${GeographicLib_LIBRARY_DIRS})
 add_library(maxt_moving_target_plugin SHARED src/sim/moving_target_plugin.cpp)
 target_include_directories(maxt_moving_target_plugin PRIVATE ${GAZEBO_INCLUDE_DIRS})
 target_link_libraries(maxt_moving_target_plugin ${GAZEBO_LIBRARIES} ${catkin_LIBRARIES})
@@ -146,6 +150,7 @@ add_library(${PROJECT_NAME}
 
   src/maxt_nodes/touch_down.cpp
 
+  src/maxt_nodes/la_lo_al_nav.cpp
   src/maxt_nodes/nav.cpp
   src/maxt_nodes/base_point_azimuth_fix.cpp
   src/maxt_nodes/azimuth_fix_nav.cpp
@@ -173,6 +178,7 @@ add_dependencies(maxt_test_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXP
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
+  ${GeographicLib_LIBRARIES}
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
@@ -242,6 +248,11 @@ install(DIRECTORY launch config
 #############
 
 if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_global_nav_curve test/unit/test_global_nav_curve.cpp)
+  if(TARGET test_global_nav_curve)
+    target_link_libraries(test_global_nav_curve ${GeographicLib_LIBRARIES})
+  endif()
+
   catkin_add_gtest(test_calibrate_tools test/unit/test_calibrate_tools.cpp)
   if(TARGET test_calibrate_tools)
     target_link_libraries(test_calibrate_tools ${catkin_LIBRARIES})

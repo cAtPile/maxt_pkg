@@ -4,6 +4,7 @@ nav:
   azimuth_angle: 90.0  # 方位角固定航行方向，度；原始 +X 为 0，朝 +Y 为正
   v_max: 5       # m/s
   a_max: 1       # m/s^2
+  hold_timeout: 3.0  # Nav/AzimuthFixNav/LaLoAlNav 末端对齐强制成功超时，s
   slow_down_time: 1.0  # 减速及速度接管曲线时长，s，须为正
   stop_velocity_tolerance: 0.01  # 各轴参考速度停止阈值，m/s
   pid_kp: 1.0
@@ -16,6 +17,8 @@ reach_check:
   vertical_vel_tolerance: 0.2
   position_pose_tolerance: 0.1
   position_vel_tolerance: 0.2
+  global_position_tolerance: 0.1  # 全球水平距离容差，m
+  global_altitude_tolerance: 0.5  # LaLoAlNav 的原始 local Z 高度容差，m
 
 # BT 节点的 ROS 参数：时间 s，速度 m/s，高度容差 m。
 connect_check:

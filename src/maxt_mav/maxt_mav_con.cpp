@@ -29,6 +29,9 @@ bool MavKit::mavInit(ros::NodeHandle& nh) {
     nh_.param<double>("reach_check/position_pose_tolerance", position_pose_tolerance_, 0.1);
     nh_.param<double>("reach_check/position_vel_tolerance", position_vel_tolerance_, 0.2);
 
+    nh_.param<double>("reach_check/global_position_tolerance", global_position_tolerance_, 1.0);
+    nh_.param<double>("reach_check/global_altitude_tolerance", global_altitude_tolerance_, 0.5);
+
     // 3. 初始化 ROS 通信对象
     state_sub_ = nh_.subscribe<mavros_msgs::State>(
         "/mavros/state", 1, &MavKit::stateCb, this);
@@ -47,6 +50,13 @@ bool MavKit::mavInit(ros::NodeHandle& nh) {
 
     raw_setpoint_pub_ = nh_.advertise<mavros_msgs::PositionTarget>(
         "/mavros/setpoint_raw/local", 10);
+
+    global_pose_sub_ = nh_.subscribe<sensor_msgs::NavSatFix>(
+        "/mavros/global_position/global", 1, &MavKit::globalPoseCb, this);
+    global_altitude_sub_ = nh_.subscribe<std_msgs::Float64>(
+        "/mavros/global_position/rel_alt", 1, &MavKit::globalAltitudeCb, this);
+    global_raw_setpoint_pub_ = nh_.advertise<mavros_msgs::GlobalPositionTarget>(
+        "/mavros/setpoint_raw/global", 10);
 
     // 4. 初始化 Service 客户端
     arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
