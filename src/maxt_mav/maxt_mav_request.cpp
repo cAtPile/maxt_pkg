@@ -50,6 +50,7 @@ void MavKit::captureCurveState(const ros::Time& now) {
         loadCurveRaw(now);
         return;
     }
+    curve_raw_local_ = false;
     auto pose = current_pose_;
     calib_.untransPose(pose);
     curve_state_.position = Eigen::Vector3d(pose.pose.position.x,
@@ -85,6 +86,7 @@ void MavKit::captureCurveState(const ros::Time& now) {
 }
 
 void MavKit::startStopCurve(const ros::Time& now) {
+    curve_raw_local_ = false;
     // 从实测位置和速度开始，统一转换到曲线使用的标定坐标系。
     auto pose = current_pose_;
     auto twist = current_twist_;

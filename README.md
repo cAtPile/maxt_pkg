@@ -172,6 +172,19 @@ rosrun maxt_pkg maxt_test_node \
 
 `Nav`、`AzimuthFixNav` 和 `LaLoNav` 共用 `nav/hold_timeout`，在每次启动航行时读取，未配置时默认 3.0 秒。从曲线结束后首次进入末端对齐阶段开始计时；超过该时长仍未达标则切回 HEARTBEAT 并强制返回 SUCCESS。任务总超时仍优先返回 FAILURE。该参数是 ROS 配置，不是 XML 端口。
 
+`Nav`、`AzimuthFixNav` 和 `LaLoNav` 在行为树中被 halt 中断时，会在请求减速之前记录当时的实测位置。新增可选输出端口 `breakpoint_x/y/z` 和 `breakpoint_valid`，将端口映射到黑板即可保存。三个节点输出均为相对内部 Home 的标定坐标（米），可直接交给 `Nav` 返回断点，包括从经纬度导航中断后返回原高度。输出仅在中断时更新，成功、失败和重新启动不会清除断点；尚未中断时输出未初始化，应先在黑板初始化 `bp_valid=false`。没有有效定位或坐标非有限数时，仅将有效标志设为 false，不覆盖旧坐标。调用方必须检查有效标志后再返回。
+
+```xml
+<!-- 放在可被高优先级分支中断的导航分支中 -->
+<Nav x="10" y="0" z="4"
+     breakpoint_x="{bp_x}" breakpoint_y="{bp_y}" breakpoint_z="{bp_z}"
+     breakpoint_valid="{bp_valid}"/>
+<!-- 中断任务结束后，在确认 bp_valid 为 true 的返回分支中执行 -->
+<Nav x="{bp_x}" y="{bp_y}" z="{bp_z}"/>
+```
+
+断点保存在当前行为树黑板内，不跨进程重启保存；共用同一组黑板键时以最后一次中断为准，需要分别保留时请映射到不同键。记录后到返回前应保持内部 Home 和标定参数不变。此功能提供断点记录和返回目标，不自动改变行为树分支或恢复剩余航线。断点是触发中断时的位置，并非减速后的停止点；超时返回 FAILURE 不属于 halt 中断。
+
 当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`LaLoNav`、`BasePointAzimuthFix`、`AzimuthFixNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
 
 方位角固定航行使用 `BasePointAzimuthFix` 和 `AzimuthFixNav`。前者在一次 tick 内调用 `GetRawPose()`，将当前原始位置写入黑板；后者以该基点为原点，按照 `config/nav.yaml` 中的 `nav/azimuth_angle` 投影位移。角度单位为度，0° 沿原始 X 正向，90° 沿原始 Y 正向；`nav_n` 沿该方向，`nav_t` 正向为左侧，`nav_a` 为相对基点的 Z 增量，距离单位为米。每个目标都相对于保存的基点，不累计上一段位移，也不设置机头朝向。
@@ -371,7 +384,7 @@ roslaunch maxt_pkg guidance_test.launch run_sim:=true error_u:=20.0 duration:=10
 roslaunch maxt_pkg region_traverse_test.launch
 ```
 
-需要外部提供 MAVROS、定位和相机。任务起飞到 4m，为 `(0,0)、(-6,0)、(-6,6)、(0,6)` 的矩形以 1m 间距生成 12 个蛇形航点。`FoundCheck` 检查 `/aruco_center/is_found`；检测为 true 且消息未过期时中断导航并跟踪 60s，然后降落。遍历完成仍未找到则直接降落。搜索导航失败会使任务失败，不进入后续降落。
+需要外部提供 MAVROS、定位和相机。任务起飞到 4m，为 `(0,0)、(-6,0)、(-6,6)、(0,6)` 的矩形以 1m 间距生成 12 个蛇形航点。`FoundCheck` 检查 `/aruco_center/is_found`；检测为 true 且消息未过期时中断当前导航并记录实测断点，先航行返回断点，再执行 Guidance 跟踪 60s；成功后再次返回断点，然后飞往下一个航点（跳过被中断航段尚未到达的终点）。完成全部航点后降落。导航、断点返回或 Guidance 失败会使任务失败，不进入后续降落。
 
 支持 `run_detection`、`run_guidance`（均默认 true）、`detection_config`、`run_camera`、`run_mavros`、`run_fast_lio` 及两个频率参数。已有识别服务时使用 `run_detection:=false`；跟踪仍需要可用的 `/guidance` 服务。更改识别 ID 或状态话题时，需同步修改 XML 的 Guidance 或 FoundCheck。
 
@@ -478,10 +491,10 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `CapturePose` | `height_offset(0)` | `x`、`y`、`z` |
 | `PlayAudio` | `filename` | 无 |
 | `Takeoff` | `target_alt(0.5)` | `home_x`、`home_y`、`home_z`、`return_z` |
-| `LaLoNav` | `latitude/longitude`、`timeout(60)` | 无 |
-| `Nav` | `x/y/z`、`timeout(60)` | 无 |
+| `LaLoNav` | `latitude/longitude`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
+| `Nav` | `x/y/z`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
 | `BasePointAzimuthFix` | 无 | `bp_x_raw/bp_y_raw/bp_z_raw` |
-| `AzimuthFixNav` | `nav_n/nav_t/nav_a`、`bp_x_raw/bp_y_raw/bp_z_raw`、`timeout(60)` | 无 |
+| `AzimuthFixNav` | `nav_n/nav_t/nav_a`、`bp_x_raw/bp_y_raw/bp_z_raw`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
 | `WaitStep` | `wait_duration(1)` | 无 |
 | `Hover` | `hover_duration(1)` | 无 |
 | `Round` | `center_x/center_y/center_z`、`radius(0)`、`angular_speed(30)`、`total_angle(360)`、`tolerance(0.3)`、`timeout(60)`、`ramp_time(2)` | 无 |
@@ -637,7 +650,7 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 </root>
 ```
 
-需要在导航中持续检查目标时，参考 `region_traverse_test.xml` 中的 `ReactiveFallback`，检测成功会 halt 搜索分支。普通 Sequence 子节点失败后不会执行其后的降落节点；需要返航、降落等失败处理时，应像协同任务一样显式编排。使用 ForceSuccess 包裹动作会改变上层看到的结果，应通过 `message` 或业务结果黑板键保留真实执行原因。
+需要在导航中持续检查目标时，参考 `subtree/NavTargetHandling.xml` 中的 `ReactiveFallback`，检测成功会 halt 当前航段并在处理断点后继续巡航。普通 Sequence 子节点失败后不会执行其后的降落节点；需要返航、降落等失败处理时，应像协同任务一样显式编排。使用 ForceSuccess 包裹动作会改变上层看到的结果，应通过 `message` 或业务结果黑板键保留真实执行原因。
 
 修改视觉反馈协议时，保持 `.action`、感知服务端和 Guidance 客户端一致；更换小车服务端时，保留目标抢占、取消、反馈和最终 `succeed` 的约定。新增 YAML 参数需要明确加载命名空间，例如任务的 `nav/` 位于 `/maxt_test_node/nav/`，识别配置位于 `/aruco_center/`；在 launch 顶层加载同名参数不会自动成为节点私有参数。
 
@@ -699,7 +712,13 @@ rosrun maxt_pkg test_calibrate_tools
 前两种情况返回 SUCCESS，失败返回 FAILURE；发现目标会立即中断正在运行的导航。
 内部固定检测话题 `/aruco_center/is_found`、导航容差 0.15m、单航点超时 45s。
 使用 BehaviorTree.CPP v3 的 `SubTreePlus` 传入常量或黑板映射，不启用自动映射，航点和索引保存在独立黑板中。
-起飞、后续跟踪、协同、返航和降落由父树负责。两份测试任务 XML 已采用此子树。
+起飞、后续跟踪、协同、返航和降落由父树负责。小车协同入口 `ugv_cowork_test.xml` 继续使用此发现即退出的子树。
+
+`region_traverse_test.xml` 改用 `VisionRegionTraverseResume.xml`；`sim_geo_treverse.xml` 改用 `VisionGeoAzimuthRegionTraverseResume.xml`，后者包含 `VisionAzimuthRegionTraverseResume.xml`。它们复用 `NavTargetHandling.xml` 中的三个航段子树，分别支持 Nav、LaLoNav、AzimuthFixNav：每段导航先启动，发现目标后中断并写入断点，再依次执行返回断点、Guidance、再次返回断点，成功后才处理下一航点。返回断点和 Guidance 期间不检查目标中断，且返回节点不映射断点输出，避免覆盖原记录。目标持续可见时只处理一次，后续巡航中先观察到未发现目标，再允许重新触发。这里的“未发现”沿用 FoundCheck 的 false/消息过期语义，不区分目标 ID。
+
+视觉区域入口的 Guidance 保留 60s 跟踪，经纬度入口保留 0s（对齐成功即结束），超时均为 90s。经纬度接近航段若被中断，处理完成后在返回的断点处采集区域基点，再开始区域巡航；未被中断则仍在经纬度目的地采集基点。新巡航子树的 result 仅输出 complete / failed，处理过目标后仍需完成剩余航点。任何导航、断点有效性检查或 Guidance 失败均向上传递 FAILURE。所有导航中断点均直接记录 MAVROS 原始 local 实测坐标，不做 Home 偏移或标定旋转；断点返回使用 NavRaw，沿用 Nav 的到达判定，末端 hold_timeout 可强制 SUCCESS，并不保证严格到达；本次未改变该机制。
+
+`test/nav_breakpoint_tree_test.cpp` 用真实行为树和航点生成节点，替换依赖外部设备的叶节点，验证两个入口的处理顺序、连续检测去重、重新发现及失败分支；不替代仿真飞行验证。
 
 `Takeoff` 持续等待外部解锁，不主动发送解锁请求，不设置等待解锁超时。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
 
