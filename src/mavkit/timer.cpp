@@ -42,7 +42,7 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
     }else if(setpoint_mode_ == SetpointMode::CURVE_CTRL){
         loadCurveRaw(ros::Time::now());
         mavros_msgs::PositionTarget raw = curve_raw_target_;
-        calib_.transRaw(raw);
+        if (!curve_raw_local_) calib_.transRaw(raw);
         raw_setpoint_pub_.publish(raw);
     }else if(setpoint_mode_ == SetpointMode::SLOW_DOWN){
         // 减速完成及接管逻辑仅在 SLOW_DOWN 中执行。
@@ -67,7 +67,7 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
         }
         // 曲线结束后持续保持固定终点，直到实测速度稳定。
         mavros_msgs::PositionTarget raw = curve_raw_target_;
-        calib_.transRaw(raw);
+        if (!curve_raw_local_) calib_.transRaw(raw);
         raw_setpoint_pub_.publish(raw);
     }else if(setpoint_mode_ == SetpointMode::STANDBY){
         // 不发布

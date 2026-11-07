@@ -51,13 +51,29 @@ void MavKit::SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target)
     }
 }
 
-void MavKit::setQuinticCurveTarget(const Eigen::Vector3d& position) {
+void MavKit::setQuinticCurveTarget(const Eigen::Vector3d& position, bool raw_local) {
     std::lock_guard<std::mutex> lock(data_mtx_);
-    setQuinticCurveTargetLocked(position, ros::Time::now());
+    const ros::Time now = ros::Time::now();
+    captureCurveState(now);
+    if (curve_raw_local_ != raw_local) {
+        const double angle = raw_local ? calib_.offset() : -calib_.offset();
+        const auto rotate = [angle](Eigen::Vector3d& v) {
+            const double x = v.x(), y = v.y();
+            v.x() = x * std::cos(angle) - y * std::sin(angle);
+            v.y() = x * std::sin(angle) + y * std::cos(angle);
+        };
+        rotate(curve_state_.position);
+        // RAW_CTRL 中的速度、加速度设点已经是直接发布的 local 值。
+        if (!(raw_local && setpoint_mode_ == SetpointMode::RAW_CTRL)) {
+            rotate(curve_state_.velocity);
+            rotate(curve_state_.acceleration);
+        }
+    }
+    curve_raw_local_ = raw_local;
+    setQuinticCurveTargetLocked(position, now);
 }
 
 void MavKit::setQuinticCurveTargetLocked(const Eigen::Vector3d& position, const ros::Time& now) {
-    captureCurveState(now);
     velocity_transition_ = false;
 
     double v_max, a_max;
