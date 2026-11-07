@@ -7,6 +7,12 @@
 8. 统一节点注册
 9. 高度fix
 
-创建一个新的Node：ReHeadingNode
-参考nav的五次曲线和末端pid以及强制成功逻辑
-让飞机航向恢复到azimuth_angle
+rostopic pub -r 20 /QRCode_pose/Global_pose \
+sensor_msgs/NavSatFix \
+"header:
+  stamp: now
+  frame_id: 'gps'
+latitude: 47.397832
+longitude: 8.545594
+altitude: 5.0"
+

@@ -209,6 +209,7 @@ target_link_libraries(maxt_test_node
 catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_server.py script/aruco_center.py script/ugv_sim.py script/ugv_controller.py
   script/fast_mission/fast_mission.py
   script/fake_audio.py
+  script/fake_reciver.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
