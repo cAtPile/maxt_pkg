@@ -250,6 +250,8 @@ install(DIRECTORY launch config
 #############
 
 if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_stop_curve test/unit/test_stop_curve.cpp)
+
   catkin_add_gtest(test_global_nav_curve test/unit/test_global_nav_curve.cpp)
   if(TARGET test_global_nav_curve)
     target_link_libraries(test_global_nav_curve ${GeographicLib_LIBRARIES})

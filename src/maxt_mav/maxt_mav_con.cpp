@@ -4,6 +4,7 @@
  * @date 4-14
  */
 #include <maxt_pkg/mavkit/maxt_mav.hpp>
+#include <cmath>
 
 namespace maxt {
 
@@ -22,7 +23,16 @@ bool MavKit::mavInit(ros::NodeHandle& nh) {
     double heartbeat_rate;
     nh_.param<double>("heartbeat_rate", heartbeat_rate, 20.0);
     nh_.param<double>("nav/slow_down_time", slow_down_time_, 1.0);
-    nh_.param<double>("nav/stop_velocity_tolerance", stop_velocity_tolerance_, 0.01);
+    nh_.param<double>("nav/stop_velocity_tolerance", stop_velocity_tolerance_, 0.1);
+    nh_.param<double>("nav/stop_acceleration", stop_acceleration_, 1.0);
+    nh_.param<double>("nav/stop_settle_time", stop_settle_time_, 0.4);
+    if (!std::isfinite(slow_down_time_) || slow_down_time_ <= 0.0 ||
+        !std::isfinite(stop_acceleration_) || stop_acceleration_ <= 0.0 ||
+        !std::isfinite(stop_velocity_tolerance_) || stop_velocity_tolerance_ <= 0.0 ||
+        !std::isfinite(stop_settle_time_) || stop_settle_time_ <= 0.0) {
+        ROS_ERROR("Invalid nav stop limits: all values must be finite and positive.");
+        return false;
+    }
 
     nh_.param<double>("reach_check/vertical_alt_tolerance", vertical_alt_tolerance_, 0.1);
     nh_.param<double>("reach_check/vertical_vel_tolerance", vertical_vel_tolerance_, 0.2);
