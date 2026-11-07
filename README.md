@@ -694,6 +694,7 @@ rosrun maxt_pkg test_calibrate_tools
 
 输入矩形原点 `origin_x/y` 和沿坐标轴的有符号边长 `length_x/y`；边长为负表示沿对应轴负方向延伸，边长不能为零。航带沿 X 方向往返，沿 Y 方向推进；坐标系沿用 `Nav`。
 `coverage_step` 为航带间距，`altitude` 为导航高度，均以米计。
+每条 X 方向航带的两端各内缩 `coverage_step / 2`；若 `abs(length_x) <= coverage_step`，两端收缩至 X 边中点，避免交叉。
 `result` 输出 `found`（发现目标）、`complete`（遍历完成）或 `failed`（规划/导航失败）。
 前两种情况返回 SUCCESS，失败返回 FAILURE；发现目标会立即中断正在运行的导航。
 内部固定检测话题 `/aruco_center/is_found`、导航容差 0.15m、单航点超时 45s。
