@@ -172,6 +172,19 @@ rosrun maxt_pkg maxt_test_node \
 
 `Nav`、`AzimuthFixNav` 和 `LaLoNav` 共用 `nav/hold_timeout`，在每次启动航行时读取，未配置时默认 3.0 秒。从曲线结束后首次进入末端对齐阶段开始计时；超过该时长仍未达标则切回 HEARTBEAT 并强制返回 SUCCESS。任务总超时仍优先返回 FAILURE。该参数是 ROS 配置，不是 XML 端口。
 
+`Nav`、`AzimuthFixNav` 和 `LaLoNav` 在行为树中被 halt 中断时，会在请求减速之前记录当时的实测位置。新增可选输出端口 `breakpoint_x/y/z` 和 `breakpoint_valid`，将端口映射到黑板即可保存。三个节点输出均为相对内部 Home 的标定坐标（米），可直接交给 `Nav` 返回断点，包括从经纬度导航中断后返回原高度。输出仅在中断时更新，成功、失败和重新启动不会清除断点；尚未中断时输出未初始化，应先在黑板初始化 `bp_valid=false`。没有有效定位或坐标非有限数时，仅将有效标志设为 false，不覆盖旧坐标。调用方必须检查有效标志后再返回。
+
+```xml
+<!-- 放在可被高优先级分支中断的导航分支中 -->
+<Nav x="10" y="0" z="4"
+     breakpoint_x="{bp_x}" breakpoint_y="{bp_y}" breakpoint_z="{bp_z}"
+     breakpoint_valid="{bp_valid}"/>
+<!-- 中断任务结束后，在确认 bp_valid 为 true 的返回分支中执行 -->
+<Nav x="{bp_x}" y="{bp_y}" z="{bp_z}"/>
+```
+
+断点保存在当前行为树黑板内，不跨进程重启保存；共用同一组黑板键时以最后一次中断为准，需要分别保留时请映射到不同键。记录后到返回前应保持内部 Home 和标定参数不变。此功能提供断点记录和返回目标，不自动改变行为树分支或恢复剩余航线。断点是触发中断时的位置，并非减速后的停止点；超时返回 FAILURE 不属于 halt 中断。
+
 当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`LaLoNav`、`BasePointAzimuthFix`、`AzimuthFixNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
 
 方位角固定航行使用 `BasePointAzimuthFix` 和 `AzimuthFixNav`。前者在一次 tick 内调用 `GetRawPose()`，将当前原始位置写入黑板；后者以该基点为原点，按照 `config/nav.yaml` 中的 `nav/azimuth_angle` 投影位移。角度单位为度，0° 沿原始 X 正向，90° 沿原始 Y 正向；`nav_n` 沿该方向，`nav_t` 正向为左侧，`nav_a` 为相对基点的 Z 增量，距离单位为米。每个目标都相对于保存的基点，不累计上一段位移，也不设置机头朝向。
@@ -478,10 +491,10 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `CapturePose` | `height_offset(0)` | `x`、`y`、`z` |
 | `PlayAudio` | `filename` | 无 |
 | `Takeoff` | `target_alt(0.5)` | `home_x`、`home_y`、`home_z`、`return_z` |
-| `LaLoNav` | `latitude/longitude`、`timeout(60)` | 无 |
-| `Nav` | `x/y/z`、`timeout(60)` | 无 |
+| `LaLoNav` | `latitude/longitude`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
+| `Nav` | `x/y/z`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
 | `BasePointAzimuthFix` | 无 | `bp_x_raw/bp_y_raw/bp_z_raw` |
-| `AzimuthFixNav` | `nav_n/nav_t/nav_a`、`bp_x_raw/bp_y_raw/bp_z_raw`、`timeout(60)` | 无 |
+| `AzimuthFixNav` | `nav_n/nav_t/nav_a`、`bp_x_raw/bp_y_raw/bp_z_raw`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
 | `WaitStep` | `wait_duration(1)` | 无 |
 | `Hover` | `hover_duration(1)` | 无 |
 | `Round` | `center_x/center_y/center_z`、`radius(0)`、`angular_speed(30)`、`total_angle(360)`、`tolerance(0.3)`、`timeout(60)`、`ramp_time(2)` | 无 |
