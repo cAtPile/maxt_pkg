@@ -84,26 +84,30 @@ void MavKit::captureCurveState(const ros::Time& now) {
     }
 }
 
-void MavKit::startVelocityTransition(const Eigen::Vector3d& velocity, const ros::Time& now) {
-    captureCurveState(now);
-    curve_time_ = slow_down_time_;
-    transition_velocity_ = velocity;
-    // 终点位置由参考速度、加速度及过渡时长推导，不强制停在中断位置。
-    // 该位置对应满足 v(0)、a(0)、v(T)、a(T)=0 的三次速度曲线积分。
-    const Eigen::Vector3d position = curve_state_.position +
-        0.5 * (curve_state_.velocity + velocity) * curve_time_ +
-        curve_state_.acceleration * curve_time_ * curve_time_ / 12.0;
+void MavKit::startStopCurve(const ros::Time& now) {
+    // 从实测位置和速度开始，统一转换到曲线使用的标定坐标系。
+    auto pose = current_pose_;
+    auto twist = current_twist_;
+    calib_.untransPose(pose);
+    calib_.untransTwist(twist);
+    const Eigen::Vector3d position(pose.pose.position.x, pose.pose.position.y,
+                                  pose.pose.position.z);
+    const Eigen::Vector3d velocity(twist.twist.linear.x, twist.twist.linear.y,
+                                  twist.twist.linear.z);
+    // v(t)=v0*(1-3s²+2s³)，峰值减速度为 1.5*|v0|/T。
+    // 初末参考加速度为零，终点位移为 v0*T/2。
+    curve_time_ = std::max(slow_down_time_, 1.5 * velocity.norm() / stop_acceleration_);
+    const Eigen::Vector3d end = position + 0.5 * velocity * curve_time_;
     curve_.setBoundaries(
-        {curve_state_.position.x(), curve_state_.velocity.x(), curve_state_.acceleration.x()},
-        {position.x(), velocity.x(), 0.0}, curve_time_,
-        {curve_state_.position.y(), curve_state_.velocity.y(), curve_state_.acceleration.y()},
-        {position.y(), velocity.y(), 0.0},
-        {curve_state_.position.z(), curve_state_.velocity.z(), curve_state_.acceleration.z()},
-        {position.z(), velocity.z(), 0.0});
+        {position.x(), velocity.x(), 0.0}, {end.x(), 0.0, 0.0}, curve_time_,
+        {position.y(), velocity.y(), 0.0}, {end.y(), 0.0, 0.0},
+        {position.z(), velocity.z(), 0.0}, {end.z(), 0.0, 0.0});
     curve_start_ = now;
+    stop_stable_since_ = ros::Time();
     velocity_transition_ = true;
     loadCurveRaw(now);
     setpoint_mode_ = SetpointMode::SLOW_DOWN;
+    ROS_INFO("[Stop] START: speed=%.3f m/s duration=%.3f s", velocity.norm(), curve_time_);
 }
 
 double MavKit::getCurveTime() const {

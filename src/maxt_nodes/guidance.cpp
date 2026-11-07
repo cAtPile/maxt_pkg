@@ -123,6 +123,13 @@ BT::NodeStatus GuidanceNode::onRunning() {
                       result ? result->message : action_state.toString());
     }
 
+    // 停止完成前不运行 PID、不判定对准，也不启动跟踪计时。
+    // 总超时仍有效；中断减速不会被视觉反馈反复重启。
+    if (mav_.isSlowingDown()) {
+        last_update_ = now;
+        return BT::NodeStatus::RUNNING;
+    }
+
     //新鲜
     const bool fresh = sequence > 0 && (now - received).toSec() <= feedback_timeout_;
 
