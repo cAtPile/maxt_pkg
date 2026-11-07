@@ -31,6 +31,11 @@ BT::NodeStatus TraversePathGeneratorNode::tick() {
 
     // 航带沿有符号 X 边长往返，沿有符号 Y 边长推进。
     const double width = std::abs(length_y);
+    // X 两端各内缩半个航带间距；短边最多缩至中点，避免端点交叉。
+    const double x_margin = std::min(coverage_step / 2.0, std::abs(length_x) / 2.0);
+    const double x_offset = std::copysign(x_margin, length_x);
+    const double start_x = origin_x + x_offset;
+    const double end_x = origin_x + (length_x - x_offset);
 
     // 保持相邻平行轨迹的间距为 coverage_step，余量对称留在两侧。
     const double lanes_needed = std::ceil(width / coverage_step);
@@ -46,8 +51,8 @@ BT::NodeStatus TraversePathGeneratorNode::tick() {
     for (int lane = 0; lane < lane_count; ++lane) {
         const double fraction = (margin + lane * coverage_step) / width;
         const double y = origin_y + fraction * length_y;
-        const std::array<double, 2> start = {{origin_x, y}};
-        const std::array<double, 2> end = {{origin_x + length_x, y}};
+        const std::array<double, 2> start = {{start_x, y}};
+        const std::array<double, 2> end = {{end_x, y}};
         waypoints.push_back(lane % 2 == 0 ? start : end);
         waypoints.push_back(lane % 2 == 0 ? end : start);
     }
