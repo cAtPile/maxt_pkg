@@ -36,7 +36,7 @@ touch_down:
   height_tol: 0.3
   vel_tol: 0.2
 guidance:
-  tolerance: 5.0  # 视觉误差各轴容差，像素
+  tolerance: 10.0  # 视觉误差各轴容差，像素
   downward_camera: true  # 下视相机坐标转换
   kp: 0.006  # 像素误差比例增益
 found_check:
