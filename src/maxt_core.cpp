@@ -15,6 +15,7 @@
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/re_heading_node.hpp>
 #include <maxt_pkg/maxt_nodes/la_lo_nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/base_point_azimuth_fix_node.hpp>
 #include <maxt_pkg/maxt_nodes/azimuth_fix_nav_node.hpp>
@@ -107,6 +108,11 @@ void MaxtCore::registerNodes() {
     factory_.registerBuilder<LaLoNavNode>("LaLoNav",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<LaLoNavNode>(name, config, *mav_, nh_);
+        });
+
+    factory_.registerBuilder<ReHeadingNode>("ReHeading",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<ReHeadingNode>(name, config, *mav_, nh_);
         });
 
     factory_.registerBuilder<NavNode>("Nav",

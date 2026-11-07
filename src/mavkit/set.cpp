@@ -29,10 +29,10 @@ void MavKit::setTargetPose(double x, double y, double z) {
     target_pose_.pose.orientation.w = q.w();
 }
 
-void MavKit::setRawTarget(const mavros_msgs::PositionTarget& target) {
+void MavKit::setRawTarget(const mavros_msgs::PositionTarget& target, bool apply_default_yaw) {
     std::lock_guard<std::mutex> lock(data_mtx_);
     raw_target_ = target;
-    if (has_default_yaw_) {
+    if (apply_default_yaw && has_default_yaw_) {
         raw_target_.yaw = default_yaw_;
         raw_target_.yaw_rate = 0.0;
         raw_target_.type_mask &= ~mavros_msgs::PositionTarget::IGNORE_YAW;

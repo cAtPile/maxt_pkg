@@ -41,3 +41,9 @@ guidance:
   kp: 0.006  # 像素误差比例增益
 found_check:
   timeout: 0.5
+
+# ReHeading 原地恢复到 nav/azimuth_angle；末端 PID 共用 nav/pid_*。
+re_heading:
+  yaw_rate_max: 0.5  # rad/s
+  yaw_acc_max: 0.5  # rad/s^2
+  tolerance_deg: 2.0  # 航向到达容差，度；强制成功共用 nav/hold_timeout
