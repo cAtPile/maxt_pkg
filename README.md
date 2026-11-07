@@ -718,7 +718,7 @@ rosrun maxt_pkg test_calibrate_tools
 
 启动时记录 local Z 用于高度保持误差的到达检查，记录飞控相对 Home 高度作为固定的全球设点高度。MavKit 的 `GetGlobalPose()` 返回经纬度及飞控相对 Home 高度，`hasGlobalPose()` 检查定位、相对高度及 local 位姿是否就绪。`SetGlobalRawTarget()` 设置全球 raw 设点，`GLOBAL_RAW_CTRL` 由心跳定时器向 `/mavros/setpoint_raw/global` 持续发布。节点使用 `FRAME_GLOBAL_REL_ALT` 并沿用已锁定的默认偏航，不需要叠加应用 Home Z。
 
-每次启动时同时保存原始 local pose 作为 XY 安全门中心。`config/nav.yaml` 的 `nav/lalo_safety_xy_limit` 默认 10.0 米，须为有限正数；当实际位置相对该中心的 X 或 Y 偏移绝对值超过限值时，立即请求 SLOW_DOWN 并返回 FAILURE，优先于到达、总超时和末端强制成功判定。范围为各轴 ±10 米的矩形，不是半径 10 米的圆；重新启动节点时重新记录中心。该检查在 BT tick 执行，减速仍有制动距离，因此不是硬围栏，也不会直接降落或退出整个行为树，后续行为由父节点处理。
+LaLoNav 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/lalo_max_duration` 设置安全上限（默认 60.0 秒，须为有限正数）。若 T 超过上限，记录错误并返回 FAILURE，在发送全球设点、切换 GLOBAL_RAW_CTRL 前拒绝启动。T 等于上限时允许启动。此安全门替代原 XY 偏移限制；T 仅指曲线时长，不包含 PID 末端对齐时间，与 XML 的运行总超时 `timeout` 独立。
 
 `GlobalNavCurve` 仅对水平测地距离生成五次曲线，再转换为经纬度及 ENU 水平速度、加速度；高度始终固定为起点高度，Z 速度和 Z 加速度均为零。时长估算及 `nav/v_max`、`nav/a_max` 与 Nav 一致。BT tick 采样曲线，定时器发布最近一次设点。曲线结束后仅对东、北方向做 PID 速度修正，复用 `nav/pid_kp/pid_ki/pid_kd`，各轴输出限幅 0.5 m/s、积分限幅 0.3，不做高度 PID 对齐。飞控负责位置控制及高度保持，前馈支持情况需结合飞控验证。
 
