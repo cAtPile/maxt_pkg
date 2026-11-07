@@ -6,13 +6,7 @@
 7. 打标签例如：TAKEOFF-INIT之类
 8. 统一节点注册
 9. 高度fix
+10. nav+航向调整
 
-rostopic pub -r 20 /QRCode_pose/Global_pose \
-sensor_msgs/NavSatFix \
-"header:
-  stamp: now
-  frame_id: 'gps'
-latitude: 47.397832
-longitude: 8.545594
-altitude: 5.0"
+我希望在遍历过程中，找到二维码后，进行伺服，伺服成功后，退出继续回到原来的位置继续遍历完整个地图
 

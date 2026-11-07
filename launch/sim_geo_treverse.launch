@@ -1,10 +1,18 @@
 <launch>
     <!-- 经纬度基点 + 固定方向区域遍历；sim=false 可复用已启动的仿真。 -->
     <arg name="sim" default="true" />
+    <arg name="run_detection" default="true" />
+    <arg name="run_guidance" default="true" />
+    <arg name="detection_config" default="$(find maxt_pkg)/config/aruco_center.yaml" />
     <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml" />
     <arg name="run_fake_audio" default="false" />
     <arg name="bt_tick_rate" default="20.0" />
     <arg name="heartbeat_rate" default="20.0" />
+
+    <include if="$(arg run_detection)" file="$(find maxt_pkg)/launch/aruco_center.launch">
+        <arg name="config" value="$(arg detection_config)" />
+        <arg name="run_guidance" value="$(arg run_guidance)" />
+    </include>
 
     <include file="$(find maxt_pkg)/launch/mission.launch">
         <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/sim_geo_treverse.xml" />
