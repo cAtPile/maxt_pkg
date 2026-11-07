@@ -170,11 +170,13 @@ rosrun maxt_pkg maxt_test_node \
 
 通常直接使用 `mission.launch` 更方便，它会完成参数加载。`Nav` 的速度、加速度及 PID 参数来自私有 `nav/` 参数；到达位置容差使用 `config/nav.yaml` 的 `reach_check/position_pose_tolerance`（默认 0.1 m），不再提供 XML `tolerance` 端口。
 
-当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`BasePointAzimuthFix`、`AzimuthFixNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
+`Nav`、`AzimuthFixNav` 和 `LaLoNav` 共用 `nav/hold_timeout`，在每次启动航行时读取，未配置时默认 3.0 秒。从曲线结束后首次进入末端对齐阶段开始计时；超过该时长仍未达标则切回 HEARTBEAT 并强制返回 SUCCESS。任务总超时仍优先返回 FAILURE。该参数是 ROS 配置，不是 XML 端口。
+
+当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`LaLoNav`、`BasePointAzimuthFix`、`AzimuthFixNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
 
 方位角固定航行使用 `BasePointAzimuthFix` 和 `AzimuthFixNav`。前者在一次 tick 内调用 `GetRawPose()`，将当前原始位置写入黑板；后者以该基点为原点，按照 `config/nav.yaml` 中的 `nav/azimuth_angle` 投影位移。角度单位为度，0° 沿原始 X 正向，90° 沿原始 Y 正向；`nav_n` 沿该方向，`nav_t` 正向为左侧，`nav_a` 为相对基点的 Z 增量，距离单位为米。每个目标都相对于保存的基点，不累计上一段位移，也不设置机头朝向。
 
-目标原始坐标为 `x = bp_x_raw + nav_n*cos(angle) - nav_t*sin(angle)`、`y = bp_y_raw + nav_n*sin(angle) + nav_t*cos(angle)`、`z = bp_z_raw + nav_a`。新节点复用五次曲线和 PID 工具，在 BT tick 中采样曲线并通过 `RAW_CTRL` 发布原始位置、速度、加速度，不应用 Home 偏移或标定旋转。曲线起点采用当前原始位置，起终点参考速度和加速度均为零；与已有 Nav 的连续参考重规划不同。速度、加速度、PID 配置仍使用 `nav/`，到达位置容差使用 `reach_check/position_pose_tolerance`。沿用 Nav 的 60 秒默认超时、末端 3 秒强制成功及中断减速逻辑；尚未进行仿真飞行验证。
+目标原始坐标为 `x = bp_x_raw + nav_n*cos(angle) - nav_t*sin(angle)`、`y = bp_y_raw + nav_n*sin(angle) + nav_t*cos(angle)`、`z = bp_z_raw + nav_a`。新节点复用五次曲线和 PID 工具，在 BT tick 中采样曲线并通过 `RAW_CTRL` 发布原始位置、速度、加速度，不应用 Home 偏移或标定旋转。曲线起点采用当前原始位置，起终点参考速度和加速度均为零；与已有 Nav 的连续参考重规划不同。速度、加速度、PID 配置仍使用 `nav/`，到达位置容差使用 `reach_check/position_pose_tolerance`。沿用 Nav 的 60 秒默认超时、末端按 `nav/hold_timeout`（默认 3 秒）强制成功及中断减速逻辑；尚未进行仿真飞行验证。
 
 例如，在完成连接和起飞后记录基点，再沿配置方向移动 2 m 并保持基点高度：
 
@@ -332,7 +334,7 @@ roslaunch maxt_pkg mission.launch bt_xml_path:=/absolute/path/to/task.xml sim:=f
 
 `mission.launch` 支持 `sim`（默认 `true`）、`run_uav`（默认 `false`，实机使用 `sim:=false run_uav:=true`）、`nav_config`（默认 `config/nav.yaml`，包含所有任务共用的无人机参数）、`bt_tick_rate` 和 `heartbeat_rate`（均默认 20Hz），以及前述可选组件开关。需要选择实机、自定义导航配置或启动相机时可直接使用 `mission.launch`。
 
-航点使用当前 MavKit 坐标系的绝对坐标，单位为米；默认连接检查不进行坐标标定。起飞高度和航点 Z 的含义需结合定位原点核对。`Nav` 末端等待超过 3s 可能强制返回 SUCCESS，任务成功日志不能单独证明航点误差达标。
+航点使用当前 MavKit 坐标系的绝对坐标，单位为米；默认连接检查不进行坐标标定。起飞高度和航点 Z 的含义需结合定位原点核对。`Nav` 末端等待超过 `nav/hold_timeout`（默认 3 秒） 可能强制返回 SUCCESS，任务成功日志不能单独证明航点误差达标。
 
 #### 场景及视觉跟踪
 
@@ -344,6 +346,8 @@ roslaunch maxt_pkg vision_test.launch
 ```
 
 完整测试起飞至 2m，导航至 `(-2,2,2)`，悬停 2s，跟踪 ArUco ID 0 共 60s，最后降落。已有完整仿真时传入 `run_sim:=false`；不需要图像窗口时传入 `view_image:=false`。`vision_config` 可指定另一份识别 YAML。统一配置 `config/nav.yaml` 中 Guidance 的 `kp=0.006`，启用下视相机坐标转换，总超时为 90s。
+
+`sim.launch` 默认加载比赛地图，并复用 `launch/competition_world.launch` 中设置的背景、4 个起飞点及 6 个 ArUco 标记的位置和尺寸；修改该文件后重启仿真即可生效。传入其他 `world:=...` 时默认不生成比赛模型，也可用 `spawn_competition:=true/false` 显式控制。单独查看比赛地图可运行 `roslaunch maxt_pkg competition_world.launch`。
 
 `sim.launch` 默认飞控机型为 `iris`，Gazebo 模型为 `iris_downward_depth_camera`，相机彩色图像为 `/camera/rgb/image_raw`。可查看：
 
@@ -379,7 +383,7 @@ roslaunch maxt_pkg ugv_cowork_test.launch
 
 先准备无人机仿真或 MAVROS、定位和图像输入。任务记录起飞位置，起飞并搜索，发现标记后先对齐，再并行执行视觉伺服与小车跟随；小车到达后返回起飞点上方并降落。小车直接跟随无人机 XY，要求双方坐标系一致。
 
-已有小车 Action 服务时传入 `run_ugv_sim:=false`；其余感知与外部组件参数与区域搜索入口一致。不要同时运行 `ugv_controller.py`，它发送的目标会抢占协同任务。未找到、搜索失败、对齐失败或协同失败均转入返航；返航使用 `Nav`，失败时结束任务并保持位置，不进入降落。`Nav` 末端等待超过 3s 可能强制成功，因此返航成功不保证位置误差达标。最终 SUCCESS 表示返航降落完成，协同结果以黑板 `cowork_result` 为准。
+已有小车 Action 服务时传入 `run_ugv_sim:=false`；其余感知与外部组件参数与区域搜索入口一致。不要同时运行 `ugv_controller.py`，它发送的目标会抢占协同任务。未找到、搜索失败、对齐失败或协同失败均转入返航；返航使用 `Nav`，失败时结束任务并保持位置，不进入降落。`Nav` 末端等待超过 `nav/hold_timeout`（默认 3 秒） 可能强制成功，因此返航成功不保证位置误差达标。最终 SUCCESS 表示返航降落完成，协同结果以黑板 `cowork_result` 为准。
 
 ### 常用配置
 
@@ -474,6 +478,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `CapturePose` | `height_offset(0)` | `x`、`y`、`z` |
 | `PlayAudio` | `filename` | 无 |
 | `Takeoff` | `target_alt(0.5)` | 无 |
+| `LaLoNav` | `latitude/longitude`、`timeout(60)` | 无 |
 | `Nav` | `x/y/z`、`timeout(60)` | 无 |
 | `BasePointAzimuthFix` | 无 | `bp_x_raw/bp_y_raw/bp_z_raw` |
 | `AzimuthFixNav` | `nav_n/nav_t/nav_a`、`bp_x_raw/bp_y_raw/bp_z_raw`、`timeout(60)` | 无 |
@@ -700,3 +705,23 @@ rosrun maxt_pkg test_calibrate_tools
 初始化爬升时先调用 `RecordRawHomePose()` 记录未经处理的起飞位姿，再读取 `GetRawPose()`，保持该原始局部坐标的 XY，以 `takeoff.ascent_speed` 恒定垂直速度通过 `setRawTarget()` 和 `RAW_CTRL` 上升。目标原始高度为该次读取的 Z 加 `target_alt`，通过 `ReachAltitudeCheck()` 判定到达，随后切回 HEARTBEAT。
 
 `TouchDown` 使用 `GetRawPose()` 的 XY 作为下降保持位置，通过 `RAW_CTRL` 按配置速度下降。接地高度基准取自起飞前 `RecordRawHomePose()` 保存的位姿，即 `GetRawHomePose()` 的 Z；当前高度同样读取原始位姿，不做 Home 偏移或角度标定。原有高度、垂直速度、接地状态联合确认及持续确认时间、超时和上锁流程保持不变。
+
+### 经纬度导航
+
+`LaLoNav` 使用 WGS-84 经纬度绝对目标（度），只接收 `latitude`、`longitude` 和可选的 `timeout`，不接收 `altitude`。航行期间固定启动时的高度，由飞控高度控制器保持，不规划升降曲线。例如：
+
+```xml
+<LaLoNav latitude="31.230400" longitude="121.473700" timeout="60"/>
+```
+
+上述坐标仅为端口示例，执行任务前应替换为实际航点。节点运行前需要有效的 `/mavros/global_position/global`（`sensor_msgs/NavSatFix`）、`/mavros/global_position/rel_alt`（`std_msgs/Float64`）及 `/mavros/local_position/pose`。不依赖海拔或 NavSatFix 的椭球高。原 `LaLoAlNav` 节点已更名为 `LaLoNav`，旧 XML 需更换节点名称并移除 `altitude` 属性。
+
+启动时记录 local Z 用于高度保持误差的到达检查，记录飞控相对 Home 高度作为固定的全球设点高度。MavKit 的 `GetGlobalPose()` 返回经纬度及飞控相对 Home 高度，`hasGlobalPose()` 检查定位、相对高度及 local 位姿是否就绪。`SetGlobalRawTarget()` 设置全球 raw 设点，`GLOBAL_RAW_CTRL` 由心跳定时器向 `/mavros/setpoint_raw/global` 持续发布。节点使用 `FRAME_GLOBAL_REL_ALT` 并沿用已锁定的默认偏航，不需要叠加应用 Home Z。
+
+LaLoNav 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/lalo_max_duration` 设置安全上限（默认 60.0 秒，须为有限正数）。若 T 超过上限，记录错误并返回 FAILURE，在发送全球设点、切换 GLOBAL_RAW_CTRL 前拒绝启动。T 等于上限时允许启动。此安全门替代原 XY 偏移限制；T 仅指曲线时长，不包含 PID 末端对齐时间，与 XML 的运行总超时 `timeout` 独立。
+
+`GlobalNavCurve` 仅对水平测地距离生成五次曲线，再转换为经纬度及 ENU 水平速度、加速度；高度始终固定为起点高度，Z 速度和 Z 加速度均为零。时长估算及 `nav/v_max`、`nav/a_max` 与 Nav 一致。BT tick 采样曲线，定时器发布最近一次设点。曲线结束后仅对东、北方向做 PID 速度修正，复用 `nav/pid_kp/pid_ki/pid_kd`，各轴输出限幅 0.5 m/s、积分限幅 0.3，不做高度 PID 对齐。飞控负责位置控制及高度保持，前馈支持情况需结合飞控验证。
+
+`ReachGlobalCheck(target, altitude_raw)` 同时检查水平距离、相对启动 local Z 的高度误差和实测速度。对应配置为 `reach_check/global_position_tolerance`（代码默认 1.0 m）、`reach_check/global_altitude_tolerance`（默认 0.5 m）及 `reach_check/position_vel_tolerance`（默认 0.2 m/s）。水平距离使用 GeographicLib 的 WGS-84 椭球测地距离，容差单位为米。
+
+末端对齐共用 `nav/hold_timeout`（默认 3 秒）：从首次进入末端对齐阶段计时，达标立即返回 SUCCESS，否则超过配置时长后记录警告、切回 HEARTBEAT 并强制成功，因此 SUCCESS 不保证误差达标。任务总超时优先返回 FAILURE 并切回 HEARTBEAT；定位或相对高度无效时返回 FAILURE 并请求 SLOW_DOWN，中断同样请求 SLOW_DOWN。曲线起终点参考速度均为零。尚未进行仿真飞行验证。

@@ -7,7 +7,6 @@ namespace maxt {
 namespace {
 constexpr uint16_t TYPE_MASK = mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
 constexpr double DT_MIN = 1e-6;
-constexpr double HOLD_TIMEOUT = 3.0;
 
 mavros_msgs::PositionTarget makeTarget(const ros::Time& now) {
     mavros_msgs::PositionTarget target;
@@ -34,6 +33,7 @@ BT::PortsList AzimuthFixNavNode::providedPorts() {
 }
 
 BT::NodeStatus AzimuthFixNavNode::onStart() {
+    nh_.param<double>("nav/hold_timeout", hold_timeout_, 3.0);
     double n, t, a, bx, by, bz;
     if (!getInput("nav_n", n) || !getInput("nav_t", t) || !getInput("nav_a", a) ||
         !getInput("bp_x_raw", bx) || !getInput("bp_y_raw", by) ||
@@ -123,8 +123,9 @@ BT::NodeStatus AzimuthFixNavNode::onRunning() {
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
-    if ((now - hold_start_).toSec() > HOLD_TIMEOUT) {
-        ROS_WARN("[AzimuthFixNav] Hold timeout (3s), err=%.3f. Forcing SUCCESS.", error);
+    if ((now - hold_start_).toSec() > hold_timeout_) {
+        ROS_WARN("[AzimuthFixNav] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
+                 (now - hold_start_).toSec(), error);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }

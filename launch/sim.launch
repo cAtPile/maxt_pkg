@@ -15,6 +15,7 @@
     <arg name="vehicle" default="iris"/>
     <arg name="gazebo_model" default="iris_downward_depth_camera"/>
     <arg name="world" default="$(find maxt_pkg)/worlds/competition.world"/>
+    <arg name="spawn_competition" default="$(eval arg('world') == find('maxt_pkg') + '/worlds/competition.world')"/>
     <arg name="sdf" default="$(find mavlink_sitl_gazebo)/models/$(arg gazebo_model)/$(arg gazebo_model).sdf"/>
 
     <!-- Resolve tracking_target while preserving existing PX4 model paths. -->
@@ -60,6 +61,10 @@
         <arg name="verbose" value="$(arg verbose)"/>
         <arg name="paused" value="$(arg paused)"/>
         <arg name="respawn_gazebo" value="$(arg respawn_gazebo)"/>
+    </include>
+    <!-- The competition world contains only the base ground; spawn its configured panels. -->
+    <include if="$(arg spawn_competition)" file="$(find maxt_pkg)/launch/competition_world.launch">
+        <arg name="start_gazebo" value="false"/>
     </include>
     <!-- The model plugin reads these once, then updates on each physics step. -->
     <group ns="moving_target">

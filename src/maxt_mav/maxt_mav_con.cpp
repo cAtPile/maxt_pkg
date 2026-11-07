@@ -29,6 +29,9 @@ bool MavKit::mavInit(ros::NodeHandle& nh) {
     nh_.param<double>("reach_check/position_pose_tolerance", position_pose_tolerance_, 0.1);
     nh_.param<double>("reach_check/position_vel_tolerance", position_vel_tolerance_, 0.2);
 
+    nh_.param<double>("reach_check/global_position_tolerance", global_position_tolerance_, 1.0);
+    nh_.param<double>("reach_check/global_altitude_tolerance", global_altitude_tolerance_, 0.5);
+
     // 3. 初始化 ROS 通信对象
     state_sub_ = nh_.subscribe<mavros_msgs::State>(
         "/mavros/state", 1, &MavKit::stateCb, this);
@@ -48,6 +51,13 @@ bool MavKit::mavInit(ros::NodeHandle& nh) {
     raw_setpoint_pub_ = nh_.advertise<mavros_msgs::PositionTarget>(
         "/mavros/setpoint_raw/local", 10);
 
+    global_pose_sub_ = nh_.subscribe<sensor_msgs::NavSatFix>(
+        "/mavros/global_position/global", 1, &MavKit::globalPoseCb, this);
+    global_altitude_sub_ = nh_.subscribe<std_msgs::Float64>(
+        "/mavros/global_position/rel_alt", 1, &MavKit::globalAltitudeCb, this);
+    global_raw_setpoint_pub_ = nh_.advertise<mavros_msgs::GlobalPositionTarget>(
+        "/mavros/setpoint_raw/global", 10);
+
     // 4. 初始化 Service 客户端
     arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
@@ -58,49 +68,6 @@ bool MavKit::mavInit(ros::NodeHandle& nh) {
 
     ROS_INFO("MavKit initialized. Waiting for MAVROS connection...");
     return true;
-}
-
-void MavKit::setSetpointMode(SetpointMode mode) {
-    std::lock_guard<std::mutex> lock(data_mtx_);
-    const ros::Time now = ros::Time::now();
-    if (mode == SetpointMode::SLOW_DOWN) {
-        // 重复停止请求不重置减速时间。
-        if (velocity_transition_ && transition_end_mode_ == SetpointMode::HEARTBEAT) return;
-        startVelocityTransition(Eigen::Vector3d::Zero(), now);
-        transition_end_mode_ = SetpointMode::HEARTBEAT;
-        return;
-    }
-    if (velocity_transition_ && setpoint_mode_ == SetpointMode::SLOW_DOWN) {
-        if (mode == SetpointMode::HEARTBEAT) {
-            // Guidance 初始化/等待反馈也会请求心跳，不能跳过尚未完成的减速。
-            if (transition_end_mode_ != SetpointMode::HEARTBEAT) {
-                startVelocityTransition(Eigen::Vector3d::Zero(), now);
-                transition_end_mode_ = SetpointMode::HEARTBEAT;
-            }
-            return;
-        }
-        if (mode == SetpointMode::RAW_CTRL) {
-            Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
-            if (!(raw_target_.type_mask & mavros_msgs::PositionTarget::IGNORE_VX)) velocity.x() = raw_target_.velocity.x;
-            if (!(raw_target_.type_mask & mavros_msgs::PositionTarget::IGNORE_VY)) velocity.y() = raw_target_.velocity.y;
-            if (!(raw_target_.type_mask & mavros_msgs::PositionTarget::IGNORE_VZ)) velocity.z() = raw_target_.velocity.z;
-            // 相同速度目标不重新计时，确保重复发布也能完成过渡。
-            if (transition_end_mode_ == SetpointMode::RAW_CTRL &&
-                (velocity - transition_velocity_).squaredNorm() < 1e-12) return;
-            startVelocityTransition(velocity, now);//TODO：这是什么？
-            transition_end_mode_ = SetpointMode::RAW_CTRL;
-            return;
-        }
-        if (mode == SetpointMode::CONTROL) {
-            setQuinticCurveTargetLocked(Eigen::Vector3d(target_pose_.pose.position.x,
-                                                       target_pose_.pose.position.y,
-                                                       target_pose_.pose.position.z), now);
-            setpoint_mode_ = SetpointMode::CURVE_CTRL;
-            return;
-        }
-    }
-    if (mode != SetpointMode::CURVE_CTRL) velocity_transition_ = false;
-    setpoint_mode_ = mode;
 }
 
 void MavKit::mavCalibrate(double mapx, double mapy, double factx, double facty) {

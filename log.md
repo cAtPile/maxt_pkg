@@ -181,6 +181,3 @@
                 4. 位置监看
                 5. 定义名称
         
-```
-rosservice call /mavros/cmd/arming "value: true"
-```

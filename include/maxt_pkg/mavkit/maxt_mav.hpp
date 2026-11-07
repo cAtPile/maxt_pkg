@@ -14,6 +14,9 @@
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/PositionTarget.h>
+#include <mavros_msgs/GlobalPositionTarget.h>
+#include <std_msgs/Float64.h>
+#include <sensor_msgs/NavSatFix.h>
 #include <maxt_pkg/calibrate_tools.hpp>
 #include <maxt_pkg/quintic_curve.hpp>
 #include <maxt_pkg/audio_caller.hpp>
@@ -39,6 +42,7 @@ enum class SetpointMode {
     RAW_CTRL,   // 原始设定值模式(setpoint_raw)
     STANDBY,    // 待机模式
     CURVE_CTRL, // 定时器采样五次曲线并发布 p/v/a
+    GLOBAL_RAW_CTRL, // 全球经纬度目标
     SLOW_DOWN   // 独立执行减速及接管过渡曲线
 };
 
@@ -105,6 +109,15 @@ public:
      * @param target 原始目标 (PositionTarget message)
      */
     void setRawTarget(const mavros_msgs::PositionTarget& target);
+
+    // 全球目标直接发布；FRAME_GLOBAL_INT 的高度为海拔米。
+    void SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target);
+    // 经纬度及飞控相对 Home 高度，FRAME_GLOBAL_REL_ALT。
+    mavros_msgs::GlobalPositionTarget GetGlobalPose() const;
+    bool hasGlobalPose() const;
+    // 水平按经纬度测地距离检查，高度按原始 local Z 检查。
+    bool ReachGlobalCheck(const mavros_msgs::GlobalPositionTarget& target,
+                          double altitude_raw) const;
 
     // 设置世界坐标系目标，终点速度、加速度为零；随后切换到 CURVE_CTRL。
     void setQuinticCurveTarget(const Eigen::Vector3d& position);
@@ -200,11 +213,16 @@ public:
     void updateHomePose();  
 
 private:
-    // 回调函数
+    // ROS 订阅回调，统一实现在 src/mavkit/callback.cpp。
     void stateCb(const mavros_msgs::State::ConstPtr& msg);
     void extendedStateCb(const mavros_msgs::ExtendedState::ConstPtr& msg);
     void poseCb(const geometry_msgs::PoseStamped::ConstPtr& msg);
     void twistCb(const geometry_msgs::TwistStamped::ConstPtr& msg);
+
+    void globalPoseCb(const sensor_msgs::NavSatFix::ConstPtr& msg);
+    void globalAltitudeCb(const std_msgs::Float64::ConstPtr& msg);
+
+    // 定时器回调，实现在 src/mavkit/timer.cpp。
     void heartbeatTimerCallback(const ros::TimerEvent& event);
 
     // 调用方持有 data_mtx_，采样当前曲线并填充原始参考设点。
@@ -230,6 +248,10 @@ private:
     double default_yaw_{0.0};
     bool has_default_yaw_{false};
     mavros_msgs::PositionTarget raw_target_;
+    mavros_msgs::GlobalPositionTarget global_target_;
+    mavros_msgs::GlobalPositionTarget global_pose_;
+    bool has_global_fix_{false};
+    bool has_global_altitude_{false};
     mavros_msgs::PositionTarget curve_raw_target_;
     CurveState curve_state_;
     QuinticCurve curve_;
@@ -244,6 +266,8 @@ private:
 
     // ROS 句柄
     ros::Subscriber state_sub_, extended_state_sub_, pose_sub_, twist_sub_;
+    ros::Subscriber global_pose_sub_, global_altitude_sub_;
+    ros::Publisher global_raw_setpoint_pub_;
     ros::Publisher setpoint_pub_;
     ros::Publisher raw_setpoint_pub_;
     ros::ServiceClient arming_client_, mode_client_;
@@ -260,6 +284,9 @@ private:
     double vertical_vel_tolerance_{0.2};
     double position_pose_tolerance_{0.1};
     double position_vel_tolerance_{0.2};
+
+    double global_position_tolerance_{1.0};
+    double global_altitude_tolerance_{0.5};
 
     // 标定工具
     CalibrateTools calib_;

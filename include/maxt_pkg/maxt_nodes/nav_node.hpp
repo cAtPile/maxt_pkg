@@ -29,6 +29,7 @@ private:
     ros::Time last_time_;
     ros::Time hold_start_;
     bool holding_{false};
+    double hold_timeout_{3.0};
 
     PIDController pid_x_, pid_y_, pid_z_;
 };

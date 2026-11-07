@@ -26,6 +26,7 @@ private:
     double duration_{1.0}, tolerance_{0.1}, timeout_{60.0};
     ros::Time start_time_, last_time_, hold_start_;
     bool holding_{false};
+    double hold_timeout_{3.0};
 };
 
 } // namespace maxt

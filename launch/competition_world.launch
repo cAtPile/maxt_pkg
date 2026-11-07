@@ -3,6 +3,8 @@
   <arg name="world" default="$(find maxt_pkg)/worlds/competition.world"/>
   <arg name="gui" default="true"/>
   <arg name="paused" default="false"/>
+  <!-- PX4 sim.launch already starts Gazebo; reuse its spawn services. -->
+  <arg name="start_gazebo" default="true"/>
 
   <arg name="background_x" default="15"/>
   <arg name="background_y" default="15"/>
@@ -36,7 +38,7 @@
   <arg name="aruco_5_y" default="17.9"/>
 
   <env name="GAZEBO_MODEL_PATH" value="$(find maxt_pkg)/models:$(optenv GAZEBO_MODEL_PATH)"/>
-  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+  <include if="$(arg start_gazebo)" file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(arg world)"/>
     <arg name="gui" value="$(arg gui)"/>
     <arg name="paused" value="$(arg paused)"/>

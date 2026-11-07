@@ -1,5 +1,6 @@
 #include <maxt_pkg/mavkit/maxt_mav.hpp>
 #include <cmath>
+#include <GeographicLib/Geodesic.hpp>
 
 namespace maxt {
 
@@ -23,6 +24,24 @@ bool MavKit::ReachPoseCheck(geometry_msgs::PoseStamped pose_raw) const {
                                    linear.y * linear.y +
                                    linear.z * linear.z);
     return distance <= position_pose_tolerance_ && speed <= position_vel_tolerance_;
+}
+
+bool MavKit::ReachGlobalCheck(const mavros_msgs::GlobalPositionTarget& target,
+                              double altitude_raw) const {
+    std::lock_guard<std::mutex> lock(data_mtx_);
+    if (!has_global_fix_ || !has_pose_) return false;
+
+    // WGS-84 椭球上的最短测地距离，单位为米，避免球体近似误差。
+    double distance;
+    GeographicLib::Geodesic::WGS84().Inverse(
+        global_pose_.latitude, global_pose_.longitude,
+        target.latitude, target.longitude, distance);
+    const auto& velocity = current_twist_.twist.linear;
+    const double speed = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y +
+                                   velocity.z * velocity.z);
+    return distance <= global_position_tolerance_ &&
+        std::abs(current_pose_.pose.position.z - altitude_raw) <= global_altitude_tolerance_ &&
+        speed <= position_vel_tolerance_;
 }
 
 } // namespace maxt
