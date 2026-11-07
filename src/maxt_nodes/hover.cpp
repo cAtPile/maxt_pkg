@@ -21,7 +21,7 @@ BT::NodeStatus HoverNode::onStart() {
 
     const auto& position = start_hover_pose_.pose.position;
     mav_.setTargetPose(position.x, position.y, position.z);
-    mav_.setSetpointMode(SetpointMode::CONTROL);
+    mav_.setSetpointMode(SetpointMode::RAW_CTRL);
 
     ROS_INFO("HoverNode: holding at (%.2f, %.2f, %.2f) for %.2f s",
              position.x, position.y, position.z, hover_duration_);

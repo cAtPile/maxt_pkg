@@ -477,7 +477,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `ConnectCheck` | `map_x/map_y/fact_x/fact_y(0)` | 无 |
 | `CapturePose` | `height_offset(0)` | `x`、`y`、`z` |
 | `PlayAudio` | `filename` | 无 |
-| `Takeoff` | `target_alt(0.5)` | 无 |
+| `Takeoff` | `target_alt(0.5)` | `home_x`、`home_y`、`home_z`、`return_z` |
 | `LaLoNav` | `latitude/longitude`、`timeout(60)` | 无 |
 | `Nav` | `x/y/z`、`timeout(60)` | 无 |
 | `BasePointAzimuthFix` | 无 | `bp_x_raw/bp_y_raw/bp_z_raw` |
@@ -701,6 +701,8 @@ rosrun maxt_pkg test_calibrate_tools
 起飞、后续跟踪、协同、返航和降落由父树负责。两份测试任务 XML 已采用此子树。
 
 `Takeoff` 持续等待外部解锁，不主动发送解锁请求，不设置等待解锁超时。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
+
+`Takeoff` 在开始爬升前等待有效定位，将标定坐标系中的起飞位置输出到 `home_x/home_y/home_z`，并将起飞 Z 加 `target_alt` 输出到 `return_z`。输出端口按需映射到黑板，每次执行重新记录，爬升过程中不覆盖。例如 `<Takeoff target_alt="4.0" home_x="{home_x}" home_y="{home_y}" home_z="{home_z}" return_z="{return_z}" />`；随后用 `<Nav x="{home_x}" y="{home_y}" z="{return_z}" />` 返回起飞点上方，再执行 `<TouchDown />`。
 
 初始化爬升时先调用 `RecordRawHomePose()` 记录未经处理的起飞位姿，再读取 `GetRawPose()`，保持该原始局部坐标的 XY，以 `takeoff.ascent_speed` 恒定垂直速度通过 `setRawTarget()` 和 `RAW_CTRL` 上升。目标原始高度为该次读取的 Z 加 `target_alt`，通过 `ReachAltitudeCheck()` 判定到达，随后切回 HEARTBEAT。
 

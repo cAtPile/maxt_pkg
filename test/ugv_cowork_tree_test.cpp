@@ -37,10 +37,11 @@ public:
 
     BT::NodeStatus onStart() override {
         ticks_ = 0;
-        if (kind_ == "CapturePose") {
-            setOutput("x", 1.25);
-            setOutput("y", -0.75);
-            setOutput("z", 4.5);
+        if (kind_ == "Takeoff") {
+            setOutput("home_x", 1.25);
+            setOutput("home_y", -0.75);
+            setOutput("home_z", 0.5);
+            setOutput("return_z", 0.5 + getInput<double>("target_alt").value());
         } else if (kind_ == "FoundCheck") {
             ++scenario_.detections;
             return scenario_.name != "not_found" && scenario_.detections >= 3
