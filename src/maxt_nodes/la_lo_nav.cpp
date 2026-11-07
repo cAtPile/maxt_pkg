@@ -124,8 +124,8 @@ BT::NodeStatus LaLoNavNode::onRunning() {
 
 
 void LaLoNavNode::onHalted() {
-    // 先记录实测中断点，再触发减速；不保存轨迹参考点或最终目标。
-    const auto pose = mav_.GetHomeCalibratePose();
+    // 记录原始 local 实测中断点，不做 Home 偏移或标定旋转，再触发减速。
+    const auto pose = mav_.GetRawPose();
     const auto& p = pose.pose.position;
     const bool valid = !pose.header.stamp.isZero() &&
         std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z);

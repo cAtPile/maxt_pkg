@@ -1,23 +1,13 @@
 <root main_tree_to_execute="RegionTraverseTest">
-    <include path="subtree/VisionRegionTraverse.xml" />
+    <include path="subtree/VisionRegionTraverseResume.xml" />
     <BehaviorTree ID="RegionTraverseTest">
         <Sequence>
             <ConnectCheck />
             <Takeoff target_alt="4.0" />
-            <SubTreePlus ID="VisionRegionTraverse"
+            <SubTreePlus ID="VisionRegionTraverseResume"
                      origin_x="0" origin_y="0" length_x="-6" length_y="6"
                      coverage_step="1" altitude="4.0"
                      result="{region_search_result}" />
-            <!-- 使用搜索时记录的结果；短暂丢失目标不会跳过已经触发的跟踪。 -->
-            <Switch2 variable="{region_search_result}" case_1="found" case_2="complete">
-                <!-- 跟踪成功或失败都进入后续降落，失败原因保留在 guidance_message。 -->
-                <ForceSuccess>
-                    <Guidance target_id="0" tracking_duration="60.0"
-                              timeout="90.0" message="{guidance_message}" />
-                </ForceSuccess>
-                <AlwaysSuccess />
-                <AlwaysFailure />
-            </Switch2>
             <TouchDown />
         </Sequence>
     </BehaviorTree>

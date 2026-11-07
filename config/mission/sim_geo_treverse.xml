@@ -1,34 +1,19 @@
 <root main_tree_to_execute="SimGeoTraverse">
-    <include path="subtree/GeoAzimuthRegionTraverse.xml" />
+    <include path="subtree/VisionGeoAzimuthRegionTraverseResume.xml" />
     <BehaviorTree ID="SimGeoTraverse">
         <Sequence>
             <ConnectCheck />
             <SetBlackboard output_key="work_alt" value="6.0" />
             <Takeoff target_alt="6.0" home_x="{home_x}" home_y="{home_y}"/>
             <ReHeading/>
-            <!-- 地理导航和区域遍历期间检测目标，命中后停止当前导航。 -->
-            <ReactiveFallback>
-                <Sequence>
-                    <FoundCheck topic="/aruco_center/is_found" />
-                    <SetBlackboard output_key="region_result" value="found" />
-                </Sequence>
-                <SubTreePlus ID="GeoAzimuthRegionTraverse"
-                             latitude="47.3977419" longitude="8.5455939"
-                             origin_x="0" origin_y="0"
-                             length_x="30" length_y="30"
-                             coverage_step="6"
-                             height_above_base="0"
-                             result="{region_result}" />
-            </ReactiveFallback>
-            <!-- 使用已记录的结果；伺服成功或失败均继续返航和降落。 -->
-            <Switch2 variable="{region_result}" case_1="found" case_2="complete">
-                <ForceSuccess>
-                    <Guidance target_id="0" tracking_duration="0.0"
-                              timeout="90.0" message="{guidance_message}" />
-                </ForceSuccess>
-                <AlwaysSuccess />
-                <AlwaysFailure />
-            </Switch2>
+            <!-- 各航段独立处理目标中断，处理成功后继续下一航点。 -->
+            <SubTreePlus ID="VisionGeoAzimuthRegionTraverseResume"
+                         latitude="47.3977419" longitude="8.5455939"
+                         origin_x="0" origin_y="0"
+                         length_x="30" length_y="30"
+                         coverage_step="6"
+                         height_above_base="0"
+                         result="{region_result}" />
             <Hover hover_duration="3.0" />
             <Nav x="{home_x}" y="{home_y}" z="{work_alt}"/>
             <TouchDown />

@@ -153,6 +153,7 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/la_lo_nav.cpp
   src/maxt_nodes/re_heading.cpp
   src/maxt_nodes/nav.cpp
+  src/maxt_nodes/nav_raw.cpp
   src/maxt_nodes/base_point_azimuth_fix.cpp
   src/maxt_nodes/azimuth_fix_nav.cpp
 )
@@ -261,6 +262,14 @@ if(CATKIN_ENABLE_TESTING)
   if(TARGET test_calibrate_tools)
     target_link_libraries(test_calibrate_tools ${catkin_LIBRARIES})
   endif()
+
+  add_executable(nav_breakpoint_tree_test test/nav_breakpoint_tree_test.cpp)
+  add_dependencies(nav_breakpoint_tree_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+  target_link_libraries(nav_breakpoint_tree_test ${PROJECT_NAME} ${catkin_LIBRARIES})
+  add_test(NAME nav_breakpoint_tree
+    COMMAND nav_breakpoint_tree_test
+      ${CMAKE_CURRENT_SOURCE_DIR}/config/mission/region_traverse_test.xml
+      ${CMAKE_CURRENT_SOURCE_DIR}/config/mission/sim_geo_treverse.xml)
 
   add_executable(ugv_cowork_tree_test test/ugv_cowork_tree_test.cpp)
   add_dependencies(ugv_cowork_tree_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

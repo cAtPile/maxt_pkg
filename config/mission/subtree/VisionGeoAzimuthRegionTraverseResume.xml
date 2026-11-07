@@ -1,0 +1,31 @@
+<root>
+    <include path="VisionAzimuthRegionTraverseResume.xml" />
+    <!-- 输入：latitude/longitude（度），以及 AzimuthRegionTraverse 的区域参数。
+         调用前应完成起飞；LaLoNav 保持启动高度。
+         经纬度导航成功后记录实际原始本地位置作为区域基点，存在到达误差。
+         当前 LaLoNav 末端对齐超时也可能返回 SUCCESS，故不保证严格到达指定经纬度。
+         height_above_base=0 表示保持记录基点时的高度。
+         发现目标后按断点处理流程继续；经纬度航段被中断时，处理后直接在断点建立区域基点。
+         输出：result = complete / failed；不负责返航或降落。 -->
+    <BehaviorTree ID="VisionGeoAzimuthRegionTraverseResume">
+        <Sequence>
+            <SetBlackboard output_key="result" value="failed" />
+            <SetBlackboard output_key="target_armed" value="true" />
+            <SubTreePlus ID="LaLoNavWithTargetHandling" latitude="{latitude}" longitude="{longitude}"
+                         target_armed="{target_armed}" tracking_duration="0.0"
+                         guidance_message="{guidance_message}" />
+            <BasePointAzimuthFix bp_x_raw="{region_bp_x_raw}"
+                                 bp_y_raw="{region_bp_y_raw}"
+                                 bp_z_raw="{region_bp_z_raw}" />
+            <SubTreePlus ID="VisionAzimuthRegionTraverseResume"
+                         bp_x_raw="{region_bp_x_raw}" bp_y_raw="{region_bp_y_raw}"
+                         bp_z_raw="{region_bp_z_raw}"
+                         origin_x="{origin_x}" origin_y="{origin_y}"
+                         length_x="{length_x}" length_y="{length_y}"
+                         coverage_step="{coverage_step}"
+                         height_above_base="{height_above_base}"
+                         result="{result}" target_armed="{target_armed}"
+                         guidance_message="{guidance_message}" />
+        </Sequence>
+    </BehaviorTree>
+</root>

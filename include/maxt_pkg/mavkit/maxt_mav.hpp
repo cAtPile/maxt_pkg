@@ -121,7 +121,8 @@ public:
                           double altitude_raw) const;
 
     // 设置世界坐标系目标，终点速度、加速度为零；随后切换到 CURVE_CTRL。
-    void setQuinticCurveTarget(const Eigen::Vector3d& position);
+    // raw_local=true：目标、曲线状态和发布均使用原始 local 坐标。
+    void setQuinticCurveTarget(const Eigen::Vector3d& position, bool raw_local = false);
     double getCurveTime() const;
 
     /**
@@ -256,6 +257,7 @@ private:
     bool has_global_altitude_{false};
     mavros_msgs::PositionTarget curve_raw_target_;
     CurveState curve_state_;
+    bool curve_raw_local_{false};
     QuinticCurve curve_;
     ros::Time curve_start_;
     double curve_time_{1.0};
