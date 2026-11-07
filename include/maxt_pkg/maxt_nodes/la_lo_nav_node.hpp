@@ -24,6 +24,8 @@ private:
     GlobalNavCurve curve_;
     PIDController pid_east_, pid_north_;
     mavros_msgs::GlobalPositionTarget target_;
+    geometry_msgs::PoseStamped start_local_pose_;
+    double safety_xy_limit_{10.0};
     ros::Time start_time_, last_time_, hold_start_;
     bool holding_{false};
     double hold_timeout_{3.0};

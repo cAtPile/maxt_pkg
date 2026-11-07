@@ -347,6 +347,8 @@ roslaunch maxt_pkg vision_test.launch
 
 完整测试起飞至 2m，导航至 `(-2,2,2)`，悬停 2s，跟踪 ArUco ID 0 共 60s，最后降落。已有完整仿真时传入 `run_sim:=false`；不需要图像窗口时传入 `view_image:=false`。`vision_config` 可指定另一份识别 YAML。统一配置 `config/nav.yaml` 中 Guidance 的 `kp=0.006`，启用下视相机坐标转换，总超时为 90s。
 
+`sim.launch` 默认加载比赛地图，并复用 `launch/competition_world.launch` 中设置的背景、4 个起飞点及 6 个 ArUco 标记的位置和尺寸；修改该文件后重启仿真即可生效。传入其他 `world:=...` 时默认不生成比赛模型，也可用 `spawn_competition:=true/false` 显式控制。单独查看比赛地图可运行 `roslaunch maxt_pkg competition_world.launch`。
+
 `sim.launch` 默认飞控机型为 `iris`，Gazebo 模型为 `iris_downward_depth_camera`，相机彩色图像为 `/camera/rgb/image_raw`。可查看：
 
 ```bash
@@ -715,6 +717,8 @@ rosrun maxt_pkg test_calibrate_tools
 上述坐标仅为端口示例，执行任务前应替换为实际航点。节点运行前需要有效的 `/mavros/global_position/global`（`sensor_msgs/NavSatFix`）、`/mavros/global_position/rel_alt`（`std_msgs/Float64`）及 `/mavros/local_position/pose`。不依赖海拔或 NavSatFix 的椭球高。原 `LaLoAlNav` 节点已更名为 `LaLoNav`，旧 XML 需更换节点名称并移除 `altitude` 属性。
 
 启动时记录 local Z 用于高度保持误差的到达检查，记录飞控相对 Home 高度作为固定的全球设点高度。MavKit 的 `GetGlobalPose()` 返回经纬度及飞控相对 Home 高度，`hasGlobalPose()` 检查定位、相对高度及 local 位姿是否就绪。`SetGlobalRawTarget()` 设置全球 raw 设点，`GLOBAL_RAW_CTRL` 由心跳定时器向 `/mavros/setpoint_raw/global` 持续发布。节点使用 `FRAME_GLOBAL_REL_ALT` 并沿用已锁定的默认偏航，不需要叠加应用 Home Z。
+
+每次启动时同时保存原始 local pose 作为 XY 安全门中心。`config/nav.yaml` 的 `nav/lalo_safety_xy_limit` 默认 10.0 米，须为有限正数；当实际位置相对该中心的 X 或 Y 偏移绝对值超过限值时，立即请求 SLOW_DOWN 并返回 FAILURE，优先于到达、总超时和末端强制成功判定。范围为各轴 ±10 米的矩形，不是半径 10 米的圆；重新启动节点时重新记录中心。该检查在 BT tick 执行，减速仍有制动距离，因此不是硬围栏，也不会直接降落或退出整个行为树，后续行为由父节点处理。
 
 `GlobalNavCurve` 仅对水平测地距离生成五次曲线，再转换为经纬度及 ENU 水平速度、加速度；高度始终固定为起点高度，Z 速度和 Z 加速度均为零。时长估算及 `nav/v_max`、`nav/a_max` 与 Nav 一致。BT tick 采样曲线，定时器发布最近一次设点。曲线结束后仅对东、北方向做 PID 速度修正，复用 `nav/pid_kp/pid_ki/pid_kd`，各轴输出限幅 0.5 m/s、积分限幅 0.3，不做高度 PID 对齐。飞控负责位置控制及高度保持，前馈支持情况需结合飞控验证。
 

@@ -12,6 +12,11 @@ BT::PortsList LaLoNavNode::providedPorts() {
 
 BT::NodeStatus LaLoNavNode::onStart() {
     nh_.param<double>("nav/hold_timeout", hold_timeout_, 3.0);
+    nh_.param<double>("nav/lalo_safety_xy_limit", safety_xy_limit_, 10.0);
+    if (!std::isfinite(safety_xy_limit_) || safety_xy_limit_ <= 0.0) {
+        ROS_ERROR("[LaLoNav] nav/lalo_safety_xy_limit must be finite and positive.");
+        return BT::NodeStatus::FAILURE;
+    }
     if (!getInput<double>("latitude", target_.latitude) ||
         !getInput<double>("longitude", target_.longitude)) {
         ROS_ERROR("[LaLoNav] Missing latitude/longitude.");
@@ -23,7 +28,8 @@ BT::NodeStatus LaLoNavNode::onStart() {
     }
     getInput<double>("timeout", timeout_);
     // 固定启动时的相对高度设点；到达检查使用同一时刻附近的 local Z。
-    altitude_raw_ = mav_.GetRawPose().pose.position.z;
+    start_local_pose_ = mav_.GetRawPose();
+    altitude_raw_ = start_local_pose_.pose.position.z;
     const auto start = mav_.GetGlobalPose();
     target_.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
     target_.altitude = start.altitude;
@@ -53,6 +59,16 @@ BT::NodeStatus LaLoNavNode::onStart() {
 }
 
 BT::NodeStatus LaLoNavNode::onRunning() {
+    // 安全门优先于超时和强制成功；使用原始 local 坐标，不受 Home 偏移影响。
+    const auto local_pose = mav_.GetRawPose();
+    const double dx = local_pose.pose.position.x - start_local_pose_.pose.position.x;
+    const double dy = local_pose.pose.position.y - start_local_pose_.pose.position.y;
+    if (std::abs(dx) > safety_xy_limit_ || std::abs(dy) > safety_xy_limit_) {
+        ROS_ERROR("[LaLoNav] XY safety limit exceeded: dx=%.2f dy=%.2f limit=+/-%.2f m. Slowing down.",
+                  dx, dy, safety_xy_limit_);
+        mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+        return BT::NodeStatus::FAILURE;
+    }
     const auto now = ros::Time::now();
     const double elapsed = (now - start_time_).toSec();
     if (elapsed > timeout_) {
