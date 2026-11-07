@@ -15,7 +15,7 @@
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/nav_node.hpp>
-#include <maxt_pkg/maxt_nodes/la_lo_al_nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/la_lo_nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/base_point_azimuth_fix_node.hpp>
 #include <maxt_pkg/maxt_nodes/azimuth_fix_nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/found_check_node.hpp>
@@ -104,9 +104,9 @@ void MaxtCore::registerNodes() {
             return std::make_unique<TakeoffNode>(name, config, *mav_);
         });
 
-    factory_.registerBuilder<LaLoAlNavNode>("LaLoAlNav",
+    factory_.registerBuilder<LaLoNavNode>("LaLoNav",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<LaLoAlNavNode>(name, config, *mav_, nh_);
+            return std::make_unique<LaLoNavNode>(name, config, *mav_, nh_);
         });
 
     factory_.registerBuilder<NavNode>("Nav",

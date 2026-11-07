@@ -1,5 +1,5 @@
-#ifndef MAXT_NODES_LA_LO_AL_NAV_HPP
-#define MAXT_NODES_LA_LO_AL_NAV_HPP
+#ifndef MAXT_NODES_LA_LO_NAV_HPP
+#define MAXT_NODES_LA_LO_NAV_HPP
 
 #include <maxt_pkg/maxt_nodes.hpp>
 #include <maxt_pkg/global_nav_curve.hpp>
@@ -7,10 +7,10 @@
 
 namespace maxt {
 
-// 经纬度绝对目标导航；输入高度相对起飞点，内部叠加 Home Z。
-class LaLoAlNavNode : public MavActionNode {
+// 经纬度绝对目标导航；保持启动时的高度，不接收高度目标。
+class LaLoNavNode : public MavActionNode {
 public:
-    LaLoAlNavNode(const std::string& name, const BT::NodeConfiguration& config,
+    LaLoNavNode(const std::string& name, const BT::NodeConfiguration& config,
                    MavKit& mav, const ros::NodeHandle& nh)
         : MavActionNode(name, config, mav), nh_(nh) {}
 
@@ -22,7 +22,7 @@ public:
 private:
     ros::NodeHandle nh_;
     GlobalNavCurve curve_;
-    PIDController pid_east_, pid_north_, pid_altitude_;
+    PIDController pid_east_, pid_north_;
     mavros_msgs::GlobalPositionTarget target_;
     ros::Time start_time_, last_time_, hold_start_;
     bool holding_{false};

@@ -20,7 +20,7 @@ double norm(const geometry_msgs::Vector3& v) {
 TEST(GlobalNavCurve, ExactEndpointsAndZeroBoundaryDerivatives) {
     maxt::GlobalNavCurve curve;
     const auto start = pose(31.2, 121.4, 20.0f);
-    const auto goal = pose(31.2001, 121.4002, 25.0f);
+    const auto goal = pose(31.2001, 121.4002, 20.0f);
     curve.setTarget(start, goal, 2.5, 1.2);
     const auto first = curve.sample(0.0);
     EXPECT_NEAR(first.latitude, start.latitude, 1e-12);
@@ -48,7 +48,7 @@ TEST(GlobalNavCurve, EnuDirectionsAndVelocityLimits) {
         const auto mid = curve.sample(curve.duration() / 2.0);
         if (goal.longitude > 0.0) EXPECT_GT(mid.velocity.x, 0.0);
         if (goal.latitude > 0.0) EXPECT_GT(mid.velocity.y, 0.0);
-        if (goal.altitude > 10.0f) EXPECT_GT(mid.velocity.z, 0.0);
+        EXPECT_DOUBLE_EQ(mid.velocity.z, 0.0);
         for (int i = 0; i <= 100; ++i) {
             const auto target = curve.sample(curve.duration() * i / 100.0);
             EXPECT_LE(norm(target.velocity), 2.5);
@@ -77,7 +77,7 @@ TEST(GlobalNavCurve, CrossingAntimeridianUsesShortPathAndConsistentVelocity) {
 TEST(GlobalNavCurve, PreservesRelativeAltitudeFrame) {
     maxt::GlobalNavCurve curve;
     auto start = pose(31.2, 121.4, 4.0f);
-    auto goal = pose(31.2001, 121.4, 7.0f);
+    auto goal = pose(31.2001, 121.4, 4.0f);
     start.coordinate_frame = Target::FRAME_GLOBAL_REL_ALT;
     goal.coordinate_frame = Target::FRAME_GLOBAL_REL_ALT;
     curve.setTarget(start, goal, 2.5, 1.2);
@@ -85,7 +85,18 @@ TEST(GlobalNavCurve, PreservesRelativeAltitudeFrame) {
         EXPECT_EQ(curve.sample(t).coordinate_frame, Target::FRAME_GLOBAL_REL_ALT);
     }
     EXPECT_FLOAT_EQ(curve.sample(0.0).altitude, 4.0f);
-    EXPECT_FLOAT_EQ(curve.sample(curve.duration()).altitude, 7.0f);
+    EXPECT_FLOAT_EQ(curve.sample(curve.duration()).altitude, 4.0f);
+}
+
+TEST(GlobalNavCurve, HoldsStartAltitudeThroughoutHorizontalFlight) {
+    maxt::GlobalNavCurve curve;
+    curve.setTarget(pose(31.2, 121.4, 8.0f), pose(31.2001, 121.4002, 30.0f), 2.5, 1.2);
+    for (int i = 0; i <= 110; ++i) {
+        const auto target = curve.sample(curve.duration() * i / 100.0);
+        EXPECT_FLOAT_EQ(target.altitude, 8.0f);
+        EXPECT_DOUBLE_EQ(target.velocity.z, 0.0);
+        EXPECT_DOUBLE_EQ(target.acceleration_or_force.z, 0.0);
+    }
 }
 
 TEST(GlobalNavCurve, CoincidentGoalRemainsStationary) {
