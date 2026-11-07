@@ -70,6 +70,7 @@ private:
     // BehaviorTree 相关
     BT::BehaviorTreeFactory factory_;
     BT::Tree tree_;
+    BT::Blackboard::Ptr mission_blackboard_{BT::Blackboard::create()};
     
     // 日志与调试
     std::unique_ptr<BT::StdCoutLogger> logger_;

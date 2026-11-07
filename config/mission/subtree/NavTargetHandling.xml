@@ -1,17 +1,17 @@
 <root>
     <!-- 每段导航至少启动一次后才允许中断。导航与处理阶段分离，确保 halt 已写入断点。
-         target_armed 跨航段共享；处理过的目标须先消失才能重新触发。
+         target_armed 跨航段共享；可见性检查只读，内容去重在首次触发时记录。
          任一返回导航或 Guidance 失败，立即向上返回 FAILURE。 -->
     <BehaviorTree ID="TargetInterruptCheck">
         <Fallback>
             <ForceFailure>
                 <Sequence>
-                    <Inverter><FoundCheck topic="/aruco_center/is_found" /></Inverter>
+                    <Inverter><FoundCheck topic="/aruco_center/content" record="false" /></Inverter>
                     <SetBlackboard output_key="target_armed" value="true" />
                 </Sequence>
             </ForceFailure>
             <BlackboardCheckBool value_A="{target_armed}" value_B="true" return_on_mismatch="FAILURE">
-                <FoundCheck topic="/aruco_center/is_found" />
+                <FoundCheck topic="/aruco_center/content" />
             </BlackboardCheckBool>
         </Fallback>
     </BehaviorTree>

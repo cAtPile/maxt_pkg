@@ -10,6 +10,7 @@
 
 输出话题（节点名为 aruco_center 时）：
     /aruco_center/center：point.x = u，point.y = v，point.z = 0。
+    /aruco_center/content：std_msgs/String，ArUco ID 字符串；未发现时为空。
     /aruco_center/is_found：std_msgs/Bool，每帧发布指定目标是否被找到。
     /aruco_center/debug_image：画出标记边框和中心的图像。
 像素原点在左上角，u 向右增大，v 向下增大，坐标可以是小数。
@@ -25,7 +26,7 @@ from maxt_pkg.msg import GuidanceAction, GuidanceFeedback, GuidanceResult
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import PointStamped
 from sensor_msgs.msg import Image
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 
 
 class ArucoCenter:
@@ -66,6 +67,8 @@ class ArucoCenter:
         self.center_pub = rospy.Publisher(center_topic, PointStamped, queue_size=1)
         self.image_pub = rospy.Publisher(debug_image_topic, Image, queue_size=1)
         self.is_found_pub = rospy.Publisher(is_found_topic, Bool, queue_size=1)
+        self.content_pub = rospy.Publisher(
+            rospy.get_param("~content_topic", "~content"), String, queue_size=1)
         self.feedback_lock = threading.Lock()
         self.feedback_stamp = None
         self.feedback = GuidanceFeedback(target_visible=False)
@@ -94,6 +97,7 @@ class ArucoCenter:
         except CvBridgeError as exc:
             # 无法处理本帧时报告 false，避免下游继续沿用上一帧的 true。
             self.is_found_pub.publish(Bool(data=False))
+            self.content_pub.publish(String(data=""))
             with self.feedback_lock:
                 self.feedback = frame_feedback
                 self.feedback_stamp = msg.header.stamp
@@ -165,6 +169,7 @@ class ArucoCenter:
         # true 表示指定 ID 已被检测到且成功计算中心，不表示检测到任意标记。
         # Bool 没有时间戳；如果输入图像停止，状态也停止发布，下游仍需超时判断。
         self.is_found_pub.publish(Bool(data=found))
+        self.content_pub.publish(String(data=str(self.marker_id) if found else ""))
         with self.feedback_lock:
             self.feedback = frame_feedback
             self.feedback_stamp = msg.header.stamp
