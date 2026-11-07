@@ -5,7 +5,11 @@ namespace maxt {
 
 BT::PortsList TakeoffNode::providedPorts() {
     return {
-        BT::InputPort<double>("target_alt", 0.5, "takeoff altitude")
+        BT::InputPort<double>("target_alt", 0.5, "takeoff altitude"),
+        BT::OutputPort<double>("home_x", "takeoff X in calibrated navigation frame"),
+        BT::OutputPort<double>("home_y", "takeoff Y in calibrated navigation frame"),
+        BT::OutputPort<double>("home_z", "takeoff Z in calibrated navigation frame"),
+        BT::OutputPort<double>("return_z", "takeoff Z plus target_alt in calibrated navigation frame")
     };
 }
 
@@ -75,6 +79,21 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
     //初始化
     case Phase::INIT: {
+        const auto home = mav_.GetCalibratePose();
+        // 尚未收到定位时等待，避免将默认零坐标写入黑板；受起飞超时限制。
+        if (home.header.stamp.isZero()) {
+            return BT::NodeStatus::RUNNING;
+        }
+        // 输出可选，兼容未配置黑板映射的已有任务树。仅在爬升前记录一次。
+        const auto write_output = [this](const std::string& port, double value) {
+            if (config().output_ports.count(port)) {
+                setOutput(port, value);
+            }
+        };
+        write_output("home_x", home.pose.position.x);
+        write_output("home_y", home.pose.position.y);
+        write_output("home_z", home.pose.position.z);
+        write_output("return_z", home.pose.position.z + target_alt_);
         mav_.RecordRawHomePose();
         const auto current = mav_.GetRawPose();
         aim_altitude_raw_ = current.pose.position.z + target_alt_;

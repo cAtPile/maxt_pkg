@@ -1,0 +1,17 @@
+<launch>
+    <!-- 经纬度基点 + 固定方向区域遍历；sim=false 可复用已启动的仿真。 -->
+    <arg name="sim" default="true" />
+    <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml" />
+    <arg name="run_fake_audio" default="false" />
+    <arg name="bt_tick_rate" default="20.0" />
+    <arg name="heartbeat_rate" default="20.0" />
+
+    <include file="$(find maxt_pkg)/launch/mission.launch">
+        <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/sim_geo_treverse.xml" />
+        <arg name="sim" value="$(arg sim)" />
+        <arg name="nav_config" value="$(arg nav_config)" />
+        <arg name="run_fake_audio" value="$(arg run_fake_audio)" />
+        <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />
+        <arg name="heartbeat_rate" value="$(arg heartbeat_rate)" />
+    </include>
+</launch>

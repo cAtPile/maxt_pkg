@@ -108,7 +108,8 @@ public:
      * @brief 设置原始目标值，通过 /mavros/setpoint_raw/local 发布
      * @param target 原始目标 (PositionTarget message)
      */
-    void setRawTarget(const mavros_msgs::PositionTarget& target);
+    // apply_default_yaw=false permits explicit yaw/yaw-rate control.
+    void setRawTarget(const mavros_msgs::PositionTarget& target, bool apply_default_yaw = true);
 
     // 全球目标直接发布；FRAME_GLOBAL_INT 的高度为海拔米。
     void SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target);

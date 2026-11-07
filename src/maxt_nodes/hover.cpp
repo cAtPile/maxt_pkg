@@ -16,32 +16,15 @@ BT::NodeStatus HoverNode::onStart() {
         hover_duration_ = 1.0;
     }
 
-    start_hover_pose_ = mav_.GetCalibratePose();
-    start_hover_yaw_ = mav_.get_current_yaw();
+    start_hover_pose_ = mav_.GetRawPose();
     start_time_ = ros::Time::now();
 
-    // 立即发布第一个 setpoint
-    mavros_msgs::PositionTarget target;
-    target.header.frame_id = "map";
-    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
-    target.type_mask =
-        mavros_msgs::PositionTarget::IGNORE_VX |
-        mavros_msgs::PositionTarget::IGNORE_VY |
-        mavros_msgs::PositionTarget::IGNORE_VZ |
-        mavros_msgs::PositionTarget::IGNORE_AFX |
-        mavros_msgs::PositionTarget::IGNORE_AFY |
-        mavros_msgs::PositionTarget::IGNORE_AFZ |
-        mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
-    target.position.x = start_hover_pose_.pose.position.x;
-    target.position.y = start_hover_pose_.pose.position.y;
-    target.position.z = start_hover_pose_.pose.position.z;
-    target.yaw = start_hover_yaw_;
-    mav_.setRawTarget(target);
+    const auto& position = start_hover_pose_.pose.position;
+    mav_.setTargetPose(position.x, position.y, position.z);
     mav_.setSetpointMode(SetpointMode::RAW_CTRL);
 
     ROS_INFO("HoverNode: holding at (%.2f, %.2f, %.2f) for %.2f s",
-             target.position.x, target.position.y, target.position.z,
-             hover_duration_);
+             position.x, position.y, position.z, hover_duration_);
     return BT::NodeStatus::RUNNING;
 }
 
@@ -52,23 +35,9 @@ BT::NodeStatus HoverNode::onRunning() {
         return BT::NodeStatus::SUCCESS;
     }
 
-    // 每个 tick 持续发布记录的位置
-    mavros_msgs::PositionTarget target;
-    target.header.frame_id = "map";
-    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
-    target.type_mask =
-        mavros_msgs::PositionTarget::IGNORE_VX |
-        mavros_msgs::PositionTarget::IGNORE_VY |
-        mavros_msgs::PositionTarget::IGNORE_VZ |
-        mavros_msgs::PositionTarget::IGNORE_AFX |
-        mavros_msgs::PositionTarget::IGNORE_AFY |
-        mavros_msgs::PositionTarget::IGNORE_AFZ |
-        mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
-    target.position.x = start_hover_pose_.pose.position.x;
-    target.position.y = start_hover_pose_.pose.position.y;
-    target.position.z = start_hover_pose_.pose.position.z;
-    target.yaw = start_hover_yaw_;
-    mav_.setRawTarget(target);
+    // 每个 tick 持续更新记录的位置目标
+    const auto& position = start_hover_pose_.pose.position;
+    mav_.setTargetPose(position.x, position.y, position.z);
 
     return BT::NodeStatus::RUNNING;
 }

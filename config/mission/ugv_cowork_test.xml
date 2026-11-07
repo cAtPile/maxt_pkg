@@ -4,9 +4,8 @@
         <Sequence>
             <ConnectCheck />
             <!-- 保存实际起飞 XY 与起飞点上方 4m 的返航高度。 -->
-            <CapturePose height_offset="4.0"
-                         x="{home_x}" y="{home_y}" z="{return_z}" />
-            <Takeoff target_alt="4.0" />
+            <Takeoff target_alt="4.0" home_x="{home_x}" home_y="{home_y}"
+                     home_z="{home_z}" return_z="{return_z}" />
             <SetBlackboard output_key="cowork_result" value="not_found" />
             <!-- 搜索/协同失败也返航；黑板保留具体阶段结果。 -->
             <ForceSuccess>
