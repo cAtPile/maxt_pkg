@@ -1,0 +1,32 @@
+<root>
+    <!-- 输入：固定原始本地基点 bp_x_raw/y_raw/z_raw；区域原点偏移 origin_x/y；
+         有符号边长 length_x/y；航带间距 coverage_step；相对基点高度 height_above_base。
+         区域 +X 对应 nav_n，+Y 对应 nav_t（左侧）。
+         方向使用 nav/azimuth_angle；当前导航节点每次启动都会读取，任务期间应保持不变。
+         输出：result = complete / failed。导航成功语义沿用 AzimuthFixNav。
+         不负责起飞、基点采集、返航或降落；所有航点共用传入的固定基点。 -->
+    <BehaviorTree ID="AzimuthRegionTraverse">
+        <Sequence>
+            <SetBlackboard output_key="result" value="failed" />
+            <TraversePathGenerator origin_x="{origin_x}" origin_y="{origin_y}"
+                                   length_x="{length_x}" length_y="{length_y}"
+                                   coverage_step="{coverage_step}"
+                                   waypoints="{region_waypoints}"
+                                   waypoint_count="{region_waypoint_count}" />
+            <SetBlackboard output_key="region_waypoint_index" value="0" />
+            <Repeat num_cycles="{region_waypoint_count}">
+                <Sequence>
+                    <GetRegionWaypoint waypoints="{region_waypoints}"
+                                       index="{region_waypoint_index}"
+                                       next_index="{region_waypoint_index}"
+                                       x="{region_target_x}" y="{region_target_y}" />
+                    <AzimuthFixNav nav_n="{region_target_x}" nav_t="{region_target_y}"
+                                   nav_a="{height_above_base}"
+                                   bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}"
+                                   bp_z_raw="{bp_z_raw}" timeout="60.0" />
+                </Sequence>
+            </Repeat>
+            <SetBlackboard output_key="result" value="complete" />
+        </Sequence>
+    </BehaviorTree>
+</root>

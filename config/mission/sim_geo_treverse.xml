@@ -1,0 +1,22 @@
+<root main_tree_to_execute="SimGeoTraverse">
+    <include path="subtree/GeoAzimuthRegionTraverse.xml" />
+    <BehaviorTree ID="SimGeoTraverse">
+        <Sequence>
+            <ConnectCheck />
+            <Takeoff target_alt="6.0" />
+            <!-- 示例经纬度：纬度在前、经度在后，请按仿真世界的 GPS 原点调整。
+                 区域 +X 使用 nav/azimuth_angle，+Y 为其左侧。
+                 基点取实际到达位置；height_above_base=0 保持到达时的高度。
+                 沿 X 往返 6m，沿 Y 推进 4m，航带间距 1m，共 8 个航点。 -->
+            <SubTreePlus ID="GeoAzimuthRegionTraverse"
+                         latitude="47.3977419" longitude="8.5455939"
+                         origin_x="0" origin_y="0"
+                         length_x="30" length_y="30"
+                         coverage_step="6"
+                         height_above_base="0"
+                         result="{region_result}" />
+            <Hover hover_duration="3.0" />
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>

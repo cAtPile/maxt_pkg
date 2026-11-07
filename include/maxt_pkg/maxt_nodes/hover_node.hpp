@@ -19,7 +19,6 @@ private:
     double hover_duration_{1.0};
     ros::Time start_time_;
     geometry_msgs::PoseStamped start_hover_pose_;
-    double start_hover_yaw_{0.0};
 };
 
 } // namespace maxt
