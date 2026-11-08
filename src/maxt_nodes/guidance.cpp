@@ -1,5 +1,7 @@
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 #include <cmath>
+#include <algorithm>
+#include <vector>
 
 namespace maxt {
 
@@ -9,8 +11,10 @@ namespace maxt {
 //          → GUIDING（调整位置）→ REACHED（下一次 tick 返回成功）。
 // 引导中目标丢失或反馈过期时，退回 WAIT_FEEDBACK；整段任务受 timeout 限制。
 GuidanceNode::GuidanceNode(const std::string& name,
-                           const BT::NodeConfiguration& config, MavKit& mav)
-    : MavActionNode(name, config, mav) {}
+                           const BT::NodeConfiguration& config, MavKit& mav,
+                           BT::Blackboard::Ptr history)
+    : MavActionNode(name, config, mav),
+      history_(history ? history : config.blackboard) {}
 
 GuidanceNode::~GuidanceNode() {
     if (goal_sent_ && client_) {
@@ -260,6 +264,16 @@ BT::NodeStatus GuidanceNode::finish(BT::NodeStatus status, const std::string& me
         goal_sent_ = false;
     }
     mav_.setSetpointMode(SetpointMode::HEARTBEAT);
+    // 对准完成和定时跟踪完成均在成功收尾时记录；失败、超时和中止不记录。
+    if (status == BT::NodeStatus::SUCCESS) {
+        std::vector<std::string> processed;
+        history_->get("processed_qr", processed);
+        if (std::find(processed.begin(), processed.end(), goal_.target_id) == processed.end()) {
+            processed.push_back(goal_.target_id);
+            history_->set("processed_qr", processed);
+            ROS_INFO("[Guidance] processed target_id=%s", goal_.target_id.c_str());
+        }
+    }
     setOutput("message", message);
     ROS_INFO("GuidanceNode: %s", message.c_str());
     return status;

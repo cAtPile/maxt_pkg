@@ -154,7 +154,7 @@ void MaxtCore::registerNodes() {
 
     factory_.registerBuilder<GuidanceNode>("Guidance",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<GuidanceNode>(name, config, *mav_);
+            return std::make_unique<GuidanceNode>(name, config, *mav_, mission_blackboard_);
         });
 
     ROS_INFO("MaxtCore: All BT Nodes registered.");
