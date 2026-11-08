@@ -384,7 +384,7 @@ roslaunch maxt_pkg guidance_test.launch run_sim:=true error_u:=20.0 duration:=10
 roslaunch maxt_pkg region_traverse_test.launch
 ```
 
-需要外部提供 MAVROS、定位和相机。任务起飞到 4m，为 `(0,0)、(-6,0)、(-6,6)、(0,6)` 的矩形以 1m 间距生成 12 个蛇形航点。`FoundCheck` 检查 `/aruco_center/is_found`；检测为 true 且消息未过期时中断当前导航并记录实测断点，先航行返回断点，再执行 Guidance 跟踪 60s；成功后再次返回断点，然后飞往下一个航点（跳过被中断航段尚未到达的终点）。完成全部航点后降落。导航、断点返回或 Guidance 失败会使任务失败，不进入后续降落。
+需要外部提供 MAVROS、定位和相机。任务起飞到 4m，为 `(0,0)、(-6,0)、(-6,6)、(0,6)` 的矩形以 1m 间距生成 12 个蛇形航点。`FoundCheck` 检查 `/aruco_center/is_found`；检测为 true 且消息未过期时中断当前导航并记录实测断点，先航行返回断点，再执行 Guidance 跟踪 60s；成功后再次返回断点，继续飞往被中断航段尚未到达的目标，完成后才取下一航点。完成全部航点后降落。导航、断点返回或 Guidance 失败会使任务失败，不进入后续降落。
 
 支持 `run_detection`、`run_guidance`（均默认 true）、`detection_config`、`run_camera`、`run_mavros`、`run_fast_lio` 及两个频率参数。已有识别服务时使用 `run_detection:=false`；跟踪仍需要可用的 `/guidance` 服务。更改识别 ID 或状态话题时，需同步修改 XML 的 Guidance 或 FoundCheck。
 
@@ -714,7 +714,7 @@ rosrun maxt_pkg test_calibrate_tools
 使用 BehaviorTree.CPP v3 的 `SubTreePlus` 传入常量或黑板映射，不启用自动映射，航点和索引保存在独立黑板中。
 起飞、后续跟踪、协同、返航和降落由父树负责。小车协同入口 `ugv_cowork_test.xml` 继续使用此发现即退出的子树。
 
-`region_traverse_test.xml` 改用 `VisionRegionTraverseResume.xml`；`sim_geo_treverse.xml` 改用 `VisionGeoAzimuthRegionTraverseResume.xml`，后者包含 `VisionAzimuthRegionTraverseResume.xml`。它们复用 `NavTargetHandling.xml` 中的三个航段子树，分别支持 Nav、LaLoNav、AzimuthFixNav：每段导航先启动，发现目标后中断并写入断点，再依次执行返回断点、Guidance、再次返回断点，成功后才处理下一航点。返回断点和 Guidance 期间不检查目标中断，且返回节点不映射断点输出，避免覆盖原记录。目标持续可见时只处理一次，后续巡航中先观察到未发现目标，再允许重新触发。这里的“未发现”沿用 FoundCheck 的 false/消息过期语义，不区分目标 ID。
+`region_traverse_test.xml` 改用 `VisionRegionTraverseResume.xml`；`sim_geo_treverse.xml` 改用 `VisionGeoAzimuthRegionTraverseResume.xml`，后者包含 `VisionAzimuthRegionTraverseResume.xml`。它们复用 `NavTargetHandling.xml` 中的三个航段子树，分别支持 Nav、LaLoNav、AzimuthFixNav：每段导航先启动，发现目标后中断并写入断点，再依次执行返回断点、Guidance、再次返回断点，成功后继续执行同一目标的剩余航段，到达后才取下一航点。恢复航段仍支持目标中断；返回导航或 Guidance 失败则立即返回 FAILURE，不重试失败动作。返回断点和 Guidance 期间不检查目标中断，且返回节点不映射断点输出，避免覆盖原记录。目标持续可见时只处理一次，后续巡航中先观察到未发现目标，再允许重新触发。这里的“未发现”沿用 FoundCheck 的 false/消息过期语义，不区分目标 ID。
 
 视觉区域入口的 Guidance 保留 60s 跟踪，经纬度入口保留 0s（对齐成功即结束），超时均为 90s。经纬度接近航段若被中断，处理完成后在返回的断点处采集区域基点，再开始区域巡航；未被中断则仍在经纬度目的地采集基点。新巡航子树的 result 仅输出 complete / failed，处理过目标后仍需完成剩余航点。任何导航、断点有效性检查或 Guidance 失败均向上传递 FAILURE。所有导航中断点均直接记录 MAVROS 原始 local 实测坐标，不做 Home 偏移或标定旋转；断点返回使用 NavRaw，沿用 Nav 的到达判定，末端 hold_timeout 可强制 SUCCESS，并不保证严格到达；本次未改变该机制。
 
