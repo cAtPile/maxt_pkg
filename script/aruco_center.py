@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""订阅 ROS 1 图像，识别指定 ArUco，并发布其中心像素坐标。
+"""订阅 ROS 1 图像，识别配置的多个 ArUco，并发布其中心像素坐标。
 
 数据流程：Image 消息 → OpenCV 图像 → 灰度图 → 四角点 → 中心 → PointStamped。
 运行示例：
@@ -10,6 +10,7 @@
 
 输出话题（节点名为 aruco_center 时）：
     /aruco_center/center：point.x = u，point.y = v，point.z = 0。
+    /aruco_center/content：std_msgs/String，选中目标的 ArUco ID 字符串；未发现时为空。
     /aruco_center/is_found：std_msgs/Bool，每帧发布指定目标是否被找到。
     /aruco_center/debug_image：画出标记边框和中心的图像。
 像素原点在左上角，u 向右增大，v 向下增大，坐标可以是小数。
@@ -25,7 +26,7 @@ from maxt_pkg.msg import GuidanceAction, GuidanceFeedback, GuidanceResult
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import PointStamped
 from sensor_msgs.msg import Image
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 
 
 class ArucoCenter:
@@ -38,6 +39,11 @@ class ArucoCenter:
         # launch 将 YAML 加载到私有命名空间，这里通过 get_param 读取。
         # 第二个参数是配置缺失时的默认值；直接 rosrun 时可用 _marker_id:=23。
         self.marker_id = int(rospy.get_param("~marker_id", 0))
+        # 未配置列表时兼容原来的单 ID 参数；列表顺序决定发布目标的优先级。
+        self.marker_ids = [int(value) for value in
+                           rospy.get_param("~marker_ids", [self.marker_id])]
+        if not self.marker_ids:
+            raise ValueError("marker_ids must not be empty")
         # 字典必须与实际标记一致。4X4 表示内部编码为 4×4 个单元，
         # 50 表示字典有 50 个标记（ID 0～49），并不是图片的像素大小。
         dictionary_name = rospy.get_param("~dictionary", "DICT_4X4_50")
@@ -66,8 +72,11 @@ class ArucoCenter:
         self.center_pub = rospy.Publisher(center_topic, PointStamped, queue_size=1)
         self.image_pub = rospy.Publisher(debug_image_topic, Image, queue_size=1)
         self.is_found_pub = rospy.Publisher(is_found_topic, Bool, queue_size=1)
+        self.content_pub = rospy.Publisher(
+            rospy.get_param("~content_topic", "~content"), String, queue_size=1)
         self.feedback_lock = threading.Lock()
         self.feedback_stamp = None
+        self.feedback_by_id = {}
         self.feedback = GuidanceFeedback(target_visible=False)
         self.feedback_timeout = float(rospy.get_param("~feedback_timeout", 0.3))
         # 可选真实视觉 Action 服务；独立识别入口发布图像、中心及检测状态。
@@ -82,7 +91,8 @@ class ArucoCenter:
         self.subscriber = rospy.Subscriber(
             topic, Image, self.callback, queue_size=1, buff_size=2**24
         )
-        rospy.loginfo("Detecting ArUco ID %d (%s) on %s", self.marker_id, dictionary_name, topic)
+        rospy.loginfo("Detecting ArUco IDs %s (%s) on %s",
+                      self.marker_ids, dictionary_name, topic)
 
     def callback(self, msg):
         """处理一帧图像；找到目标时发布一次中心，未找到时不发布坐标。"""
@@ -94,8 +104,10 @@ class ArucoCenter:
         except CvBridgeError as exc:
             # 无法处理本帧时报告 false，避免下游继续沿用上一帧的 true。
             self.is_found_pub.publish(Bool(data=False))
+            self.content_pub.publish(String(data=""))
             with self.feedback_lock:
                 self.feedback = frame_feedback
+                self.feedback_by_id = {}
                 self.feedback_stamp = msg.header.stamp
             # 转换失败时跳过本帧；throttle 使此日志最多每 2 秒输出一次。
             rospy.logwarn_throttle(2.0, "Image conversion failed: %s" % exc)
@@ -112,11 +124,17 @@ class ArucoCenter:
                 gray, self.dictionary, parameters=self.parameters
             )
         found = False
+        selected_id = None
+        frame_feedback_by_id = {}
         if ids is not None:
             # flatten 将 ID 数组展平成一维；zip 将角点和对应 ID 配对。
-            for marker_corners, marker_id in zip(corners, ids.flatten()):
-                # 图像中可能有多个标记，只处理指定 ID。
-                if int(marker_id) != self.marker_id:
+            detections = sorted(zip(corners, ids.flatten()),
+                                key=lambda item: self.marker_ids.index(int(item[1]))
+                                if int(item[1]) in self.marker_ids else len(self.marker_ids))
+            for marker_corners, marker_id in detections:
+                # 同一帧保留所有配置目标的反馈，同 ID 只取第一个有效结果。
+                marker_id = int(marker_id)
+                if marker_id not in self.marker_ids or marker_id in frame_feedback_by_id:
                     continue
                 points = marker_corners.reshape(4, 2)
                 # 将角点整理成四行 [u, v]。角点沿标记边界有序排列，
@@ -144,11 +162,15 @@ class ArucoCenter:
                 output.point.x = float(u)
                 output.point.y = float(v)
                 output.point.z = 0.0
-                self.center_pub.publish(output)
-                frame_feedback = GuidanceFeedback(
+                target_feedback = GuidanceFeedback(
                     target_visible=True,
                     error_u=float(u - (msg.width - 1) / 2.0),
                     error_v=float(v - (msg.height - 1) / 2.0))
+                frame_feedback_by_id[marker_id] = target_feedback
+                if not found:
+                    selected_id = marker_id
+                    self.center_pub.publish(output)
+                    frame_feedback = target_feedback
                 # 只限制终端日志频率，中心坐标仍在每个成功检测的回调中发布。
                 rospy.loginfo_throttle(1.0, "ArUco %d center: (%.1f, %.1f) px" % (marker_id, u, v))
                 found = True
@@ -159,19 +181,19 @@ class ArucoCenter:
                     # 绘图位置必须是整数，所以 round；发布的坐标仍保留小数。
                     # BGR 中 (0, 0, 255) 是红色，半径 5，厚度 -1 表示实心圆。
                     cv2.circle(image, (round(u), round(v)), 5, (0, 0, 255), -1)
-                # 若同一帧出现多个相同 ID，只使用第一个有效结果。
-                break
         # 每个正常处理的图像回调恰好发布一次，不受调试图像订阅情况影响。
-        # true 表示指定 ID 已被检测到且成功计算中心，不表示检测到任意标记。
+        # true 表示配置列表中至少一个 ID 已被检测到且成功计算中心。
         # Bool 没有时间戳；如果输入图像停止，状态也停止发布，下游仍需超时判断。
         self.is_found_pub.publish(Bool(data=found))
+        self.content_pub.publish(String(data=str(selected_id) if found else ""))
         with self.feedback_lock:
             self.feedback = frame_feedback
+            self.feedback_by_id = frame_feedback_by_id
             self.feedback_stamp = msg.header.stamp
         if not found:
             # 不发布 (0, 0) 来表示丢失，因为它也是有效像素位置。
             # 下游控制节点应检查最后一次坐标的时间戳，超时后停止使用旧结果。
-            rospy.logwarn_throttle(2.0, "ArUco ID %d not detected" % self.marker_id)
+            rospy.logwarn_throttle(2.0, "ArUco IDs %s not detected" % self.marker_ids)
         if self.image_pub.get_num_connections():
             # 转回 ROS Image 并保留原图 header。未找到时也发送未标注的原图，
             # 方便判断目标是否在视野内。
@@ -180,7 +202,7 @@ class ArucoCenter:
             self.image_pub.publish(debug)
 
     def execute_guidance(self, goal):
-        if goal.target_id != str(self.marker_id):
+        if goal.target_id not in [str(value) for value in self.marker_ids]:
             self.server.set_aborted(GuidanceResult(message="Unknown ArUco ID"))
             return
         rate = rospy.Rate(20)
@@ -191,10 +213,12 @@ class ArucoCenter:
             with self.feedback_lock:
                 age = ((rospy.Time.now() - self.feedback_stamp).to_sec()
                        if self.feedback_stamp is not None else float("inf"))
+                target_feedback = self.feedback_by_id.get(
+                    int(goal.target_id), GuidanceFeedback(target_visible=False))
                 feedback = GuidanceFeedback(
-                    target_visible=self.feedback.target_visible and
+                    target_visible=target_feedback.target_visible and
                     0.0 <= age <= self.feedback_timeout,
-                    error_u=self.feedback.error_u, error_v=self.feedback.error_v)
+                    error_u=target_feedback.error_u, error_v=target_feedback.error_v)
             self.server.publish_feedback(feedback)
             rate.sleep()
 

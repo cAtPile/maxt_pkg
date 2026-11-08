@@ -5,7 +5,7 @@
          区域 +X 对应 nav_n，+Y 对应 nav_t（左侧）。
          方向使用 nav/azimuth_angle；当前导航节点每次启动都会读取，任务期间应保持不变。
          输出：result = complete / failed。导航成功语义沿用 AzimuthFixNav。
-         发现目标后返回断点、Guidance、再次返回断点，然后取下一航点。
+         发现目标后返回断点、Guidance、再次返回断点，继续到达当前目标，然后取下一航点。
          target_armed 由调用方初始化并跨航段共享。所有航点共用传入的固定基点。 -->
     <BehaviorTree ID="VisionAzimuthRegionTraverseResume">
         <Sequence>

@@ -58,7 +58,7 @@ bool MaxtCore::init() {
 
     // 4. 加载行为树 XML
     try {
-        tree_ = factory_.createTreeFromFile(xml_path_);
+        tree_ = factory_.createTreeFromFile(xml_path_, mission_blackboard_);
     } catch (const std::exception& e) {
         ROS_ERROR("MaxtCore: Failed to load BT XML: %s", e.what());
         return false;
@@ -96,7 +96,7 @@ void MaxtCore::registerNodes() {
         });
     factory_.registerBuilder<FoundCheckNode>("FoundCheck",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<FoundCheckNode>(name, config, nh_);
+            return std::make_unique<FoundCheckNode>(name, config, nh_, mission_blackboard_);
         });
     factory_.registerNodeType<TraversePathGeneratorNode>("TraversePathGenerator");
     factory_.registerNodeType<GetRegionWaypointNode>("GetRegionWaypoint");
@@ -154,7 +154,7 @@ void MaxtCore::registerNodes() {
 
     factory_.registerBuilder<GuidanceNode>("Guidance",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<GuidanceNode>(name, config, *mav_);
+            return std::make_unique<GuidanceNode>(name, config, *mav_, mission_blackboard_);
         });
 
     ROS_INFO("MaxtCore: All BT Nodes registered.");

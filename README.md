@@ -232,14 +232,14 @@ rosservice call /audio/play "filename: 'cn-ready.wav'"
 
 #### 视觉识别：aruco_center.py
 
-识别指定字典和 ID 的 ArUco，发布中心像素坐标、检测状态与标注图像；可选提供 `/guidance` Action 服务。
+识别指定字典和 ID 列表的 ArUco，发布中心像素坐标、检测状态与标注图像；可选提供 `/guidance` Action 服务。
 
 ```bash
 rosparam load "$(rospack find maxt_pkg)/config/aruco_center.yaml" /aruco_center
 rosrun maxt_pkg aruco_center.py _run_guidance:=true
 ```
 
-默认 YAML 输入为 `/camera/rgb/image_raw`，字典为 `DICT_4X4_50`、ID 为 `0`。输出为 `/aruco_center/center`（`PointStamped`，x/y 为像素坐标）、`/aruco_center/is_found`（`Bool`）、`/aruco_center/debug_image`（`Image`）。标注图像仅在有订阅者时发布。使用 USB 相机时将 `_image_topic:=/camera/image_raw` 加到命令末尾。
+默认 YAML 输入为 `/camera/rgb/image_raw`，字典为 `DICT_4X4_50`，`marker_ids: [0, 1, 2, 3, 4, 5]` 对应 `models/targets/materials/textures/` 中的全部标记。多个 ID 同时可见时，中心和 `/aruco_center/content`（`String`）发布列表中最靠前的可见目标；无目标时内容为空。`/guidance` 可按 `target_id` 独立跟踪列表内任一目标，目标丢失时反馈不可见，不会切换到其他 ID。删除 `marker_ids` 参数后兼容原来的单目标 `marker_id` 配置。输出为 `/aruco_center/center`（`PointStamped`，x/y 为像素坐标）、`/aruco_center/is_found`（`Bool`）、`/aruco_center/debug_image`（`Image`）。标注图像仅在有订阅者时发布。使用 USB 相机时将 `_image_topic:=/camera/image_raw` 加到命令末尾。
 
 #### 相机采集：simple_camera_driver.py
 
@@ -384,7 +384,7 @@ roslaunch maxt_pkg guidance_test.launch run_sim:=true error_u:=20.0 duration:=10
 roslaunch maxt_pkg region_traverse_test.launch
 ```
 
-需要外部提供 MAVROS、定位和相机。任务起飞到 4m，为 `(0,0)、(-6,0)、(-6,6)、(0,6)` 的矩形以 1m 间距生成 12 个蛇形航点。`FoundCheck` 检查 `/aruco_center/is_found`；检测为 true 且消息未过期时中断当前导航并记录实测断点，先航行返回断点，再执行 Guidance 跟踪 60s；成功后再次返回断点，然后飞往下一个航点（跳过被中断航段尚未到达的终点）。完成全部航点后降落。导航、断点返回或 Guidance 失败会使任务失败，不进入后续降落。
+需要外部提供 MAVROS、定位和相机。任务起飞到 4m，为 `(0,0)、(-6,0)、(-6,6)、(0,6)` 的矩形以 1m 间距生成 12 个蛇形航点。`FoundCheck` 检查 `/aruco_center/is_found`；检测为 true 且消息未过期时中断当前导航并记录实测断点，先航行返回断点，再执行 Guidance 跟踪 60s；成功后再次返回断点，继续飞往被中断航段尚未到达的目标，完成后才取下一航点。完成全部航点后降落。导航、断点返回或 Guidance 失败会使任务失败，不进入后续降落。
 
 支持 `run_detection`、`run_guidance`（均默认 true）、`detection_config`、`run_camera`、`run_mavros`、`run_fast_lio` 及两个频率参数。已有识别服务时使用 `run_detection:=false`；跟踪仍需要可用的 `/guidance` 服务。更改识别 ID 或状态话题时，需同步修改 XML 的 Guidance 或 FoundCheck。
 
@@ -403,7 +403,7 @@ roslaunch maxt_pkg ugv_cowork_test.launch
 | 文件 | 当前关键值与用途 |
 | --- | --- |
 | [config/nav.yaml](config/nav.yaml) | `v_max=5 m/s`、`a_max=1 m/s²`；PID 为 `1.0/0.05/0.0`；减速时间 1s |
-| [config/aruco_center.yaml](config/aruco_center.yaml) | 仿真相机输入、`DICT_4X4_50`、ID 0、检测及图像输出话题 |
+| [config/aruco_center.yaml](config/aruco_center.yaml) | 仿真相机输入、`DICT_4X4_50`、ID 0～5、检测及图像输出话题 |
 | [config/sim_world.yaml](config/sim_world.yaml) | 靶标中心 `(-4,4,0.02)`，Y 轴振幅 2m，最大速度 0.5m/s |
 | [config/ugv_confg.yaml](config/ugv_confg.yaml) | 小车恒定速度 1m/s |
 | [config/ugv_target.yaml](config/ugv_target.yaml) | 小车依次前往 `(3,0)`、`(3,3)`、`(0,0)` |
@@ -714,7 +714,7 @@ rosrun maxt_pkg test_calibrate_tools
 使用 BehaviorTree.CPP v3 的 `SubTreePlus` 传入常量或黑板映射，不启用自动映射，航点和索引保存在独立黑板中。
 起飞、后续跟踪、协同、返航和降落由父树负责。小车协同入口 `ugv_cowork_test.xml` 继续使用此发现即退出的子树。
 
-`region_traverse_test.xml` 改用 `VisionRegionTraverseResume.xml`；`sim_geo_treverse.xml` 改用 `VisionGeoAzimuthRegionTraverseResume.xml`，后者包含 `VisionAzimuthRegionTraverseResume.xml`。它们复用 `NavTargetHandling.xml` 中的三个航段子树，分别支持 Nav、LaLoNav、AzimuthFixNav：每段导航先启动，发现目标后中断并写入断点，再依次执行返回断点、Guidance、再次返回断点，成功后才处理下一航点。返回断点和 Guidance 期间不检查目标中断，且返回节点不映射断点输出，避免覆盖原记录。目标持续可见时只处理一次，后续巡航中先观察到未发现目标，再允许重新触发。这里的“未发现”沿用 FoundCheck 的 false/消息过期语义，不区分目标 ID。
+`region_traverse_test.xml` 改用 `VisionRegionTraverseResume.xml`；`sim_geo_treverse.xml` 改用 `VisionGeoAzimuthRegionTraverseResume.xml`，后者包含 `VisionAzimuthRegionTraverseResume.xml`。它们复用 `NavTargetHandling.xml` 中的三个航段子树，分别支持 Nav、LaLoNav、AzimuthFixNav：每段导航先启动，发现目标后中断并写入断点，再依次执行返回断点、Guidance、再次返回断点，成功后继续执行同一目标的剩余航段，到达后才取下一航点。恢复航段仍支持目标中断；返回导航或 Guidance 失败则立即返回 FAILURE，不重试失败动作。返回断点和 Guidance 期间不检查目标中断，且返回节点不映射断点输出，避免覆盖原记录。目标持续可见时只处理一次，后续巡航中先观察到未发现目标，再允许重新触发。这里的“未发现”沿用 FoundCheck 的 false/消息过期语义，不区分目标 ID。
 
 视觉区域入口的 Guidance 保留 60s 跟踪，经纬度入口保留 0s（对齐成功即结束），超时均为 90s。经纬度接近航段若被中断，处理完成后在返回的断点处采集区域基点，再开始区域巡航；未被中断则仍在经纬度目的地采集基点。新巡航子树的 result 仅输出 complete / failed，处理过目标后仍需完成剩余航点。任何导航、断点有效性检查或 Guidance 失败均向上传递 FAILURE。所有导航中断点均直接记录 MAVROS 原始 local 实测坐标，不做 Home 偏移或标定旋转；断点返回使用 NavRaw，沿用 Nav 的到达判定，末端 hold_timeout 可强制 SUCCESS，并不保证严格到达；本次未改变该机制。
 
@@ -747,3 +747,7 @@ LaLoNav 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/
 `ReachGlobalCheck(target, altitude_raw)` 同时检查水平距离、相对启动 local Z 的高度误差和实测速度。对应配置为 `reach_check/global_position_tolerance`（代码默认 1.0 m）、`reach_check/global_altitude_tolerance`（默认 0.5 m）及 `reach_check/position_vel_tolerance`（默认 0.2 m/s）。水平距离使用 GeographicLib 的 WGS-84 椭球测地距离，容差单位为米。
 
 末端对齐共用 `nav/hold_timeout`（默认 3 秒）：从首次进入末端对齐阶段计时，达标立即返回 SUCCESS，否则超过配置时长后记录警告、切回 HEARTBEAT 并强制成功，因此 SUCCESS 不保证误差达标。任务总超时优先返回 FAILURE 并切回 HEARTBEAT；定位或相对高度无效时返回 FAILURE 并请求 SLOW_DOWN，中断同样请求 SLOW_DOWN。曲线起终点参考速度均为零。尚未进行仿真飞行验证。
+
+导航中断后的 Guidance 使用 FoundCheck 成功时输出的 `target_id`，通过子树黑板传递并锁定，不再固定跟踪 ID 0。返回断点期间新出现的 ID 不会改写该目标。Guidance 启动日志显示目标 ID、跟踪时长和总超时；目标始终不可见时，达到总超时返回 `TIMEOUT`。
+
+目标黑名单 `processed_qr` 由 Guidance 在成功收尾时更新（再次返回断点前）。FoundCheck 只检查历史并输出目标 ID；仅发现、伺服失败、超时或中止均不会加入黑名单。`record="false"` 仍只检查可见性。

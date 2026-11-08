@@ -13,7 +13,8 @@ namespace maxt {
 // Feedback callbacks own only a shared snapshot, never the BT node itself.
 class GuidanceNode : public MavActionNode {
 public:
-    GuidanceNode(const std::string& name, const BT::NodeConfiguration& config, MavKit& mav);
+    GuidanceNode(const std::string& name, const BT::NodeConfiguration& config, MavKit& mav,
+                 BT::Blackboard::Ptr history = {});
     ~GuidanceNode() override;
     static BT::PortsList providedPorts();
     BT::NodeStatus onStart() override;
@@ -43,6 +44,8 @@ private:
     void sendGoal();
     
     BT::NodeStatus finish(BT::NodeStatus status, const std::string& message);
+    // 与 FoundCheck 共用任务根黑板，只有伺服成功才提交处理记录。
+    BT::Blackboard::Ptr history_;
     std::unique_ptr<Client> client_;
     std::shared_ptr<FeedbackState> feedback_;
     maxt_pkg::GuidanceGoal goal_;

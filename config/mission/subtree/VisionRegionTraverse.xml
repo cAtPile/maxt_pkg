@@ -15,7 +15,7 @@
             <!-- 命中时记录搜索结果，并 halt 正在运行的导航。 -->
             <ReactiveFallback>
                 <Sequence>
-                    <FoundCheck topic="/aruco_center/is_found" />
+                    <FoundCheck topic="/aruco_center/content" />
                     <SetBlackboard output_key="result" value="found" />
                 </Sequence>
                 <Sequence>
