@@ -232,14 +232,14 @@ rosservice call /audio/play "filename: 'cn-ready.wav'"
 
 #### 视觉识别：aruco_center.py
 
-识别指定字典和 ID 的 ArUco，发布中心像素坐标、检测状态与标注图像；可选提供 `/guidance` Action 服务。
+识别指定字典和 ID 列表的 ArUco，发布中心像素坐标、检测状态与标注图像；可选提供 `/guidance` Action 服务。
 
 ```bash
 rosparam load "$(rospack find maxt_pkg)/config/aruco_center.yaml" /aruco_center
 rosrun maxt_pkg aruco_center.py _run_guidance:=true
 ```
 
-默认 YAML 输入为 `/camera/rgb/image_raw`，字典为 `DICT_4X4_50`、ID 为 `0`。输出为 `/aruco_center/center`（`PointStamped`，x/y 为像素坐标）、`/aruco_center/is_found`（`Bool`）、`/aruco_center/debug_image`（`Image`）。标注图像仅在有订阅者时发布。使用 USB 相机时将 `_image_topic:=/camera/image_raw` 加到命令末尾。
+默认 YAML 输入为 `/camera/rgb/image_raw`，字典为 `DICT_4X4_50`，`marker_ids: [0, 1, 2, 3, 4, 5]` 对应 `models/targets/materials/textures/` 中的全部标记。多个 ID 同时可见时，中心和 `/aruco_center/content`（`String`）发布列表中最靠前的可见目标；无目标时内容为空。`/guidance` 可按 `target_id` 独立跟踪列表内任一目标，目标丢失时反馈不可见，不会切换到其他 ID。删除 `marker_ids` 参数后兼容原来的单目标 `marker_id` 配置。输出为 `/aruco_center/center`（`PointStamped`，x/y 为像素坐标）、`/aruco_center/is_found`（`Bool`）、`/aruco_center/debug_image`（`Image`）。标注图像仅在有订阅者时发布。使用 USB 相机时将 `_image_topic:=/camera/image_raw` 加到命令末尾。
 
 #### 相机采集：simple_camera_driver.py
 
@@ -403,7 +403,7 @@ roslaunch maxt_pkg ugv_cowork_test.launch
 | 文件 | 当前关键值与用途 |
 | --- | --- |
 | [config/nav.yaml](config/nav.yaml) | `v_max=5 m/s`、`a_max=1 m/s²`；PID 为 `1.0/0.05/0.0`；减速时间 1s |
-| [config/aruco_center.yaml](config/aruco_center.yaml) | 仿真相机输入、`DICT_4X4_50`、ID 0、检测及图像输出话题 |
+| [config/aruco_center.yaml](config/aruco_center.yaml) | 仿真相机输入、`DICT_4X4_50`、ID 0～5、检测及图像输出话题 |
 | [config/sim_world.yaml](config/sim_world.yaml) | 靶标中心 `(-4,4,0.02)`，Y 轴振幅 2m，最大速度 0.5m/s |
 | [config/ugv_confg.yaml](config/ugv_confg.yaml) | 小车恒定速度 1m/s |
 | [config/ugv_target.yaml](config/ugv_target.yaml) | 小车依次前往 `(3,0)`、`(3,3)`、`(0,0)` |
@@ -747,3 +747,5 @@ LaLoNav 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/
 `ReachGlobalCheck(target, altitude_raw)` 同时检查水平距离、相对启动 local Z 的高度误差和实测速度。对应配置为 `reach_check/global_position_tolerance`（代码默认 1.0 m）、`reach_check/global_altitude_tolerance`（默认 0.5 m）及 `reach_check/position_vel_tolerance`（默认 0.2 m/s）。水平距离使用 GeographicLib 的 WGS-84 椭球测地距离，容差单位为米。
 
 末端对齐共用 `nav/hold_timeout`（默认 3 秒）：从首次进入末端对齐阶段计时，达标立即返回 SUCCESS，否则超过配置时长后记录警告、切回 HEARTBEAT 并强制成功，因此 SUCCESS 不保证误差达标。任务总超时优先返回 FAILURE 并切回 HEARTBEAT；定位或相对高度无效时返回 FAILURE 并请求 SLOW_DOWN，中断同样请求 SLOW_DOWN。曲线起终点参考速度均为零。尚未进行仿真飞行验证。
+
+导航中断后的 Guidance 使用 FoundCheck 成功时输出的 `target_id`，通过子树黑板传递并锁定，不再固定跟踪 ID 0。返回断点期间新出现的 ID 不会改写该目标。Guidance 启动日志显示目标 ID、跟踪时长和总超时；目标始终不可见时，达到总超时返回 `TIMEOUT`。

@@ -11,7 +11,7 @@
                 </Sequence>
             </ForceFailure>
             <BlackboardCheckBool value_A="{target_armed}" value_B="true" return_on_mismatch="FAILURE">
-                <FoundCheck topic="/aruco_center/content" />
+                <FoundCheck topic="/aruco_center/content" target_id="{detected_target_id}" />
             </BlackboardCheckBool>
         </Fallback>
     </BehaviorTree>
@@ -20,7 +20,7 @@
             <Sequence>
                 <NavRaw name="ReturnBreakpointBeforeGuidance" x="{breakpoint_x}" y="{breakpoint_y}"
                      z="{breakpoint_z}" timeout="90.0" />
-                <Guidance target_id="0" tracking_duration="{tracking_duration}"
+                <Guidance target_id="{detected_target_id}" tracking_duration="{tracking_duration}"
                           timeout="90.0" message="{guidance_message}" />
                 <NavRaw name="ReturnBreakpointAfterGuidance" x="{breakpoint_x}" y="{breakpoint_y}"
                      z="{breakpoint_z}" timeout="90.0" />
@@ -35,7 +35,8 @@
             <ReactiveFallback>
                 <BlackboardCheckBool value_A="{nav_started}" value_B="true" return_on_mismatch="FAILURE">
                     <Sequence>
-                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}" />
+                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}"
+                                      detected_target_id="{detected_target_id}" />
                         <SetBlackboard output_key="target_armed" value="false" />
                         <SetBlackboard output_key="interrupted" value="true" />
                     </Sequence>
@@ -48,7 +49,7 @@
                 </Sequence>
             </ReactiveFallback>
             <BlackboardCheckBool value_A="{interrupted}" value_B="true" return_on_mismatch="SUCCESS">
-                <SubTreePlus ID="HandleNavBreakpoint"
+                <SubTreePlus ID="HandleNavBreakpoint" detected_target_id="{detected_target_id}"
                              breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
                              breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
                              tracking_duration="{tracking_duration}" guidance_message="{guidance_message}" />
@@ -63,7 +64,8 @@
             <ReactiveFallback>
                 <BlackboardCheckBool value_A="{nav_started}" value_B="true" return_on_mismatch="FAILURE">
                     <Sequence>
-                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}" />
+                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}"
+                                      detected_target_id="{detected_target_id}" />
                         <SetBlackboard output_key="target_armed" value="false" />
                         <SetBlackboard output_key="interrupted" value="true" />
                     </Sequence>
@@ -76,7 +78,7 @@
                 </Sequence>
             </ReactiveFallback>
             <BlackboardCheckBool value_A="{interrupted}" value_B="true" return_on_mismatch="SUCCESS">
-                <SubTreePlus ID="HandleNavBreakpoint"
+                <SubTreePlus ID="HandleNavBreakpoint" detected_target_id="{detected_target_id}"
                              breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
                              breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
                              tracking_duration="{tracking_duration}" guidance_message="{guidance_message}" />
@@ -91,7 +93,8 @@
             <ReactiveFallback>
                 <BlackboardCheckBool value_A="{nav_started}" value_B="true" return_on_mismatch="FAILURE">
                     <Sequence>
-                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}" />
+                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}"
+                                      detected_target_id="{detected_target_id}" />
                         <SetBlackboard output_key="target_armed" value="false" />
                         <SetBlackboard output_key="interrupted" value="true" />
                     </Sequence>
@@ -104,7 +107,7 @@
                 </Sequence>
             </ReactiveFallback>
             <BlackboardCheckBool value_A="{interrupted}" value_B="true" return_on_mismatch="SUCCESS">
-                <SubTreePlus ID="HandleNavBreakpoint"
+                <SubTreePlus ID="HandleNavBreakpoint" detected_target_id="{detected_target_id}"
                              breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
                              breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
                              tracking_duration="{tracking_duration}" guidance_message="{guidance_message}" />

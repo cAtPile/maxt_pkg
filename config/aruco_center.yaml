@@ -5,15 +5,19 @@
 # iris_downward_depth_camera 的机身下视相机彩色图像；实机可改成 /camera/image_raw。
 image_topic: /camera/rgb/image_raw
 
-# 字典和 ID 必须与目标图片一致；当前仿真标记为 DICT_4X4_50 / ID 0。
+# 字典和 ID 必须与目标图片一致；比赛标记为 DICT_4X4_50 / ID 0～5。
 dictionary: DICT_4X4_50
 marker_id: 0
+# models/targets/materials/textures/ 中的全部标记。
+# 多个目标同时出现时，center/content 发布列表中最靠前的可见 ID。
+# Guidance 可独立跟踪列表中任一 target_id；删除 marker_ids 后恢复单 ID 模式。
+marker_ids: [0, 1, 2, 3, 4, 5]
 
 # 输出中心：geometry_msgs/PointStamped，x=u、y=v，单位为像素，z=0。
 # “~”表示相对于节点的私有话题，默认解析为 /aruco_center/center。
 center_topic: "~center"
 
-# 每帧检测状态：std_msgs/Bool，找到指定 ID 且中心有效为 true，否则为 false。
+# 每帧检测状态：std_msgs/Bool，找到列表中任一 ID 且中心有效为 true，否则为 false。
 # 图像转换失败也发布 false；输入图像中断时不发布，接收端仍需检查超时。
 is_found_topic: "~is_found"
 

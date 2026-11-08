@@ -49,6 +49,9 @@ BT::NodeStatus GuidanceNode::onStart() {
         return finish(BT::NodeStatus::FAILURE, "FAIL: invalid limits");
     }
 
+    ROS_INFO("[Guidance] START: target_id=%s tracking_duration=%.2f timeout=%.2f",
+             goal_.target_id.c_str(), tracking_duration_, timeout_);
+
     //PID
     pid_u_ = PIDController(kp_, ki_, kd_, integral_max_, max_speed_);
     pid_v_ = PIDController(kp_, ki_, kd_, integral_max_, max_speed_);
