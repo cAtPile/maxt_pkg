@@ -8,14 +8,12 @@
 
 namespace maxt {
 
-class SendGeoPoseNode : public BT::StatefulActionNode {
+class SendGeoPoseNode : public BT::SyncActionNode {
 public:
     SendGeoPoseNode(const std::string& name, const BT::NodeConfiguration& config,
                     ros::NodeHandle& nh);
     static BT::PortsList providedPorts();
-    BT::NodeStatus onStart() override;
-    BT::NodeStatus onRunning() override;
-    void onHalted() override {}
+    BT::NodeStatus tick() override;
 
 private:
     void onFix(const sensor_msgs::NavSatFix::ConstPtr& message);
@@ -23,9 +21,7 @@ private:
     std::mutex mutex_;
     sensor_msgs::NavSatFix fix_;
     ros::WallTime received_at_;
-    ros::WallTime started_;
     bool valid_{false};
-    double timeout_{10.0};
     ros::Publisher publisher_;
     ros::Subscriber subscriber_;
 };

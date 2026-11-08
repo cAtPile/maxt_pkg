@@ -22,7 +22,10 @@
                      z="{breakpoint_z}" timeout="90.0" />
                 <Guidance target_id="{detected_target_id}" tracking_duration="{tracking_duration}"
                           timeout="90.0" message="{guidance_message}" />
-                <SendGeoPose timeout="10.0" />
+                <!-- 经纬度上报失败不阻断任务，仍继续返回断点。 -->
+                <ForceSuccess>
+                    <SendGeoPose />
+                </ForceSuccess>
                 <NavRaw name="ReturnBreakpointAfterGuidance" x="{breakpoint_x}" y="{breakpoint_y}"
                      z="{breakpoint_z}" timeout="90.0" />
             </Sequence>
