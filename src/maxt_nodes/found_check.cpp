@@ -21,7 +21,8 @@ BT::PortsList FoundCheckNode::providedPorts() {
         BT::InputPort<std::string>("topic", "/aruco_center/content",
                                    "std_msgs/String content; empty means no target"),
         BT::InputPort<bool>("record", true,
-                           "false: visibility check only; do not read or update history")
+                           "false: visibility check only; do not read or update history"),
+        BT::OutputPort<std::string>("target_id", "ID captured by a successful detection")
     };
 }
 
@@ -40,6 +41,7 @@ BT::NodeStatus FoundCheckNode::tick() {
         return BT::NodeStatus::FAILURE;
     }
     if (!getInput<bool>("record").value()) {
+        setOutput("target_id", content_);
         return BT::NodeStatus::SUCCESS;
     }
     // 仅在行为树 tick 线程访问历史；回调只更新本实例的检测快照。
@@ -47,6 +49,7 @@ BT::NodeStatus FoundCheckNode::tick() {
     if (std::find(processed.begin(), processed.end(), content_) != processed.end()) {
         return BT::NodeStatus::FAILURE;
     }
+    setOutput("target_id", content_);
     processed.push_back(content_);
     history_->set("processed_qr", processed);
     return BT::NodeStatus::SUCCESS;
