@@ -29,88 +29,157 @@
     </BehaviorTree>
     <BehaviorTree ID="NavWithTargetHandling">
         <Sequence>
-            <SetBlackboard output_key="nav_started" value="false" />
-            <SetBlackboard output_key="interrupted" value="false" />
-            <SetBlackboard output_key="breakpoint_valid" value="false" />
-            <ReactiveFallback>
-                <BlackboardCheckBool value_A="{nav_started}" value_B="true" return_on_mismatch="FAILURE">
-                    <Sequence>
-                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}"
-                                      detected_target_id="{detected_target_id}" />
-                        <SetBlackboard output_key="target_armed" value="false" />
-                        <SetBlackboard output_key="interrupted" value="true" />
-                    </Sequence>
-                </BlackboardCheckBool>
+            <!-- 每轮仍使用同一目标。只有正常到达才成功；处理失败立即退出，不重试失败动作。 -->
+            <RetryUntilSuccessful num_attempts="-1">
                 <Sequence>
-                    <SetBlackboard output_key="nav_started" value="true" />
-                    <Nav name="SearchLeg" x="{x}" y="{y}" z="{z}" timeout="45.0"
-                         breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
-                         breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}" />
+                    <Fallback>
+                        <Sequence>
+                            <SetBlackboard output_key="nav_started" value="false" />
+                            <SetBlackboard output_key="interrupted" value="false" />
+                            <SetBlackboard output_key="breakpoint_valid" value="false" />
+                            <ReactiveFallback>
+                                <BlackboardCheckBool value_A="{nav_started}" value_B="true" return_on_mismatch="FAILURE">
+                                    <Sequence>
+                                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}"
+                                                      detected_target_id="{detected_target_id}" />
+                                        <SetBlackboard output_key="target_armed" value="false" />
+                                        <SetBlackboard output_key="interrupted" value="true" />
+                                    </Sequence>
+                                </BlackboardCheckBool>
+                                <Sequence>
+                                    <SetBlackboard output_key="nav_started" value="true" />
+                                    <Nav name="SearchLeg" x="{x}" y="{y}" z="{z}" timeout="45.0"
+                                         breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
+                                         breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}" />
+                                </Sequence>
+                            </ReactiveFallback>
+                            <BlackboardCheckBool value_A="{interrupted}" value_B="true" return_on_mismatch="SUCCESS">
+                                <SubTreePlus ID="HandleNavBreakpoint" detected_target_id="{detected_target_id}"
+                                             breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
+                                             breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
+                                             tracking_duration="{tracking_duration}" guidance_message="{guidance_message}" />
+                            </BlackboardCheckBool>
+                            <SetBlackboard output_key="leg_failed" value="false" />
+                        </Sequence>
+                        <SetBlackboard output_key="leg_failed" value="true" />
+                    </Fallback>
+                    <!-- 处理失败时停止循环，由循环外返回 FAILURE；中断处理成功则重启原航段。 -->
+                    <Fallback>
+                        <BlackboardCheckBool value_A="{leg_failed}" value_B="true" return_on_mismatch="FAILURE">
+                            <AlwaysSuccess />
+                        </BlackboardCheckBool>
+                        <BlackboardCheckBool value_A="{interrupted}" value_B="false" return_on_mismatch="FAILURE">
+                            <AlwaysSuccess />
+                        </BlackboardCheckBool>
+                    </Fallback>
                 </Sequence>
-            </ReactiveFallback>
-            <BlackboardCheckBool value_A="{interrupted}" value_B="true" return_on_mismatch="SUCCESS">
-                <SubTreePlus ID="HandleNavBreakpoint" detected_target_id="{detected_target_id}"
-                             breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
-                             breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
-                             tracking_duration="{tracking_duration}" guidance_message="{guidance_message}" />
+            </RetryUntilSuccessful>
+            <BlackboardCheckBool value_A="{leg_failed}" value_B="false" return_on_mismatch="FAILURE">
+                <AlwaysSuccess />
             </BlackboardCheckBool>
         </Sequence>
     </BehaviorTree>
     <BehaviorTree ID="AzimuthFixNavWithTargetHandling">
         <Sequence>
-            <SetBlackboard output_key="nav_started" value="false" />
-            <SetBlackboard output_key="interrupted" value="false" />
-            <SetBlackboard output_key="breakpoint_valid" value="false" />
-            <ReactiveFallback>
-                <BlackboardCheckBool value_A="{nav_started}" value_B="true" return_on_mismatch="FAILURE">
-                    <Sequence>
-                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}"
-                                      detected_target_id="{detected_target_id}" />
-                        <SetBlackboard output_key="target_armed" value="false" />
-                        <SetBlackboard output_key="interrupted" value="true" />
-                    </Sequence>
-                </BlackboardCheckBool>
+            <!-- 每轮仍使用同一目标。只有正常到达才成功；处理失败立即退出，不重试失败动作。 -->
+            <RetryUntilSuccessful num_attempts="-1">
                 <Sequence>
-                    <SetBlackboard output_key="nav_started" value="true" />
-                    <AzimuthFixNav name="SearchLeg" nav_n="{nav_n}" nav_t="{nav_t}" nav_a="{nav_a}" bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}" timeout="60.0"
-                         breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
-                         breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}" />
+                    <Fallback>
+                        <Sequence>
+                            <SetBlackboard output_key="nav_started" value="false" />
+                            <SetBlackboard output_key="interrupted" value="false" />
+                            <SetBlackboard output_key="breakpoint_valid" value="false" />
+                            <ReactiveFallback>
+                                <BlackboardCheckBool value_A="{nav_started}" value_B="true" return_on_mismatch="FAILURE">
+                                    <Sequence>
+                                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}"
+                                                      detected_target_id="{detected_target_id}" />
+                                        <SetBlackboard output_key="target_armed" value="false" />
+                                        <SetBlackboard output_key="interrupted" value="true" />
+                                    </Sequence>
+                                </BlackboardCheckBool>
+                                <Sequence>
+                                    <SetBlackboard output_key="nav_started" value="true" />
+                                    <AzimuthFixNav name="SearchLeg" nav_n="{nav_n}" nav_t="{nav_t}" nav_a="{nav_a}" bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}" timeout="60.0"
+                                         breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
+                                         breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}" />
+                                </Sequence>
+                            </ReactiveFallback>
+                            <BlackboardCheckBool value_A="{interrupted}" value_B="true" return_on_mismatch="SUCCESS">
+                                <SubTreePlus ID="HandleNavBreakpoint" detected_target_id="{detected_target_id}"
+                                             breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
+                                             breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
+                                             tracking_duration="{tracking_duration}" guidance_message="{guidance_message}" />
+                            </BlackboardCheckBool>
+                            <SetBlackboard output_key="leg_failed" value="false" />
+                        </Sequence>
+                        <SetBlackboard output_key="leg_failed" value="true" />
+                    </Fallback>
+                    <!-- 处理失败时停止循环，由循环外返回 FAILURE；中断处理成功则重启原航段。 -->
+                    <Fallback>
+                        <BlackboardCheckBool value_A="{leg_failed}" value_B="true" return_on_mismatch="FAILURE">
+                            <AlwaysSuccess />
+                        </BlackboardCheckBool>
+                        <BlackboardCheckBool value_A="{interrupted}" value_B="false" return_on_mismatch="FAILURE">
+                            <AlwaysSuccess />
+                        </BlackboardCheckBool>
+                    </Fallback>
                 </Sequence>
-            </ReactiveFallback>
-            <BlackboardCheckBool value_A="{interrupted}" value_B="true" return_on_mismatch="SUCCESS">
-                <SubTreePlus ID="HandleNavBreakpoint" detected_target_id="{detected_target_id}"
-                             breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
-                             breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
-                             tracking_duration="{tracking_duration}" guidance_message="{guidance_message}" />
+            </RetryUntilSuccessful>
+            <BlackboardCheckBool value_A="{leg_failed}" value_B="false" return_on_mismatch="FAILURE">
+                <AlwaysSuccess />
             </BlackboardCheckBool>
         </Sequence>
     </BehaviorTree>
     <BehaviorTree ID="LaLoNavWithTargetHandling">
         <Sequence>
-            <SetBlackboard output_key="nav_started" value="false" />
-            <SetBlackboard output_key="interrupted" value="false" />
-            <SetBlackboard output_key="breakpoint_valid" value="false" />
-            <ReactiveFallback>
-                <BlackboardCheckBool value_A="{nav_started}" value_B="true" return_on_mismatch="FAILURE">
-                    <Sequence>
-                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}"
-                                      detected_target_id="{detected_target_id}" />
-                        <SetBlackboard output_key="target_armed" value="false" />
-                        <SetBlackboard output_key="interrupted" value="true" />
-                    </Sequence>
-                </BlackboardCheckBool>
+            <!-- 每轮仍使用同一目标。只有正常到达才成功；处理失败立即退出，不重试失败动作。 -->
+            <RetryUntilSuccessful num_attempts="-1">
                 <Sequence>
-                    <SetBlackboard output_key="nav_started" value="true" />
-                    <LaLoNav name="SearchLeg" latitude="{latitude}" longitude="{longitude}" timeout="90.0"
-                         breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
-                         breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}" />
+                    <Fallback>
+                        <Sequence>
+                            <SetBlackboard output_key="nav_started" value="false" />
+                            <SetBlackboard output_key="interrupted" value="false" />
+                            <SetBlackboard output_key="breakpoint_valid" value="false" />
+                            <ReactiveFallback>
+                                <BlackboardCheckBool value_A="{nav_started}" value_B="true" return_on_mismatch="FAILURE">
+                                    <Sequence>
+                                        <SubTreePlus ID="TargetInterruptCheck" target_armed="{target_armed}"
+                                                      detected_target_id="{detected_target_id}" />
+                                        <SetBlackboard output_key="target_armed" value="false" />
+                                        <SetBlackboard output_key="interrupted" value="true" />
+                                    </Sequence>
+                                </BlackboardCheckBool>
+                                <Sequence>
+                                    <SetBlackboard output_key="nav_started" value="true" />
+                                    <LaLoNav name="SearchLeg" latitude="{latitude}" longitude="{longitude}" timeout="90.0"
+                                         breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
+                                         breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}" />
+                                </Sequence>
+                            </ReactiveFallback>
+                            <BlackboardCheckBool value_A="{interrupted}" value_B="true" return_on_mismatch="SUCCESS">
+                                <SubTreePlus ID="HandleNavBreakpoint" detected_target_id="{detected_target_id}"
+                                             breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
+                                             breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
+                                             tracking_duration="{tracking_duration}" guidance_message="{guidance_message}" />
+                            </BlackboardCheckBool>
+                            <SetBlackboard output_key="leg_failed" value="false" />
+                        </Sequence>
+                        <SetBlackboard output_key="leg_failed" value="true" />
+                    </Fallback>
+                    <!-- 处理失败时停止循环，由循环外返回 FAILURE；中断处理成功则重启原航段。 -->
+                    <Fallback>
+                        <BlackboardCheckBool value_A="{leg_failed}" value_B="true" return_on_mismatch="FAILURE">
+                            <AlwaysSuccess />
+                        </BlackboardCheckBool>
+                        <BlackboardCheckBool value_A="{interrupted}" value_B="false" return_on_mismatch="FAILURE">
+                            <AlwaysSuccess />
+                        </BlackboardCheckBool>
+                    </Fallback>
                 </Sequence>
-            </ReactiveFallback>
-            <BlackboardCheckBool value_A="{interrupted}" value_B="true" return_on_mismatch="SUCCESS">
-                <SubTreePlus ID="HandleNavBreakpoint" detected_target_id="{detected_target_id}"
-                             breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
-                             breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
-                             tracking_duration="{tracking_duration}" guidance_message="{guidance_message}" />
+            </RetryUntilSuccessful>
+            <BlackboardCheckBool value_A="{leg_failed}" value_B="false" return_on_mismatch="FAILURE">
+                <AlwaysSuccess />
             </BlackboardCheckBool>
         </Sequence>
     </BehaviorTree>
