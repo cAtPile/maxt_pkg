@@ -138,6 +138,7 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/guidance.cpp
   src/maxt_nodes/ugv_cowork_node.cpp
   src/maxt_nodes/capture_pose_node.cpp
+  src/maxt_nodes/send_geo_pose_node.cpp
 
   src/maxt_nodes/takeoff.cpp
   src/maxt_nodes/waitstep.cpp

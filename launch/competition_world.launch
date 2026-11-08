@@ -41,14 +41,14 @@
   <arg name="aruco_0_y" default="3"/>
   <arg name="aruco_1_x" default="8"/>
   <arg name="aruco_1_y" default="8"/>
-  <arg name="aruco_2_x" default="-35"/>
-  <arg name="aruco_2_y" default="-35"/>
-  <arg name="aruco_3_x" default="-35"/>
-  <arg name="aruco_3_y" default="-35"/>
-  <arg name="aruco_4_x" default="-35"/>
-  <arg name="aruco_4_y" default="-35"/>
-  <arg name="aruco_5_x" default="10"/>
-  <arg name="aruco_5_y" default="10"/>
+  <arg name="aruco_2_x" default="26"/>
+  <arg name="aruco_2_y" default="8"/>
+  <arg name="aruco_3_x" default="15"/>
+  <arg name="aruco_3_y" default="15"/>
+  <arg name="aruco_4_x" default="25"/>
+  <arg name="aruco_4_y" default="27"/>
+  <arg name="aruco_5_x" default="18"/>
+  <arg name="aruco_5_y" default="11"/>
 
   <env name="GAZEBO_MODEL_PATH" value="$(find maxt_pkg)/models:$(optenv GAZEBO_MODEL_PATH)"/>
   <include if="$(arg start_gazebo)" file="$(find gazebo_ros)/launch/empty_world.launch">

@@ -751,3 +751,5 @@ LaLoNav 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/
 导航中断后的 Guidance 使用 FoundCheck 成功时输出的 `target_id`，通过子树黑板传递并锁定，不再固定跟踪 ID 0。返回断点期间新出现的 ID 不会改写该目标。Guidance 启动日志显示目标 ID、跟踪时长和总超时；目标始终不可见时，达到总超时返回 `TIMEOUT`。
 
 目标黑名单 `processed_qr` 由 Guidance 在成功收尾时更新（再次返回断点前）。FoundCheck 只检查历史并输出目标 ID；仅发现、伺服失败、超时或中止均不会加入黑名单。`record="false"` 仍只检查可见性。
+
+导航中断处理在 Guidance 成功后执行 `SendGeoPose`，将新的 GPS 定位发布到 `QRCode_pose/Global_pose`，发送成功后再返回断点继续原航段。等待有效定位或接收端超过 10 秒时返回 FAILURE。

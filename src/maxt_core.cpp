@@ -5,6 +5,7 @@
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 #include <maxt_pkg/maxt_nodes/ugv_cowork_node.hpp>
 #include <maxt_pkg/maxt_nodes/capture_pose_node.hpp>
+#include <maxt_pkg/maxt_nodes/send_geo_pose_node.hpp>
 
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
 
@@ -74,6 +75,10 @@ bool MaxtCore::init() {
 }
 
 void MaxtCore::registerNodes() {
+    factory_.registerBuilder<SendGeoPoseNode>("SendGeoPose",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<SendGeoPoseNode>(name, config, nh_);
+        });
     factory_.registerBuilder<BasePointAzimuthFixNode>("BasePointAzimuthFix",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<BasePointAzimuthFixNode>(name, config, *mav_);
