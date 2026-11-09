@@ -22,6 +22,7 @@
 #include <maxt_pkg/maxt_nodes/base_point_azimuth_fix_node.hpp>
 #include <maxt_pkg/maxt_nodes/azimuth_fix_nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/found_check_node.hpp>
+#include <maxt_pkg/maxt_nodes/target_check_node.hpp>
 
 namespace maxt {
 
@@ -53,6 +54,10 @@ void MaxtCore::registerNodes() {
     factory_.registerBuilder<FoundCheckNode>("FoundCheck",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<FoundCheckNode>(name, config, nh_, mission_blackboard_);
+        });
+    factory_.registerBuilder<TargetCheckNode>("TargetCheck",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<TargetCheckNode>(name, config, nh_, mission_blackboard_);
         });
     factory_.registerNodeType<TraversePathGeneratorNode>("TraversePathGenerator");
     factory_.registerNodeType<GetRegionWaypointNode>("GetRegionWaypoint");

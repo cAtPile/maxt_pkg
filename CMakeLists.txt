@@ -147,6 +147,7 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/traverse_path_generator.cpp
   src/maxt_nodes/get_region_waypoint.cpp
   src/maxt_nodes/found_check.cpp
+  src/maxt_nodes/target_check.cpp
   src/maxt_nodes/round.cpp
   src/maxt_nodes/connect_check.cpp
 
