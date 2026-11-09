@@ -127,6 +127,7 @@ add_library(${PROJECT_NAME}
   src/audio_caller.cpp
   src/maxt_nodes/play_audio.cpp
   src/maxt_core.cpp
+  src/bt_core/bt_registry.cpp
   src/mavkit/callback.cpp
   src/mavkit/set.cpp
   src/mavkit/timer.cpp
