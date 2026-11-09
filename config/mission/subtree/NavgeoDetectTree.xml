@@ -1,0 +1,33 @@
+<root>
+    <!-- 输入：nav_n/nav_t/nav_a（沿固定方向、左侧、向上的位移，米），
+         bp_x_raw/bp_y_raw/bp_z_raw（原始本地坐标系中的固定基点）。
+         方向沿用 nav/azimuth_angle；调用前应完成起飞和基点采集。
+         输出：result=found/complete/failed、detected_target_id，
+         以及导航中止时的 breakpoint_x/y/z/valid。
+         只执行一个航段，不负责目标处理、恢复导航或降落。 -->
+    <BehaviorTree ID="NavgeoDetectTree">
+        <Sequence>
+            <SetBlackboard output_key="result" value="failed" />
+            <SetBlackboard output_key="detected_target_id" value="" />
+            <SetBlackboard output_key="breakpoint_valid" value="false" />
+            <Parallel success_threshold="1" failure_threshold="1">
+                <!-- 导航先启动，确保目标立即可见时也能 halt 导航并记录断点。
+                     同一 tick 内导航到达或失败优先。 -->
+                <Sequence>
+                    <AzimuthFixNav name="DetectSearchLeg"
+                                   nav_n="{nav_n}" nav_t="{nav_t}" nav_a="{nav_a}"
+                                   bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}"
+                                   bp_z_raw="{bp_z_raw}" timeout="60.0"
+                                   breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"    
+                                   breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}" />
+                    <SetBlackboard output_key="result" value="complete" />
+                </Sequence>
+                <Sequence>
+                    <TargetCheck topic="/aruco_center/content" record="true"
+                                 target_id="{detected_target_id}" />
+                    <SetBlackboard output_key="result" value="found" />
+                </Sequence>
+            </Parallel>
+        </Sequence>
+    </BehaviorTree>
+</root>
