@@ -1,0 +1,30 @@
+<root>
+    <include path="NavgeoDetectTree.xml" />
+    <include path="GuidanceRecoveryTree.xml" />
+    <!-- 输入：nav_n/nav_t/nav_a、bp_x_raw/bp_y_raw/bp_z_raw、tracking_duration。
+         输出：result=complete/failed、detected_target_id、guidance_message。
+         发现目标后完成断点恢复流程即结束，不再继续原航段；
+         未发现目标则等待导航到达后结束。调用前应完成起飞和基点采集。 -->
+    <BehaviorTree ID="TraverseDetectTree">
+        <Sequence>
+            <SetBlackboard output_key="result" value="failed" />
+            <SubTreePlus ID="NavgeoDetectTree"
+                         nav_n="{nav_n}" nav_t="{nav_t}" nav_a="{nav_a}"
+                         bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}"
+                         result="{nav_detect_result}" detected_target_id="{detected_target_id}"
+                         breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
+                         breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}" />
+            <Switch2 variable="{nav_detect_result}" case_1="found" case_2="complete">
+                <SubTreePlus ID="GuidanceRecoveryTree"
+                             breakpoint_x="{breakpoint_x}" breakpoint_y="{breakpoint_y}"
+                             breakpoint_z="{breakpoint_z}" breakpoint_valid="{breakpoint_valid}"
+                             detected_target_id="{detected_target_id}"
+                             tracking_duration="{tracking_duration}"
+                             guidance_message="{guidance_message}" />
+                <AlwaysSuccess />
+                <AlwaysFailure />
+            </Switch2>
+            <SetBlackboard output_key="result" value="complete" />
+        </Sequence>
+    </BehaviorTree>
+</root>
