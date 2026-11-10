@@ -1,0 +1,31 @@
+<root main_tree_to_execute="TraverseGuidanceMission">
+    <include path="subtree/TraverseGuidanceTree.xml" />
+    <!-- 示例参数沿用 sim_geo_treverse.xml；按任务修改经纬度及矩形范围。
+         ReHeading 和遍历方向均使用 config/nav.yaml 中的 nav/azimuth_angle。
+         LaLoNav 沿用现有成功判定（包括末端对齐等待超时），随后采集实际位置为基点。 -->
+    <BehaviorTree ID="TraverseGuidanceMission">
+        <Sequence>
+            <ConnectCheck />
+            <Takeoff target_alt="6.0"
+                     home_x="{home_x}" home_y="{home_y}"
+                     home_z="{home_z}" return_z="{return_z}" />
+            <ReHeading timeout="60.0" />
+            <LaLoNav latitude="47.3977419" longitude="8.5455939" timeout="90.0" />
+            <BasePointAzimuthFix bp_x_raw="{bp_x_raw}"
+                                 bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}" />
+            <!-- 以基点为矩形原点，沿固定航向和左侧分别覆盖 30 米。
+                 height_above_base=0 保持到达基点时的高度。 -->
+            <SubTreePlus ID="TraverseGuidanceTree"
+                         origin_x="0" origin_y="0"
+                         length_x="30" length_y="30" coverage_step="6"
+                         height_above_base="0" tracking_duration="0.0"
+                         bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}"
+                         bp_z_raw="{bp_z_raw}" result="{traverse_result}"
+                         detected_target_id="{detected_target_id}"
+                         guidance_message="{guidance_message}" />
+            <Nav name="ReturnHome" x="{home_x}" y="{home_y}"
+                 z="{return_z}" timeout="90.0" />
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>
