@@ -1,0 +1,25 @@
+<root>
+    <!-- 输入：breakpoint_valid、breakpoint_x/y/z（原始本地坐标，米），
+         detected_target_id、tracking_duration（秒，0 表示对齐一次）。
+         输出：guidance_message。
+         无效断点、返回导航或 Guidance 失败时立即返回 FAILURE。
+         沿用现有断点处理策略：SendGeoPose 失败仍执行最后的返回导航。
+         返回节点不映射断点输出，避免中止时覆盖原断点。 -->
+    <BehaviorTree ID="GuidanceRecoveryTree">
+        <BlackboardCheckBool value_A="{breakpoint_valid}" value_B="true" return_on_mismatch="FAILURE">
+            <Sequence>
+                <NavRaw name="ReturnBreakpointBeforeGuidance"
+                        x="{breakpoint_x}" y="{breakpoint_y}" z="{breakpoint_z}"
+                        timeout="90.0" />
+                <Guidance target_id="{detected_target_id}" tracking_duration="{tracking_duration}"
+                          timeout="90.0" message="{guidance_message}" />
+                <ForceSuccess>
+                    <SendGeoPose />
+                </ForceSuccess>
+                <NavRaw name="ReturnBreakpointAfterGuidance"
+                        x="{breakpoint_x}" y="{breakpoint_y}" z="{breakpoint_z}"
+                        timeout="90.0" />
+            </Sequence>
+        </BlackboardCheckBool>
+    </BehaviorTree>
+</root>
