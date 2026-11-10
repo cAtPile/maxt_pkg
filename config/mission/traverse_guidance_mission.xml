@@ -1,6 +1,6 @@
 <root main_tree_to_execute="TraverseGuidanceMission">
     <include path="subtree/TraverseGuidanceTree.xml" />
-    <!-- 示例参数沿用 sim_geo_treverse.xml；按任务修改经纬度及矩形范围。
+    <!-- 按任务修改经纬度及矩形范围。
          ReHeading 和遍历方向均使用 config/nav.yaml 中的 nav/azimuth_angle。
          LaLoNav 沿用现有成功判定（包括末端对齐等待超时），随后采集实际位置为基点。 -->
     <BehaviorTree ID="TraverseGuidanceMission">

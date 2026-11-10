@@ -266,19 +266,6 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(test_calibrate_tools ${catkin_LIBRARIES})
   endif()
 
-  add_executable(nav_breakpoint_tree_test test/nav_breakpoint_tree_test.cpp)
-  add_dependencies(nav_breakpoint_tree_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-  target_link_libraries(nav_breakpoint_tree_test ${PROJECT_NAME} ${catkin_LIBRARIES})
-  add_test(NAME nav_breakpoint_tree
-    COMMAND nav_breakpoint_tree_test
-      ${CMAKE_CURRENT_SOURCE_DIR}/config/mission/region_traverse_test.xml
-      ${CMAKE_CURRENT_SOURCE_DIR}/config/mission/sim_geo_treverse.xml)
-
-  add_executable(ugv_cowork_tree_test test/ugv_cowork_tree_test.cpp)
-  add_dependencies(ugv_cowork_tree_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-  target_link_libraries(ugv_cowork_tree_test ${PROJECT_NAME} ${catkin_LIBRARIES})
-  add_test(NAME ugv_cowork_tree
-    COMMAND ugv_cowork_tree_test ${CMAKE_CURRENT_SOURCE_DIR}/config/mission/ugv_cowork_test.xml)
 endif()
 
 ## Add gtest based cpp test target and link libraries

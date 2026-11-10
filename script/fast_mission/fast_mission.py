@@ -29,14 +29,6 @@ MISSIONS = (
         ("radius", "0.0"), ("angular_speed", "30.0"),
         ("total_angle", "360.0"), ("tolerance", "0.3"),
         ("timeout", "60.0"), ("ramp_time", "2.0"))),
-    ("region_traverse", "RegionTraverse", (
-        ("origin_x", None), ("origin_y", None),
-        ("length_x", None), ("length_y", None),
-        ("coverage_step", "1.0"), ("altitude", "4.0"))),
-    ("vision_region_traverse", "VisionRegionTraverse", (
-        ("origin_x", None), ("origin_y", None),
-        ("length_x", None), ("length_y", None),
-        ("coverage_step", "1.0"), ("altitude", "4.0"))),
     ("guidance", "Guidance", (
         ("target_id", None), ("timeout", "30.0"),
         ("tracking_duration", "0.0"))),
@@ -45,8 +37,6 @@ MISSIONS = (
 
 # 对应节点的 ROS 私有参数位于 config/nav.yaml，和任务端口分别配置。
 MISSION_HINTS = {
-    "RegionTraverse": "填写原点 origin_x/y 和有符号边长 length_x/y（非零，负值表示反向）；航带沿 X 往返、沿 Y 推进；coverage_step 为航带间距，altitude 为高度（m）。完整遍历区域，不检测视觉目标；起飞需单独添加。",
-    "VisionRegionTraverse": "填写原点 origin_x/y 和有符号边长 length_x/y（非零，负值表示反向）；航带沿 X 往返、沿 Y 推进；coverage_step 为航带间距，altitude 为高度（m）。发现目标即结束搜索；起飞需单独添加。",
     "Takeoff": "持续等待外部解锁；ROS 配置 takeoff/: ascent_speed、timeout（解锁后）；此处仅填写起飞高度。",
     "Nav": "目标、timeout 填写在 XML；到达容差见 reach_check/position_pose_tolerance，速度、加速度、PID 配置见 nav/。",
     "Hover": "hover_duration 为悬停时长，单位 s。",
@@ -103,19 +93,11 @@ def read_parameter(mission, port, default):
 def build_xml(tasks):
     tasks = list(tasks)
     root = ET.Element("root", main_tree_to_execute="FastMission")
-    for subtree in ("RegionTraverse", "VisionRegionTraverse"):
-        if any(tag == subtree for tag, _ in tasks):
-            ET.SubElement(root, "include", path="subtree/{}.xml".format(subtree))
     tree = ET.SubElement(root, "BehaviorTree", ID="FastMission")
     sequence = ET.SubElement(tree, "Sequence")
     ET.SubElement(sequence, "ConnectCheck")
-    for index, (tag, parameters) in enumerate(tasks, 1):
-        if tag in ("RegionTraverse", "VisionRegionTraverse"):
-            ET.SubElement(sequence, "SubTreePlus", {
-                **parameters, "ID": tag,
-                "result": "{region_search_result_%d}" % index})
-        else:
-            ET.SubElement(sequence, tag, parameters)
+    for tag, parameters in tasks:
+        ET.SubElement(sequence, tag, parameters)
     ET.SubElement(sequence, "TouchDown")
     # minidom 的缩进接口兼容 ROS Noetic 使用的 Python 3.8。
     return minidom.parseString(ET.tostring(root)).documentElement.toprettyxml(
