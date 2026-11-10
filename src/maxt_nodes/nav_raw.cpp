@@ -30,6 +30,7 @@ NavRawNode::NavRawNode(const std::string& name,
 }
 
 BT::NodeStatus NavRawNode::onStart() {
+    waiting_for_stop_ = false;
     nav_nh_.param<double>("hold_timeout", hold_timeout_, 3.0);
 
     //获取参数
@@ -57,6 +58,15 @@ BT::NodeStatus NavRawNode::onStart() {
     }
     getInput<double>("timeout", timeout_);
 
+    waiting_for_stop_ = mav_.isSlowingDown();
+    if (waiting_for_stop_) {
+        ROS_INFO("[NavRaw] Waiting for slowdown to complete before navigation.");
+        return BT::NodeStatus::RUNNING;
+    }
+    return startNavigation();
+}
+
+BT::NodeStatus NavRawNode::startNavigation() {
     // x/y/z 直接使用 MAVROS 原始 local 坐标，不叠加 Home 或标定旋转。
     // 曲线由 MavKit 维护，BT 只负责生命周期和末端闭环。
     mav_.setQuinticCurveTarget(Eigen::Vector3d(tx_, ty_, tz_), true);
@@ -81,6 +91,11 @@ BT::NodeStatus NavRawNode::onStart() {
 }
 
 BT::NodeStatus NavRawNode::onRunning() {
+    if (waiting_for_stop_) {
+        if (mav_.isSlowingDown()) return BT::NodeStatus::RUNNING;
+        waiting_for_stop_ = false;
+        return startNavigation();
+    }
     ros::Time now = ros::Time::now();
     double dt = (now - last_time_).toSec();
     if (dt <= DT_MIN) return BT::NodeStatus::RUNNING;

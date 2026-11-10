@@ -17,6 +17,8 @@ public:
     void onHalted() override;
 
 private:
+    BT::NodeStatus startNavigation();
+    bool waiting_for_stop_{false};
     ros::NodeHandle nav_nh_;
     double tx_{0.0}, ty_{0.0}, tz_{0.0};
     double tolerance_{0.1};
