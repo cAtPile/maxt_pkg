@@ -12,7 +12,7 @@
 
 namespace maxt {
 
-// 持续等待有效目标，并按 ID 保存所有有效观测的平均本地位置。
+// 持续返回 RUNNING，并按 ID 保存所有有效观测的平均本地位置。
 class TargetCheckNode : public MavActionNode {
 public:
     TargetCheckNode(const std::string& name, const BT::NodeConfiguration& config,

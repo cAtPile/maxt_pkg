@@ -31,7 +31,7 @@ BT::PortsList TargetCheckNode::providedPorts() {
                                    "std_msgs/String content; empty means no target"),
         BT::InputPort<bool>("record", true,
                            "true: reject processed IDs and save local pose; false: visibility check only"),
-        BT::OutputPort<std::string>("target_id", "ID captured by a successful detection"),
+        BT::OutputPort<std::string>("target_id", "Latest valid detected ID"),
         BT::OutputPort<geometry_msgs::PoseStamped>(
             "target_pose", "Mean observed local position when recording; latest raw pose otherwise")
     };
@@ -104,7 +104,8 @@ BT::NodeStatus TargetCheckNode::onRunning() {
     }
     setOutput("target_pose", record ? poses.at(content_) : detected_pose_);
     setOutput("target_id", content_);
-    return BT::NodeStatus::SUCCESS;
+    // 持续检测和记录目标，由父节点决定何时停止。
+    return BT::NodeStatus::RUNNING;
 }
 
 void TargetCheckNode::onHalted() {
