@@ -163,24 +163,7 @@ BT::NodeStatus NavRawNode::onRunning() {
 
 
 void NavRawNode::onHalted() {
-    // 先记录实测中断点，再触发减速；不保存轨迹参考点或最终目标。
-    const auto pose = mav_.GetRawPose();
-    const auto& p = pose.pose.position;
-    const bool valid = !pose.header.stamp.isZero() &&
-        std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z);
-    setOutput("breakpoint_valid", false);
-    if (valid) {
-        setOutput("breakpoint_x", p.x);
-        setOutput("breakpoint_y", p.y);
-        setOutput("breakpoint_z", p.z);
-        setOutput("breakpoint_valid", true);
-        ROS_WARN("[%s] Halted: breakpoint=(%.3f, %.3f, %.3f). Slowing down.",
-                 name().c_str(), p.x, p.y, p.z);
-    } else {
-        ROS_WARN("[%s] Halted without valid pose; breakpoint unavailable. Slowing down.",
-                 name().c_str());
-    }
-    mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+    recordBreakpointAndSlowDown();
 }
 
 } // namespace maxt
