@@ -1,0 +1,31 @@
+<root>
+    <!-- 输入：nav_n/nav_t/nav_a（沿固定方向、左侧、向上的位移，米），
+         bp_x_raw/bp_y_raw/bp_z_raw（原始本地坐标系中的固定基点）。
+         方向沿用 nav/azimuth_angle；调用前应完成起飞和基点采集。
+         输出：result=complete/failed、detected_target_id（本航段最近记录的 ID）。
+         TargetCheck 将各目标的最新观察位姿保存到任务黑板 target_local_poses，
+         已处理的 processed_qr 目标沿用 TargetCheck 规则跳过。
+         只执行一个航段，持续检测记录，不因发现目标中止导航，不执行伺服。
+         不清空已有目标记录，多个航段可共用同一份任务黑板。 -->
+    <BehaviorTree ID="TraverseRecoreTree">
+        <Sequence>
+            <SetBlackboard output_key="result" value="failed" />
+            <SetBlackboard output_key="detected_target_id" value="" />
+            <Parallel success_threshold="1" failure_threshold="1">
+                <Sequence>
+                    <AzimuthFixNav name="RecordSearchLeg"
+                                   nav_n="{nav_n}" nav_t="{nav_t}" nav_a="{nav_a}"
+                                   bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}"
+                                   bp_z_raw="{bp_z_raw}" timeout="60.0" />
+                    <SetBlackboard output_key="result" value="complete" />
+                </Sequence>
+                <!-- 每次记录成功后返回 RUNNING，下个 tick 再次检测。
+                     避免无限 Repeat 在目标持续可见时阻塞同一次 tick。 -->
+                <KeepRunningUntilFailure>
+                    <TargetCheck topic="/aruco_center/content" record="true"
+                                 target_id="{detected_target_id}" />
+                </KeepRunningUntilFailure>
+            </Parallel>
+        </Sequence>
+    </BehaviorTree>
+</root>
