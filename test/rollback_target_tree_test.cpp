@@ -2,6 +2,8 @@
 #include <maxt_pkg/maxt_nodes/recorded_targets_node.hpp>
 #include <maxt_pkg/maxt_nodes/list_recorded_targets_node.hpp>
 #include <geometry_msgs/PoseStamped.h>
+#include <maxt_pkg/maxt_nodes/traverse_path_generator_node.hpp>
+#include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
 #include <map>
 #include <stdexcept>
 #include <vector>
@@ -13,6 +15,8 @@ struct Scenario {
     BT::Blackboard::Ptr history = BT::Blackboard::create();
     std::vector<std::string> events;
     bool nav_fail{false}, guidance_fail{false};
+    int search_legs{0}, search_halts{0};
+    bool search_fail{false}, visible{true};
 };
 class Nav : public BT::SyncActionNode {
     Scenario& s_;
@@ -52,6 +56,112 @@ public:
         return BT::NodeStatus::SUCCESS;
     }
 };
+class Search : public BT::StatefulActionNode {
+    Scenario& s_;
+public:
+    Search(const std::string& n, const BT::NodeConfiguration& c, Scenario& s)
+        : BT::StatefulActionNode(n, c), s_(s) {}
+    static BT::PortsList providedPorts() {
+        return {BT::InputPort<double>("nav_n"), BT::InputPort<double>("nav_t"),
+                BT::InputPort<double>("nav_a"), BT::InputPort<double>("bp_x_raw"),
+                BT::InputPort<double>("bp_y_raw"), BT::InputPort<double>("bp_z_raw"),
+                BT::InputPort<double>("timeout")};
+    }
+    BT::NodeStatus onStart() override {
+        ++s_.search_legs; s_.events.push_back("search");
+        check(getInput<double>("nav_a").value() == 0.0);
+        check(getInput<double>("bp_x_raw").value() == 10.0);
+        return BT::NodeStatus::RUNNING;
+    }
+    BT::NodeStatus onRunning() override {
+        return s_.search_fail ? BT::NodeStatus::FAILURE : BT::NodeStatus::SUCCESS;
+    }
+    void onHalted() override { ++s_.search_halts; }
+};
+class Detection : public BT::SyncActionNode {
+    Scenario& s_;
+public:
+    Detection(const std::string& n, const BT::NodeConfiguration& c, Scenario& s)
+        : BT::SyncActionNode(n, c), s_(s) {}
+    static BT::PortsList providedPorts() {
+        return {BT::InputPort<std::string>("topic"), BT::InputPort<bool>("record"),
+                BT::OutputPort<std::string>("target_id")};
+    }
+    BT::NodeStatus tick() override {
+        check(getInput<bool>("record").value());
+        if (s_.visible) {
+            const std::string id = s_.search_legs % 2 ? "A" : "B";
+            std::map<std::string, geometry_msgs::PoseStamped> poses;
+            s_.history->get("target_local_poses", poses);
+            auto& p = poses[id]; p.header.stamp.sec = 1;
+            p.pose.position.x = id == "A" ? 1 : 4;
+            p.pose.position.y = p.pose.position.x + 1;
+            p.pose.position.z = p.pose.position.x + 2;
+            s_.history->set("target_local_poses", poses);
+            setOutput("target_id", id);
+        }
+        return BT::NodeStatus::SUCCESS;
+    }
+};
+void runTraverse(int mode, const std::string& xml) {
+    Scenario s; s.visible = mode != 1;
+    s.search_fail = mode == 2; s.nav_fail = mode == 3; s.guidance_fail = mode == 4;
+    BT::BehaviorTreeFactory f;
+    f.registerNodeType<maxt::TraversePathGeneratorNode>("TraversePathGenerator");
+    f.registerNodeType<maxt::GetRegionWaypointNode>("GetRegionWaypoint");
+    f.registerBuilder<Search>("AzimuthFixNav", [&](const std::string& n, const BT::NodeConfiguration& c) {
+        return std::make_unique<Search>(n, c, s); });
+    f.registerBuilder<Detection>("TargetCheck", [&](const std::string& n, const BT::NodeConfiguration& c) {
+        return std::make_unique<Detection>(n, c, s); });
+    f.registerBuilder<maxt::ListRecordedTargetsNode>("ListRecordedTargets", [&](const std::string& n, const BT::NodeConfiguration& c) {
+        return std::make_unique<maxt::ListRecordedTargetsNode>(n, c, s.history); });
+    f.registerBuilder<maxt::GetRecordedTargetNode>("GetRecordedTarget", [&](const std::string& n, const BT::NodeConfiguration& c) {
+        return std::make_unique<maxt::GetRecordedTargetNode>(n, c, s.history); });
+    f.registerBuilder<Nav>("NavRaw", [&](const std::string& n, const BT::NodeConfiguration& c) {
+        return std::make_unique<Nav>(n, c, s); });
+    f.registerBuilder<Guidance>("Guidance", [&](const std::string& n, const BT::NodeConfiguration& c) {
+        return std::make_unique<Guidance>(n, c, s); });
+    f.registerSimpleAction("ConnectCheck", [](BT::TreeNode&) { return BT::NodeStatus::SUCCESS; });
+    f.registerSimpleAction("Takeoff", [](BT::TreeNode& n) {
+        n.setOutput("home_x", 0.0); n.setOutput("home_y", 0.0);
+        n.setOutput("home_z", 0.0); n.setOutput("return_z", 6.0);
+        return BT::NodeStatus::SUCCESS;
+    }, {BT::InputPort<double>("target_alt"), BT::OutputPort<double>("home_x"),
+        BT::OutputPort<double>("home_y"), BT::OutputPort<double>("home_z"), BT::OutputPort<double>("return_z")});
+    f.registerSimpleAction("ReHeading", [](BT::TreeNode&) { return BT::NodeStatus::SUCCESS; },
+                           {BT::InputPort<double>("timeout")});
+    f.registerSimpleAction("LaLoNav", [](BT::TreeNode&) { return BT::NodeStatus::SUCCESS; },
+                           {BT::InputPort<double>("latitude"), BT::InputPort<double>("longitude"), BT::InputPort<double>("timeout")});
+    f.registerSimpleAction("BasePointAzimuthFix", [](BT::TreeNode& n) {
+        n.setOutput("bp_x_raw", 10.0); n.setOutput("bp_y_raw", 0.0); n.setOutput("bp_z_raw", 0.0);
+        return BT::NodeStatus::SUCCESS;
+    }, {BT::OutputPort<double>("bp_x_raw"), BT::OutputPort<double>("bp_y_raw"), BT::OutputPort<double>("bp_z_raw")});
+    f.registerSimpleAction("Nav", [&](BT::TreeNode& n) {
+        check(n.getInput<double>("x").value() == 0.0);
+        check(n.getInput<double>("z").value() == 6.0);
+        s.events.push_back("home"); return BT::NodeStatus::SUCCESS;
+    }, Nav::providedPorts());
+    f.registerSimpleAction("TouchDown", [&](BT::TreeNode&) {
+        s.events.push_back("land"); return BT::NodeStatus::SUCCESS;
+    });
+    auto bb = BT::Blackboard::create();
+    auto tree = f.createTreeFromFile(xml, bb);
+    auto status = BT::NodeStatus::RUNNING;
+    for (int i = 0; i < 30 && status == BT::NodeStatus::RUNNING; ++i) status = tree.tickRoot();
+    check(status == (mode >= 2 ? BT::NodeStatus::FAILURE : BT::NodeStatus::SUCCESS));
+    check(bb->get<std::string>("traverse_result") == (mode >= 2 ? "failed" : "complete"));
+    check(s.search_halts == 0);
+    std::vector<std::string> expected(mode == 2 ? 1 : 10, "search");
+    if (mode == 0) {
+        expected.insert(expected.end(), {"nav A", "guide A", "nav B", "guide B"});
+    } else if (mode == 3) {
+        expected.push_back("nav A");
+    } else if (mode == 4) {
+        expected.insert(expected.end(), {"nav A", "guide A"});
+    }
+    if (mode < 2) expected.insert(expected.end(), {"home", "land"});
+    check(s.events == expected);
+}
 void run(int mode, const std::string& xml) {
     Scenario s;
     s.nav_fail = mode == 3;
@@ -96,5 +206,7 @@ void run(int mode, const std::string& xml) {
 int main(int argc, char** argv) {
     const std::string xml = argc > 1 ? argv[1] : "config/mission/subtree/RollbackTargetTree.xml";
     for (int i = 0; i < 6; ++i) run(i, xml);
-    std::cout << "RollbackTargetTree: 6 scenarios PASS\n";
+    const auto dir = xml.substr(0, xml.find_last_of('/') + 1);
+    for (int i = 0; i < 5; ++i) runTraverse(i, dir + "../traverse_guidance_mission.xml");
+    std::cout << "RollbackTargetTree: 6 scenarios PASS; TraverseGuidanceMission: 5 scenarios PASS\n";
 }

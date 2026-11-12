@@ -608,12 +608,13 @@ rosrun maxt_pkg test_calibrate_tools
 
 ### 遍历引导子树
 
-`TraverseGuidanceMission` 递归依赖以下子树：
+`TraverseGuidanceMission` 在主任务中规划区域航点，并调用以下子树：
 
-- `TraverseGuidanceTree.xml`：规划区域航点，逐点执行检测导航。
-- `TraverseDetectTree.xml`：发现目标后执行引导恢复，再继续当前航段。
-- `NavgeoDetectTree.xml`：基于固定基点的导航与目标检测，输出中断位置。
-- `GuidanceRecoveryTree.xml`：返回中断位置、执行引导并恢复位置。
+- `traverse_guidance_mission.xml`：规划区域航点，先遍历并记录目标，再逐个返回记录点伺服。
+- `TraverseRecoreTree.xml`：飞行期间持续检测，按 ID 累计目标观察位置并取平均。
+- `RollbackTargetTree.xml`：遍历结束后逐个返回记录点并伺服，跳过已完成目标。
+
+`TargetCheck` 对同一 ID 的有效检测消息逐条累计，将无人机原始本地位置 x/y/z 的算术平均写入 `target_local_poses`，累计次数写入 `target_local_pose_sample_counts`。同一消息不会因重复 tick 被重复计数，跨航段继续累计；不同 ID 独立统计。姿态和时间戳沿用最新有效样本，`target_pose` 输出与黑板中的平均位姿一致。过期、未定位、非有限位置及已完成目标的样本不参与平均；`record="false"` 仍只检查可见性。若要重置记录，应同时清空位姿和累计次数。这是观察位置的平均，不是目标坐标估计，单次观测仍只能保留该位置。
 
 区域原点偏移、边长和航带间距在主任务 XML 中配置，方向使用 `nav/azimuth_angle`。子树不负责起飞、返航或降落，这些步骤由主任务编排。
 

@@ -4,13 +4,15 @@
 #include <maxt_pkg/maxt_nodes.hpp>
 #include <ros/ros.h>
 #include <map>
+#include <deque>
+#include <cstdint>
 #include <std_msgs/String.h>
 #include <mutex>
 #include <vector>
 
 namespace maxt {
 
-// 持续等待有效目标，并按 ID 保存最近一次记录时的原始本地位姿。
+// 持续等待有效目标，并按 ID 保存所有有效观测的平均本地位置。
 class TargetCheckNode : public MavActionNode {
 public:
     TargetCheckNode(const std::string& name, const BT::NodeConfiguration& config,
@@ -24,6 +26,12 @@ public:
 private:
     void onDetection(const std_msgs::String::ConstPtr& message);
 
+    struct Observation {
+        std::string id;
+        geometry_msgs::PoseStamped pose;
+        ros::WallTime received_at;
+    };
+    std::deque<Observation> pending_observations_;
     std::mutex mutex_;
     geometry_msgs::PoseStamped detected_pose_;
     std::string content_;
