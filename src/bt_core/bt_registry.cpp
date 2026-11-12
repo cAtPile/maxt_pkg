@@ -57,7 +57,7 @@ void MaxtCore::registerNodes() {
         });
     factory_.registerBuilder<TargetCheckNode>("TargetCheck",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<TargetCheckNode>(name, config, nh_, mission_blackboard_);
+            return std::make_unique<TargetCheckNode>(name, config, nh_, *mav_, mission_blackboard_);
         });
     factory_.registerNodeType<TraversePathGeneratorNode>("TraversePathGenerator");
     factory_.registerNodeType<GetRegionWaypointNode>("GetRegionWaypoint");

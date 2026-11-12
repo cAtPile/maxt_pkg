@@ -5,12 +5,16 @@ namespace maxt {
 
 TargetCheckNode::TargetCheckNode(const std::string& name,
                                const BT::NodeConfiguration& config,
-                               ros::NodeHandle& nh, BT::Blackboard::Ptr history)
-    : BT::StatefulActionNode(name, config),
+                               ros::NodeHandle& nh, MavKit& mav, BT::Blackboard::Ptr history)
+    : MavActionNode(name, config, mav),
       history_(history ? history : config.blackboard) {
     std::vector<std::string> processed;
     if (!history_->get("processed_qr", processed)) {
         history_->set("processed_qr", processed);
+    }
+    std::map<std::string, geometry_msgs::PoseStamped> poses;
+    if (!history_->get("target_local_poses", poses)) {
+        history_->set("target_local_poses", poses);
     }
     const auto topic = getInput<std::string>("topic").value();
     subscriber_ = nh.subscribe(topic, 1, &TargetCheckNode::onDetection, this);
@@ -21,14 +25,17 @@ BT::PortsList TargetCheckNode::providedPorts() {
         BT::InputPort<std::string>("topic", "/aruco_center/content",
                                    "std_msgs/String content; empty means no target"),
         BT::InputPort<bool>("record", true,
-                           "true: reject processed IDs; false: visibility check only"),
-        BT::OutputPort<std::string>("target_id", "ID captured by a successful detection")
+                           "true: reject processed IDs and save local pose; false: visibility check only"),
+        BT::OutputPort<std::string>("target_id", "ID captured by a successful detection"),
+        BT::OutputPort<geometry_msgs::PoseStamped>(
+            "target_pose", "Raw MAVROS local pose when the target was detected")
     };
 }
 
 void TargetCheckNode::onDetection(const std_msgs::String::ConstPtr& message) {
     std::lock_guard<std::mutex> lock(mutex_);
     content_ = message->data;
+    detected_pose_ = mav_.GetRawPose();
     received_at_ = ros::WallTime::now();
 }
 
@@ -51,6 +58,18 @@ BT::NodeStatus TargetCheckNode::onRunning() {
             return BT::NodeStatus::RUNNING;
         }
     }
+    if (getInput<bool>("record").value()) {
+        // 尚未收到定位时，不把默认零位姿登记为目标观察点。
+        if (detected_pose_.header.stamp.isZero()) {
+            return BT::NodeStatus::RUNNING;
+        }
+        auto poses = history_->get<std::map<std::string, geometry_msgs::PoseStamped>>(
+            "target_local_poses");
+        // 更新该目标的最新位姿；发现记录与 processed_qr 的完成记录独立。
+        poses[content_] = detected_pose_;
+        history_->set("target_local_poses", poses);
+    }
+    setOutput("target_pose", detected_pose_);
     setOutput("target_id", content_);
     return BT::NodeStatus::SUCCESS;
 }
