@@ -1,0 +1,34 @@
+<root>
+    <!-- 输入：tracking_duration（秒，0 表示对齐一次）。
+         读取任务黑板 target_local_poses，按 ID 顺序逐个返回观察点并伺服，
+         跳过 processed_qr 中已完成的目标。Guidance 成功后负责登记 processed_qr。
+         输出：result=complete/failed、detected_target_id、guidance_message。
+         无待处理目标时直接成功；导航或伺服失败时立即退出，保留全部位姿记录。
+         仅返回记录的 XYZ，不恢复记录的朝向；不负责起飞、返航或降落。 -->
+    <BehaviorTree ID="RollbackTargetTree">
+        <Sequence>
+            <SetBlackboard output_key="result" value="failed" />
+            <SetBlackboard output_key="detected_target_id" value="" />
+            <SetBlackboard output_key="guidance_message" value="" />
+            <ListRecordedTargets target_ids="{rollback_target_ids}"
+                                 target_count="{rollback_target_count}" />
+            <SetBlackboard output_key="rollback_target_index" value="0" />
+            <Repeat num_cycles="{rollback_target_count}">
+                <Sequence>
+                    <GetRecordedTarget target_ids="{rollback_target_ids}"
+                                       index="{rollback_target_index}"
+                                       next_index="{rollback_target_index}"
+                                       target_id="{detected_target_id}"
+                                       x="{rollback_x}" y="{rollback_y}" z="{rollback_z}" />
+                    <NavRaw name="ReturnRecordedTarget"
+                            x="{rollback_x}" y="{rollback_y}" z="{rollback_z}"
+                            timeout="90.0" />
+                    <Guidance target_id="{detected_target_id}"
+                              tracking_duration="{tracking_duration}"
+                              timeout="90.0" message="{guidance_message}" />
+                </Sequence>
+            </Repeat>
+            <SetBlackboard output_key="result" value="complete" />
+        </Sequence>
+    </BehaviorTree>
+</root>
