@@ -148,6 +148,8 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/get_region_waypoint.cpp
   src/maxt_nodes/found_check.cpp
   src/maxt_nodes/target_check.cpp
+  src/maxt_nodes/recorded_targets.cpp
+  src/maxt_nodes/list_recorded_targets.cpp
   src/maxt_nodes/round.cpp
   src/maxt_nodes/connect_check.cpp
 
@@ -254,6 +256,12 @@ install(DIRECTORY launch config
 #############
 
 if(CATKIN_ENABLE_TESTING)
+  add_executable(test_rollback_target_tree test/rollback_target_tree_test.cpp)
+  target_link_libraries(test_rollback_target_tree ${PROJECT_NAME} ${catkin_LIBRARIES})
+  add_test(NAME rollback_target_tree
+    COMMAND test_rollback_target_tree
+      ${CMAKE_CURRENT_SOURCE_DIR}/config/mission/subtree/RollbackTargetTree.xml)
+
   catkin_add_gtest(test_stop_curve test/unit/test_stop_curve.cpp)
 
   catkin_add_gtest(test_global_nav_curve test/unit/test_global_nav_curve.cpp)

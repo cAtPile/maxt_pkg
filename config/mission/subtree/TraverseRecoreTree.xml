@@ -3,7 +3,7 @@
          bp_x_raw/bp_y_raw/bp_z_raw（原始本地坐标系中的固定基点）。
          方向沿用 nav/azimuth_angle；调用前应完成起飞和基点采集。
          输出：result=complete/failed、detected_target_id（本航段最近记录的 ID）。
-         TargetCheck 将各目标的最新观察位姿保存到任务黑板 target_local_poses，
+         TargetCheck 将各目标多次观察的平均位置（姿态沿用最新样本）保存到任务黑板 target_local_poses，
          已处理的 processed_qr 目标沿用 TargetCheck 规则跳过。
          只执行一个航段，持续检测记录，不因发现目标中止导航，不执行伺服。
          不清空已有目标记录，多个航段可共用同一份任务黑板。 -->

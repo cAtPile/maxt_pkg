@@ -1,5 +1,6 @@
 <root main_tree_to_execute="TraverseGuidanceMission">
-    <include path="subtree/TraverseGuidanceTree.xml" />
+    <include path="subtree/TraverseRecoreTree.xml" />
+    <include path="subtree/RollbackTargetTree.xml" />
     <!-- 按任务修改经纬度及矩形范围。
          ReHeading 和遍历方向均使用 config/nav.yaml 中的 nav/azimuth_angle。
          LaLoNav 沿用现有成功判定（包括末端对齐等待超时），随后采集实际位置为基点。 -->
@@ -14,15 +15,36 @@
             <BasePointAzimuthFix bp_x_raw="{bp_x_raw}"
                                  bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}" />
             <!-- 以基点为矩形原点，沿固定航向和左侧分别覆盖 30 米。
-                 height_above_base=0 保持到达基点时的高度。 -->
-            <SubTreePlus ID="TraverseGuidanceTree"
-                         origin_x="0" origin_y="0"
-                         length_x="30" length_y="30" coverage_step="6"
-                         height_above_base="0" tracking_duration="0.0"
-                         bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}"
-                         bp_z_raw="{bp_z_raw}" result="{traverse_result}"
+                 nav_a=0 保持到达基点时的高度。
+                 先完整遍历并记录目标，再逐个返回记录点伺服，最后返航降落。 -->
+            <SetBlackboard output_key="traverse_result" value="failed" />
+            <TraversePathGenerator origin_x="0" origin_y="0"
+                                   length_x="30" length_y="30"
+                                   coverage_step="6"
+                                   waypoints="{region_waypoints}"
+                                   waypoint_count="{region_waypoint_count}" />
+            <SetBlackboard output_key="region_waypoint_index" value="0" />
+            <Repeat num_cycles="{region_waypoint_count}">
+                <Sequence>
+                    <GetRegionWaypoint waypoints="{region_waypoints}"
+                                       index="{region_waypoint_index}"
+                                       next_index="{region_waypoint_index}"
+                                       x="{region_target_x}" y="{region_target_y}" />
+                    <SubTreePlus ID="TraverseRecoreTree"
+                                 nav_n="{region_target_x}" nav_t="{region_target_y}"
+                                 nav_a="0"
+                                 bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}"
+                                 bp_z_raw="{bp_z_raw}"
+                                 result="{waypoint_result}"
+                                 detected_target_id="{detected_target_id}" />
+                </Sequence>
+            </Repeat>
+            <SubTreePlus ID="RollbackTargetTree"
+                         tracking_duration="0.0"
+                         result="{rollback_result}"
                          detected_target_id="{detected_target_id}"
                          guidance_message="{guidance_message}" />
+            <SetBlackboard output_key="traverse_result" value="complete" />
             <Nav name="ReturnHome" x="{home_x}" y="{home_y}"
                  z="{return_z}" timeout="90.0" />
             <TouchDown />
