@@ -3,6 +3,26 @@
 
 namespace maxt {
 
+void MavActionNode::recordBreakpointAndSlowDown() {
+    const auto pose = mav_.GetRawPose();
+    const auto& p = pose.pose.position;
+    const bool valid = !pose.header.stamp.isZero() &&
+        std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z);
+    setOutput("breakpoint_valid", false);
+    if (valid) {
+        setOutput("breakpoint_x", p.x);
+        setOutput("breakpoint_y", p.y);
+        setOutput("breakpoint_z", p.z);
+        setOutput("breakpoint_valid", true);
+        ROS_WARN("[%s] Halted: breakpoint=(%.3f, %.3f, %.3f). Slowing down.",
+                 name().c_str(), p.x, p.y, p.z);
+    } else {
+        ROS_WARN("[%s] Halted without valid pose; breakpoint unavailable. Slowing down.",
+                 name().c_str());
+    }
+    mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+}
+
 static constexpr uint16_t TYPE_MASK =
     mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
 
@@ -153,24 +173,7 @@ BT::NodeStatus NavNode::onRunning() {
 
 
 void NavNode::onHalted() {
-    // 记录原始 local 实测中断点，不做 Home 偏移或标定旋转，再触发减速。
-    const auto pose = mav_.GetRawPose();
-    const auto& p = pose.pose.position;
-    const bool valid = !pose.header.stamp.isZero() &&
-        std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z);
-    setOutput("breakpoint_valid", false);
-    if (valid) {
-        setOutput("breakpoint_x", p.x);
-        setOutput("breakpoint_y", p.y);
-        setOutput("breakpoint_z", p.z);
-        setOutput("breakpoint_valid", true);
-        ROS_WARN("[%s] Halted: breakpoint=(%.3f, %.3f, %.3f). Slowing down.",
-                 name().c_str(), p.x, p.y, p.z);
-    } else {
-        ROS_WARN("[%s] Halted without valid pose; breakpoint unavailable. Slowing down.",
-                 name().c_str());
-    }
-    mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+    recordBreakpointAndSlowDown();
 }
 
 } // namespace maxt
