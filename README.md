@@ -83,7 +83,7 @@ PX4 的具体版本未在本仓库锁定；本包不包含 PX4 源码或 SITL �
 3. 按用途准备运行环境：
 
    - 仅运行小车轻量仿真：不需要 PX4 或 MAVROS。
-   - 仅查看靶标场景：运行 `sim_world.launch`，不包含无人机。
+   - 仅查看靶标场景：运行 `competition_world.launch`，不包含无人机。
    - 无人机仿真：先在外部完成 PX4 SITL 配置和构建，确保 `rospack find px4`、`rospack find mavlink_sitl_gazebo` 可解析，然后运行 `sim.launch`。
    - 实机任务：先启动 MAVROS 和定位系统，再启动任务入口。任务 XML 会实际请求解锁、OFFBOARD 和飞行，执行前需核对坐标、高度及运动范围。
 
@@ -95,9 +95,7 @@ PX4 的具体版本未在本仓库锁定；本包不包含 PX4 源码或 SITL �
 | `sim:=false run_uav:=false` | 仅启动任务，复用已经启动的仿真或 MAVROS |
 | `sim:=false run_uav:=true` | 启动任务和实机 MAVROS，连接 `/dev/ttyACM0:57600` |
 
-以上适用于 `mission.launch`、`mission_t66.launch`、`mission_fast.launch`、`mission_2_2_2.launch` 和 `mission_05.launch`。`region_traverse_test.launch`、`ugv_cowork_test.launch` 同样支持这两个参数，但默认 `sim:=false`，复用已有环境。`vision_test.launch`、`guidance_test.launch` 继续通过 `run_sim` 控制仿真，内部任务入口不重复启动仿真或 MAVROS。旧参数 `run_mavros` 仅为兼容保留，不控制启动。
-
-mission 系列入口通过 `run_fake_audio:=true` 启动模拟音频服务，默认 `false`，与 `sim` 独立。例如：`roslaunch maxt_pkg mission_t66.launch sim:=true run_fake_audio:=true`。
+`mission.launch` 支持上述仿真与实机参数。主任务入口 `sim_geo_treverse.launch` 默认启动仿真，`sim:=false` 可复用已有环境。模拟音频通过 `run_fake_audio:=true` 单独启用。
 
 可选组件 `run_fast_lio` 使用 `tutorial_navigation/launch/mid360.launch`，`run_camera` 使用 `tutorial_vision/launch/simple_camera_driver.launch`；这两个外部包不随本项目提供，开关默认均为 `false`。
 
@@ -148,10 +146,10 @@ TUI 默认后台连接 ROS 进行只读监看，未加载 ROS 或 master 尚未�
 输入 `0` 后覆盖包内 `config/mission/fast_mission.xml`，树名固定为 `FastMission`。脚本始终保留首项 `<ConnectCheck />` 和末项 `<TouchDown />`，中间按添加顺序生成 XML。脚本只生成文件；执行任务使用：
 
 ```bash
-roslaunch maxt_pkg mission_fast.launch
+roslaunch maxt_pkg mission.launch bt_xml_path:="$(rospack find maxt_pkg)/config/mission/fast_mission.xml"
 ```
 
-`mission_fast.launch` 自动加载 `config/nav.yaml` 并执行最近保存的快速任务。默认启动完整仿真；使用 `sim:=false run_uav:=false` 复用已有环境，使用 `sim:=false run_uav:=true` 连接实机。支持 `nav_config`、`bt_tick_rate`、`heartbeat_rate` 及 `sim/run_uav/run_fast_lio/run_camera` 参数，与 `mission.launch` 一致。
+通用入口自动加载 `config/nav.yaml`；快速编排器生成的 XML 可通过 `bt_xml_path` 显式执行。
 
 该顺序树中，前面的任务失败会使整棵树失败，后续降落节点也不会执行。
 
@@ -164,7 +162,7 @@ roslaunch maxt_pkg mission_fast.launch
 ```bash
 rosparam load "$(rospack find maxt_pkg)/config/nav.yaml" /maxt_test_node
 rosrun maxt_pkg maxt_test_node \
-  _bt_xml_path:="$(rospack find maxt_pkg)/config/mission/navigation_test.xml" \
+  _bt_xml_path:="$(rospack find maxt_pkg)/config/mission/traverse_guidance_mission.xml" \
   _bt_tick_rate:=20.0 _heartbeat_rate:=20.0
 ```
 
@@ -219,7 +217,6 @@ MavKit 创建时提交 `cn-welcome.wav`；`ConnectCheck` 确认飞控连接并�
 
 `PlayAudio` 每次执行只提交一次请求，立即返回 SUCCESS；音频服务缺失或拒绝不影响任务。缺少必填 `filename` 输入时返回 FAILURE。在循环或重新执行的树中，每次执行都会再次提交。
 
-`mission_t66.xml` 在起飞成功后播放 `cn-mission-start.wav`，在 `RegionTraverse` 子树成功完成后播放 `cn-return.wav`，随后返航降落。
 
 无需音频设备的联调方式（编译并加载工作空间后）：
 
@@ -288,7 +285,7 @@ rosrun maxt_pkg xytraj_monitor.py _pose_topic:=/mavros/local_position/pose
 当前场景由原生 Gazebo 插件驱动，无需另启此脚本。仅在需要旧版 ROS 服务控制时使用：
 
 ```bash
-roslaunch maxt_pkg sim_world.launch move_target:=false
+roslaunch maxt_pkg sim.launch move_target:=false
 ```
 
 另一个终端运行：
@@ -299,104 +296,36 @@ rosrun maxt_pkg moving_target.py _x:=-4.0 _y:=4.0 _amplitude:=2.0 _period:=25.13
 
 脚本等待 `/gazebo/set_model_state`，按仿真时钟沿 Y 轴正弦运动。若 `/moving_target/enabled` 为 true，会拒绝启动以避免与插件竞争。该脚本读取自己的私有参数，不会自动使用 `config/sim_world.yaml`。
 
-#### 行为树流程测试：ugv_cowork_tree_test
-
-```bash
-rosrun maxt_pkg ugv_cowork_tree_test \
-  "$(rospack find maxt_pkg)/config/mission/ugv_cowork_test.xml"
-```
-
-仅在构建时启用 `CATKIN_ENABLE_TESTING` 后生成。该程序用替身节点检查找到目标、未找到、对齐失败、协同失败、返航失败等流程，不连接飞控，也不验证实际飞行动力学或视觉精度。
-
-草稿列出的 `ugv_move_demo.py`、`ugv_move_controller.py`、`ugv_offboard.py` 在当前仓库中不存在，不作为本包部署或使用入口。
-
 ### launchs
 
-#### 入口一览
+#### 当前主任务：TraverseGuidanceMission
 
-| 启动文件 | 功能与默认行为 |
+```bash
+roslaunch maxt_pkg sim_geo_treverse.launch
+# 复用已启动的仿真或飞控环境：
+roslaunch maxt_pkg sim_geo_treverse.launch sim:=false
+```
+
+主任务加载 `config/mission/traverse_guidance_mission.xml`，依次执行连接检查、起飞、航向调整、经纬度导航、基点采集、区域遍历与目标引导、返航和降落。任务区域及经纬度在 XML 中设置，航向使用 `config/nav.yaml` 的 `nav/azimuth_angle`。
+
+| 启动文件 | 用途 |
 | --- | --- |
-| `mission.launch` | 通用任务入口，必须传入 `bt_xml_path`，自动加载导航配置 |
-| `mission_fast.launch` | 执行 `config/mission/fast_mission.xml`，自动加载导航配置 |
-| `basic_test.launch` | 起飞 1m，导航至 `(-2,2,1)`，悬停 60s 后降落 |
-| `navigation_test.launch` | 起飞 1m，依次导航至 `(0,0,1)`、`(2,0,1)`、`(2,2,1)`、`(0,0,1)` 并悬停，最后降落 |
-| `round_test.launch` | 起飞 1m，绕圆心 `(1,0,1)`、半径 1m 顺时针一圈，角速度 20°/s，返回 `(0,0,1)` 后降落 |
-| `aruco_center.launch` | 加载识别配置，默认不提供视觉 Action；`run_guidance:=true` 可开启 |
-| `sim_world.launch` | 仅 Gazebo 场景和运动靶标，不启动 PX4、MAVROS 或无人机相机 |
-| `sim.launch` | 启动 PX4 SITL、Gazebo、MAVROS 和机身下视相机 |
-| `guidance_test.launch` | 模拟视觉反馈和飞行任务，默认复用已有仿真 |
-| `vision_test.launch` | 默认启动完整仿真、真实 ArUco 识别、图像窗口和视觉跟踪任务 |
-| `region_traverse_test.launch` | 默认启动识别和视觉 Action，执行区域搜索及找到后的跟踪 |
-| `ugv_cowork_test.launch` | 默认启动识别、视觉 Action、小车轻量仿真，执行协同及返航任务 |
+| `sim_geo_treverse.launch` | 主任务入口，默认启动仿真、识别和视觉引导 |
+| `mission.launch` | 通用执行入口，需传入 `bt_xml_path`，支持实机和自定义配置 |
+| `aruco_center.launch` | ArUco 识别，`run_guidance:=true` 开启视觉引导 |
+| `sim.launch` | PX4 SITL、Gazebo 和 MAVROS |
+| `competition_world.launch` | 比赛场景，可单独查看或由仿真加载 |
+| `mavros.launch` | 实机 MAVROS 连接 |
 
-#### 基础任务与自定义 XML
-
-先启动 MAVROS 和定位系统，或在独立终端启动仿真：
+实机任务可先单独启动识别，再使用通用入口：
 
 ```bash
-roslaunch maxt_pkg sim.launch
+roslaunch maxt_pkg aruco_center.launch run_guidance:=true
+# 另一终端：
+roslaunch maxt_pkg mission.launch bt_xml_path:="$(rospack find maxt_pkg)/config/mission/traverse_guidance_mission.xml" sim:=false run_uav:=true
 ```
 
-然后在另一个终端选择一个任务执行：
-
-```bash
-roslaunch maxt_pkg mission_t66.launch sim:=false run_uav:=false
-# 或使用自定义 XML：
-roslaunch maxt_pkg mission.launch bt_xml_path:=/absolute/path/to/task.xml sim:=false run_uav:=false
-```
-
-`mission.launch` 支持 `sim`（默认 `true`）、`run_uav`（默认 `false`，实机使用 `sim:=false run_uav:=true`）、`nav_config`（默认 `config/nav.yaml`，包含所有任务共用的无人机参数）、`bt_tick_rate` 和 `heartbeat_rate`（均默认 20Hz），以及前述可选组件开关。需要选择实机、自定义导航配置或启动相机时可直接使用 `mission.launch`。
-
-航点使用当前 MavKit 坐标系的绝对坐标，单位为米；默认连接检查不进行坐标标定。起飞高度和航点 Z 的含义需结合定位原点核对。`Nav` 末端等待超过 `nav/hold_timeout`（默认 3 秒） 可能强制返回 SUCCESS，任务成功日志不能单独证明航点误差达标。
-
-#### 场景及视觉跟踪
-
-```bash
-# 只查看靶标场景：
-roslaunch maxt_pkg sim_world.launch
-# 或启动完整视觉飞行测试（与上面的场景二选一）：
-roslaunch maxt_pkg vision_test.launch
-```
-
-完整测试起飞至 2m，导航至 `(-2,2,2)`，悬停 2s，跟踪 ArUco ID 0 共 60s，最后降落。已有完整仿真时传入 `run_sim:=false`；不需要图像窗口时传入 `view_image:=false`。`vision_config` 可指定另一份识别 YAML。统一配置 `config/nav.yaml` 中 Guidance 的 `kp=0.006`，启用下视相机坐标转换，总超时为 90s。
-
-`sim.launch` 默认加载比赛地图，并复用 `launch/competition_world.launch` 中设置的背景、4 个起飞点及 6 个 ArUco 标记的位置和尺寸；修改该文件后重启仿真即可生效。传入其他 `world:=...` 时默认不生成比赛模型，也可用 `spawn_competition:=true/false` 显式控制。单独查看比赛地图可运行 `roslaunch maxt_pkg competition_world.launch`。
-
-`sim.launch` 默认飞控机型为 `iris`，Gazebo 模型为 `iris_downward_depth_camera`，相机彩色图像为 `/camera/rgb/image_raw`。可查看：
-
-```bash
-rosrun rqt_image_view rqt_image_view /camera/rgb/image_raw
-```
-
-`sim.launch`、`sim_world.launch` 均支持 `config:=/绝对路径/自定义.yaml`、`move_target`、`gui` 等参数。靶标配置在插件加载时读取，修改后需重启仿真。
-
-#### 模拟反馈测试
-
-```bash
-roslaunch maxt_pkg guidance_test.launch run_sim:=true error_u:=20.0 duration:=10.0 rate:=20.0
-```
-
-已有仿真时省略 `run_sim:=true`。该入口提供模拟反馈，不启动真实图像识别。
-
-#### 区域搜索
-
-```bash
-roslaunch maxt_pkg region_traverse_test.launch
-```
-
-需要外部提供 MAVROS、定位和相机。任务起飞到 4m，为 `(0,0)、(-6,0)、(-6,6)、(0,6)` 的矩形以 1m 间距生成 12 个蛇形航点。`FoundCheck` 检查 `/aruco_center/is_found`；检测为 true 且消息未过期时中断当前导航并记录实测断点，先航行返回断点，再执行 Guidance 跟踪 60s；成功后再次返回断点，继续飞往被中断航段尚未到达的目标，完成后才取下一航点。完成全部航点后降落。导航、断点返回或 Guidance 失败会使任务失败，不进入后续降落。
-
-支持 `run_detection`、`run_guidance`（均默认 true）、`detection_config`、`run_camera`、`run_mavros`、`run_fast_lio` 及两个频率参数。已有识别服务时使用 `run_detection:=false`；跟踪仍需要可用的 `/guidance` 服务。更改识别 ID 或状态话题时，需同步修改 XML 的 Guidance 或 FoundCheck。
-
-#### 空地协同与返航
-
-```bash
-roslaunch maxt_pkg ugv_cowork_test.launch
-```
-
-先准备无人机仿真或 MAVROS、定位和图像输入。任务记录起飞位置，起飞并搜索，发现标记后先对齐，再并行执行视觉伺服与小车跟随；小车到达后返回起飞点上方并降落。小车直接跟随无人机 XY，要求双方坐标系一致。
-
-已有小车 Action 服务时传入 `run_ugv_sim:=false`；其余感知与外部组件参数与区域搜索入口一致。不要同时运行 `ugv_controller.py`，它发送的目标会抢占协同任务。未找到、搜索失败、对齐失败或协同失败均转入返航；返航使用 `Nav`，失败时结束任务并保持位置，不进入降落。`Nav` 末端等待超过 `nav/hold_timeout`（默认 3 秒） 可能强制成功，因此返航成功不保证位置误差达标。最终 SUCCESS 表示返航降落完成，协同结果以黑板 `cowork_result` 为准。
+其他任务的顶层 XML 和专用 launch 已清理；`config/mission/subtree/` 仅保留主任务依赖的 4 个子树。
 
 ### 常用配置
 
@@ -650,7 +579,7 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 </root>
 ```
 
-需要在导航中持续检查目标时，参考 `subtree/NavTargetHandling.xml` 中的 `ReactiveFallback`，检测成功会 halt 当前航段并在处理断点后继续巡航。普通 Sequence 子节点失败后不会执行其后的降落节点；需要返航、降落等失败处理时，应像协同任务一样显式编排。使用 ForceSuccess 包裹动作会改变上层看到的结果，应通过 `message` 或业务结果黑板键保留真实执行原因。
+需要在导航中持续检查目标时，参考 `subtree/NavgeoDetectTree.xml` 中的检测与导航编排，检测成功会 halt 当前航段并在处理断点后继续巡航。普通 Sequence 子节点失败后不会执行其后的降落节点；需要返航、降落等失败处理时，应像协同任务一样显式编排。使用 ForceSuccess 包裹动作会改变上层看到的结果，应通过 `message` 或业务结果黑板键保留真实执行原因。
 
 修改视觉反馈协议时，保持 `.action`、感知服务端和 Guidance 客户端一致；更换小车服务端时，保留目标抢占、取消、反馈和最终 `succeed` 的约定。新增 YAML 参数需要明确加载命名空间，例如任务的 `nav/` 位于 `/maxt_test_node/nav/`，识别配置位于 `/aruco_center/`；在 launch 顶层加载同名参数不会自动成为节点私有参数。
 
@@ -664,17 +593,7 @@ catkin_make --pkg maxt_pkg
 source devel/setup.bash
 ```
 
-需要运行已有协同流程测试时，显式启用测试目标后执行：
-
-```bash
-cd ~/catkin_ws
-catkin_make --pkg maxt_pkg -DCATKIN_ENABLE_TESTING=ON
-source devel/setup.bash
-rosrun maxt_pkg ugv_cowork_tree_test \
-  "$(rospack find maxt_pkg)/config/mission/ugv_cowork_test.xml"
-```
-
-该测试覆盖任务分支与抢占流程，不能代替真实节点的控制验证。飞行相关修改应在仿真中检查实测轨迹、视觉反馈、超时和中断后的设点行为；可用 `rostopic hz` 检查发布频率，用 `rostopic echo` 查看状态与业务结果。只用行为树最终 SUCCESS 无法区分导航末端强制成功、跟踪失败后继续降落等情况。
+飞行相关修改应在仿真中检查轨迹、视觉反馈、超时和中断后的设点行为。旧任务 XML 对应的流程测试已从 CMake 注册中移除。
 
 标定工具单元测试无需启动 ROS master，覆盖默认变换、标定更新、XY 旋转方向、
 消息字段转换及保留字段。`untransRaw(PositionTarget&)` 当前只逆变换位置和速度，
@@ -687,38 +606,16 @@ source devel/setup.bash
 rosrun maxt_pkg test_calibrate_tools
 ```
 
-### 牛耕遍历子树
+### 遍历引导子树
 
-`config/mission/subtree/RegionTraverse.xml` 提供不含视觉检测的完整区域遍历。
-输入与下述视觉子树一致，通过 `<include path="subtree/RegionTraverse.xml" />`
-和 `<SubTreePlus ID="RegionTraverse" ... result="{traverse_result}" />` 调用。
-依次导航至全部航点后输出 `complete` 并返回 SUCCESS；规划或导航失败输出 `failed` 并返回 FAILURE。
-`fast_mission.py` 的 `region_traverse` 菜单生成此子树，`vision_region_traverse` 菜单生成视觉搜索子树；可混合添加，结果黑板按任务隔离。
+`TraverseGuidanceMission` 递归依赖以下子树：
 
-`config/mission/subtree/VisionRegionTraverse.xml` 封装路径生成、逐点导航和目标检测。
-父树先通过 `<include path="subtree/VisionRegionTraverse.xml" />` 引入，再调用：
+- `TraverseGuidanceTree.xml`：规划区域航点，逐点执行检测导航。
+- `TraverseDetectTree.xml`：发现目标后执行引导恢复，再继续当前航段。
+- `NavgeoDetectTree.xml`：基于固定基点的导航与目标检测，输出中断位置。
+- `GuidanceRecoveryTree.xml`：返回中断位置、执行引导并恢复位置。
 
-```xml
-<SubTreePlus ID="VisionRegionTraverse"
-             origin_x="0" origin_y="0" length_x="-6" length_y="6"
-             coverage_step="1" altitude="4.0"
-             result="{search_result}" />
-```
-
-输入矩形原点 `origin_x/y` 和沿坐标轴的有符号边长 `length_x/y`；边长为负表示沿对应轴负方向延伸，边长不能为零。航带沿 X 方向往返，沿 Y 方向推进；坐标系沿用 `Nav`。
-`coverage_step` 为航带间距，`altitude` 为导航高度，均以米计。
-每条 X 方向航带的两端各内缩 `coverage_step / 2`；若 `abs(length_x) <= coverage_step`，两端收缩至 X 边中点，避免交叉。
-`result` 输出 `found`（发现目标）、`complete`（遍历完成）或 `failed`（规划/导航失败）。
-前两种情况返回 SUCCESS，失败返回 FAILURE；发现目标会立即中断正在运行的导航。
-内部固定检测话题 `/aruco_center/is_found`、导航容差 0.15m、单航点超时 45s。
-使用 BehaviorTree.CPP v3 的 `SubTreePlus` 传入常量或黑板映射，不启用自动映射，航点和索引保存在独立黑板中。
-起飞、后续跟踪、协同、返航和降落由父树负责。小车协同入口 `ugv_cowork_test.xml` 继续使用此发现即退出的子树。
-
-`region_traverse_test.xml` 改用 `VisionRegionTraverseResume.xml`；`sim_geo_treverse.xml` 改用 `VisionGeoAzimuthRegionTraverseResume.xml`，后者包含 `VisionAzimuthRegionTraverseResume.xml`。它们复用 `NavTargetHandling.xml` 中的三个航段子树，分别支持 Nav、LaLoNav、AzimuthFixNav：每段导航先启动，发现目标后中断并写入断点，再依次执行返回断点、Guidance、再次返回断点，成功后继续执行同一目标的剩余航段，到达后才取下一航点。恢复航段仍支持目标中断；返回导航或 Guidance 失败则立即返回 FAILURE，不重试失败动作。返回断点和 Guidance 期间不检查目标中断，且返回节点不映射断点输出，避免覆盖原记录。目标持续可见时只处理一次，后续巡航中先观察到未发现目标，再允许重新触发。这里的“未发现”沿用 FoundCheck 的 false/消息过期语义，不区分目标 ID。
-
-视觉区域入口的 Guidance 保留 60s 跟踪，经纬度入口保留 0s（对齐成功即结束），超时均为 90s。经纬度接近航段若被中断，处理完成后在返回的断点处采集区域基点，再开始区域巡航；未被中断则仍在经纬度目的地采集基点。新巡航子树的 result 仅输出 complete / failed，处理过目标后仍需完成剩余航点。任何导航、断点有效性检查或 Guidance 失败均向上传递 FAILURE。所有导航中断点均直接记录 MAVROS 原始 local 实测坐标，不做 Home 偏移或标定旋转；断点返回使用 NavRaw，沿用 Nav 的到达判定，末端 hold_timeout 可强制 SUCCESS，并不保证严格到达；本次未改变该机制。
-
-`test/nav_breakpoint_tree_test.cpp` 用真实行为树和航点生成节点，替换依赖外部设备的叶节点，验证两个入口的处理顺序、连续检测去重、重新发现及失败分支；不替代仿真飞行验证。
+区域原点偏移、边长和航带间距在主任务 XML 中配置，方向使用 `nav/azimuth_angle`。子树不负责起飞、返航或降落，这些步骤由主任务编排。
 
 `Takeoff` 持续等待外部解锁，不主动发送解锁请求，不设置等待解锁超时。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
 
