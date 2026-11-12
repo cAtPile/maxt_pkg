@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <vector>
 #include <iostream>
+#include <limits>
 
 namespace {
 void check(bool ok) { if (!ok) throw std::runtime_error("rollback assertion failed"); }
@@ -114,7 +115,8 @@ void runTraverse(int mode, const std::string& xml) {
     f.registerBuilder<Detection>("TargetCheck", [&](const std::string& n, const BT::NodeConfiguration& c) {
         return std::make_unique<Detection>(n, c, s); });
     f.registerBuilder<maxt::ListRecordedTargetsNode>("ListRecordedTargets", [&](const std::string& n, const BT::NodeConfiguration& c) {
-        return std::make_unique<maxt::ListRecordedTargetsNode>(n, c, s.history); });
+        return std::make_unique<maxt::ListRecordedTargetsNode>(n, c, s.history, [] {
+            geometry_msgs::PoseStamped pose; pose.header.stamp.sec = 1; return pose; }); });
     f.registerBuilder<maxt::GetRecordedTargetNode>("GetRecordedTarget", [&](const std::string& n, const BT::NodeConfiguration& c) {
         return std::make_unique<maxt::GetRecordedTargetNode>(n, c, s.history); });
     f.registerBuilder<Nav>("NavRaw", [&](const std::string& n, const BT::NodeConfiguration& c) {
@@ -162,6 +164,55 @@ void runTraverse(int mode, const std::string& xml) {
     if (mode < 2) expected.insert(expected.end(), {"home", "land"});
     check(s.events == expected);
 }
+void testDistanceOrdering() {
+    auto history = BT::Blackboard::create();
+    std::map<std::string, geometry_msgs::PoseStamped> poses;
+    for (const auto& entry : std::map<std::string, double>{{"A", 10}, {"B", 1}, {"C", -1}}) {
+        auto& p = poses[entry.first];
+        p.header.stamp.sec = 1;
+        p.pose.position.x = entry.second;
+    }
+    geometry_msgs::PoseStamped origin; origin.header.stamp.sec = 1;
+    BT::BehaviorTreeFactory factory;
+    factory.registerBuilder<maxt::ListRecordedTargetsNode>("ListRecordedTargets",
+        [&](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<maxt::ListRecordedTargetsNode>(
+                name, config, history, [&] { return origin; });
+        });
+    auto bb = BT::Blackboard::create();
+    auto tree = factory.createTreeFromText(R"(
+        <root main_tree_to_execute="Test"><BehaviorTree ID="Test">
+          <ListRecordedTargets sort_by_distance="{sort}" target_ids="{ids}" target_count="{count}"/>
+        </BehaviorTree></root>)", bb);
+    history->set("target_local_poses", poses);
+    bb->set("sort", true);
+    check(tree.tickRoot() == BT::NodeStatus::SUCCESS);
+    check(bb->get<std::vector<std::string>>("ids") == std::vector<std::string>({"B", "C", "A"}));
+    check(bb->get<int>("count") == 3);
+    origin.pose.position.x = 9;
+    check(tree.tickRoot() == BT::NodeStatus::SUCCESS);
+    check(bb->get<std::vector<std::string>>("ids") == std::vector<std::string>({"A", "B", "C"}));
+    bb->set("sort", false);
+    check(tree.tickRoot() == BT::NodeStatus::SUCCESS);
+    check(bb->get<std::vector<std::string>>("ids") == std::vector<std::string>({"A", "B", "C"}));
+    bb->set("sort", true);
+    history->set("processed_qr", std::vector<std::string>{"A"});
+    check(tree.tickRoot() == BT::NodeStatus::SUCCESS);
+    check(bb->get<std::vector<std::string>>("ids") == std::vector<std::string>({"B", "C"}));
+    origin.header.stamp.sec = 0;
+    check(tree.tickRoot() == BT::NodeStatus::FAILURE);
+    origin.header.stamp.sec = 1;
+    poses["B"].pose.position.x = std::numeric_limits<double>::quiet_NaN();
+    history->set("target_local_poses", poses);
+    check(tree.tickRoot() == BT::NodeStatus::FAILURE);
+    poses["B"].pose.position.x = 1;
+    poses["B"].header.frame_id = "other";
+    history->set("target_local_poses", poses);
+    check(tree.tickRoot() == BT::NodeStatus::FAILURE);
+    history->set("target_local_poses", std::map<std::string, geometry_msgs::PoseStamped>{});
+    check(tree.tickRoot() == BT::NodeStatus::SUCCESS);
+    check(bb->get<int>("count") == 0);
+}
 void run(int mode, const std::string& xml) {
     Scenario s;
     s.nav_fail = mode == 3;
@@ -180,7 +231,8 @@ void run(int mode, const std::string& xml) {
     if (mode == 2) s.history->set("processed_qr", std::vector<std::string>{"A"});
     BT::BehaviorTreeFactory f;
     f.registerBuilder<maxt::ListRecordedTargetsNode>("ListRecordedTargets", [&](const std::string& n, const BT::NodeConfiguration& c) {
-        return std::make_unique<maxt::ListRecordedTargetsNode>(n, c, s.history); });
+        return std::make_unique<maxt::ListRecordedTargetsNode>(n, c, s.history, [] {
+            geometry_msgs::PoseStamped pose; pose.header.stamp.sec = 1; return pose; }); });
     f.registerBuilder<maxt::GetRecordedTargetNode>("GetRecordedTarget", [&](const std::string& n, const BT::NodeConfiguration& c) {
         return std::make_unique<maxt::GetRecordedTargetNode>(n, c, s.history); });
     f.registerBuilder<Nav>("NavRaw", [&](const std::string& n, const BT::NodeConfiguration& c) {
@@ -204,9 +256,10 @@ void run(int mode, const std::string& xml) {
 }
 } // namespace
 int main(int argc, char** argv) {
+    testDistanceOrdering();
     const std::string xml = argc > 1 ? argv[1] : "config/mission/subtree/RollbackTargetTree.xml";
     for (int i = 0; i < 6; ++i) run(i, xml);
     const auto dir = xml.substr(0, xml.find_last_of('/') + 1);
     for (int i = 0; i < 5; ++i) runTraverse(i, dir + "../traverse_guidance_mission.xml");
-    std::cout << "RollbackTargetTree: 6 scenarios PASS; TraverseGuidanceMission: 5 scenarios PASS\n";
+    std::cout << "Distance ordering: PASS; RollbackTargetTree: 6 scenarios PASS; TraverseGuidanceMission: 5 scenarios PASS\n";
 }

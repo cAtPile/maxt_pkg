@@ -63,7 +63,8 @@ void MaxtCore::registerNodes() {
         });
     factory_.registerBuilder<ListRecordedTargetsNode>("ListRecordedTargets",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<ListRecordedTargetsNode>(name, config, mission_blackboard_);
+            return std::make_unique<ListRecordedTargetsNode>(
+                name, config, mission_blackboard_, [this] { return mav_->GetRawPose(); });
         });
     factory_.registerBuilder<GetRecordedTargetNode>("GetRecordedTarget",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
