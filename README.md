@@ -168,7 +168,7 @@ rosrun maxt_pkg maxt_test_node \
 
 通常直接使用 `mission.launch` 更方便，它会完成参数加载。`Nav` 的速度、加速度及 PID 参数来自私有 `nav/` 参数；到达位置容差使用 `config/nav.yaml` 的 `reach_check/position_pose_tolerance`（默认 0.1 m），不再提供 XML `tolerance` 端口。
 
-`Nav`、`NavAzimuth` 和 `NavGeo` 共用 `nav/hold_timeout`，在每次启动航行时读取，未配置时默认 3.0 秒。从曲线结束后首次进入末端对齐阶段开始计时；超过该时长仍未达标则切回 HEARTBEAT 并强制返回 SUCCESS。任务总超时仍优先返回 FAILURE。该参数是 ROS 配置，不是 XML 端口。
+`Nav`、`NavAzimuth` 和 `NavGeo` 共用 `nav/hold_timeout`，在每次启动航行时读取，未配置时默认 3.0 秒。从曲线结束后首次进入末端对齐阶段开始计时（NavGeo 等待平移和航向曲线均结束）；超过该时长仍未达标则切回 HEARTBEAT 并强制返回 SUCCESS。任务总超时仍优先返回 FAILURE。该参数是 ROS 配置，不是 XML 端口。
 
 `Nav`、`NavAzimuth` 和 `NavGeo` 在行为树中被 halt 中断时，会在请求减速之前记录当时的实测位置。新增可选输出端口 `breakpoint_x/y/z` 和 `breakpoint_valid`，将端口映射到黑板即可保存。三个节点输出均为相对内部 Home 的标定坐标（米），可直接交给 `Nav` 返回断点，包括从经纬度导航中断后返回原高度。输出仅在中断时更新，成功、失败和重新启动不会清除断点；尚未中断时输出未初始化，应先在黑板初始化 `bp_valid=false`。没有有效定位或坐标非有限数时，仅将有效标志设为 false，不覆盖旧坐标。调用方必须检查有效标志后再返回。
 
@@ -636,17 +636,19 @@ rosrun maxt_pkg test_calibrate_tools
 <NavGeo latitude="31.230400" longitude="121.473700" timeout="60"/>
 ```
 
+`NavGeo` 启动时读取 ROS 参数 `nav/azimuth_angle`（度，默认 0），平移与航向五次曲线同时启动，航向沿最短转向调整到该角度。角度使用原始 ENU 坐标：+X 为 0°，朝 +Y 为正，与 `ReHeading` 一致。航向曲线复用 `re_heading/yaw_rate_max`（默认 0.5 rad/s）和 `re_heading/yaw_acc_max`（默认 0.5 rad/s²）；航向曲线结束后，使用 `nav/pid_*` 输出限幅的航向角速度进行末端 PID 对齐，测量角连续展开以避免跨越 ±180° 时微分跳变。正常到达需要位置、高度、速度及航向误差同时达标，航向容差复用 `re_heading/tolerance_deg`（默认 2°）。成功时将目标航向保存为默认航向；总超时、定位失效或中断时保存当前实测航向。
+
 上述坐标仅为端口示例，执行任务前应替换为实际航点。节点运行前需要有效的 `/mavros/global_position/global`（`sensor_msgs/NavSatFix`）、`/mavros/global_position/rel_alt`（`std_msgs/Float64`）及 `/mavros/local_position/pose`。不依赖海拔或 NavSatFix 的椭球高。原 `LaLoAlNav` 节点已更名为 `NavGeo`，旧 XML 需更换节点名称并移除 `altitude` 属性。
 
-启动时记录 local Z 用于高度保持误差的到达检查，记录飞控相对 Home 高度作为固定的全球设点高度。MavKit 的 `GetGlobalPose()` 返回经纬度及飞控相对 Home 高度，`hasGlobalPose()` 检查定位、相对高度及 local 位姿是否就绪。`SetGlobalRawTarget()` 设置全球 raw 设点，`GLOBAL_RAW_CTRL` 由心跳定时器向 `/mavros/setpoint_raw/global` 持续发布。节点使用 `FRAME_GLOBAL_REL_ALT` 并沿用已锁定的默认偏航，不需要叠加应用 Home Z。
+启动时记录 local Z 用于高度保持误差的到达检查，记录飞控相对 Home 高度作为固定的全球设点高度。MavKit 的 `GetGlobalPose()` 返回经纬度及飞控相对 Home 高度，`hasGlobalPose()` 检查定位、相对高度及 local 位姿是否就绪。`SetGlobalRawTarget()` 设置全球 raw 设点，`GLOBAL_RAW_CTRL` 由心跳定时器向 `/mavros/setpoint_raw/global` 持续发布。节点使用 `FRAME_GLOBAL_REL_ALT`，显式发布航向曲线/PID 设点（`SetGlobalRawTarget(target, false)`），不受已有默认航向覆盖，不需要叠加应用 Home Z。
 
-NavGeo 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/lalo_max_duration` 设置安全上限（默认 60.0 秒，须为有限正数）。若 T 超过上限，记录错误并返回 FAILURE，在发送全球设点、切换 GLOBAL_RAW_CTRL 前拒绝启动。T 等于上限时允许启动。此安全门替代原 XY 偏移限制；T 仅指曲线时长，不包含 PID 末端对齐时间，与 XML 的运行总超时 `timeout` 独立。
+NavGeo 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/lalo_max_duration` 设置安全上限（默认 60.0 秒，须为有限正数）。若 T 超过上限，记录错误并返回 FAILURE，在发送全球设点、切换 GLOBAL_RAW_CTRL 前拒绝启动。T 等于上限时允许启动。此安全门替代原 XY 偏移限制；T 仅指平移曲线时长，不包含航向曲线时长及 PID 末端对齐时间，与 XML 的运行总超时 `timeout` 独立。
 
 `GlobalNavCurve` 仅对水平测地距离生成五次曲线，再转换为经纬度及 ENU 水平速度、加速度；高度始终固定为起点高度，Z 速度和 Z 加速度均为零。时长估算及 `nav/v_max`、`nav/a_max` 与 Nav 一致。BT tick 采样曲线，定时器发布最近一次设点。曲线结束后仅对东、北方向做 PID 速度修正，复用 `nav/pid_kp/pid_ki/pid_kd`，各轴输出限幅 0.5 m/s、积分限幅 0.3，不做高度 PID 对齐。飞控负责位置控制及高度保持，前馈支持情况需结合飞控验证。
 
 `ReachGlobalCheck(target, altitude_raw)` 同时检查水平距离、相对启动 local Z 的高度误差和实测速度。对应配置为 `reach_check/global_position_tolerance`（代码默认 1.0 m）、`reach_check/global_altitude_tolerance`（默认 0.5 m）及 `reach_check/position_vel_tolerance`（默认 0.2 m/s）。水平距离使用 GeographicLib 的 WGS-84 椭球测地距离，容差单位为米。
 
-末端对齐共用 `nav/hold_timeout`（默认 3 秒）：从首次进入末端对齐阶段计时，达标立即返回 SUCCESS，否则超过配置时长后记录警告、切回 HEARTBEAT 并强制成功，因此 SUCCESS 不保证误差达标。任务总超时优先返回 FAILURE 并切回 HEARTBEAT；定位或相对高度无效时返回 FAILURE 并请求 SLOW_DOWN，中断同样请求 SLOW_DOWN。曲线起终点参考速度均为零。尚未进行仿真飞行验证。
+末端对齐共用 `nav/hold_timeout`（默认 3 秒）：平移和航向曲线均结束后，从首次进入联合末端对齐阶段计时（较早结束的轴提前进行 PID 对齐），达标立即返回 SUCCESS，否则超过配置时长后记录警告、切回 HEARTBEAT 并强制成功，因此 SUCCESS 不保证误差达标。任务总超时优先返回 FAILURE 并切回 HEARTBEAT；定位或相对高度无效时返回 FAILURE 并请求 SLOW_DOWN，中断同样请求 SLOW_DOWN。曲线起终点参考速度均为零。尚未进行仿真飞行验证。
 
 导航中断后的 Guidance 使用 FoundCheck 成功时输出的 `target_id`，通过子树黑板传递并锁定，不再固定跟踪 ID 0。返回断点期间新出现的 ID 不会改写该目标。Guidance 启动日志显示目标 ID、跟踪时长和总超时；目标始终不可见时，达到总超时返回 `TIMEOUT`。
 

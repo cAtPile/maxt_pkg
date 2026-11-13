@@ -112,7 +112,9 @@ public:
     void setRawTarget(const mavros_msgs::PositionTarget& target, bool apply_default_yaw = true);
 
     // 全球目标直接发布；FRAME_GLOBAL_INT 的高度为海拔米。
-    void SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target);
+    // apply_default_yaw=false 允许显式的航向/航向角速度控制。
+    void SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target,
+                            bool apply_default_yaw = true);
     // 经纬度及飞控相对 Home 高度，FRAME_GLOBAL_REL_ALT。
     mavros_msgs::GlobalPositionTarget GetGlobalPose() const;
     bool hasGlobalPose() const;

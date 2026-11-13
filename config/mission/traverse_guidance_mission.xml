@@ -10,7 +10,6 @@
             <Takeoff target_alt="6.0"
                      home_x="{home_x}" home_y="{home_y}"
                      home_z="{home_z}" return_z="{return_z}" />
-            <ReHeading timeout="60.0" />
             <NavGeo latitude="47.3977419" longitude="8.5455939" timeout="90.0" />
             <BasePointAzimuthFix bp_x_raw="{bp_x_raw}"
                                  bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}" />

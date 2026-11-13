@@ -20,9 +20,14 @@ public:
     void onHalted() override;
 
 private:
+    void applyYaw(mavros_msgs::GlobalPositionTarget& target, double elapsed, double dt);
     ros::NodeHandle nh_;
     GlobalNavCurve curve_;
     PIDController pid_east_, pid_north_;
+    PIDController pid_yaw_;
+    double yaw_coefficients_[6]{};
+    double target_yaw_{0.0}, yaw_duration_{0.0}, yaw_tolerance_{0.0};
+    double last_yaw_{0.0}, measured_yaw_{0.0};
     mavros_msgs::GlobalPositionTarget target_;
     double max_duration_{60.0};
     ros::Time start_time_, last_time_, hold_start_;
