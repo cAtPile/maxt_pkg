@@ -106,11 +106,18 @@ void MavKit::setSetpointMode(SetpointMode mode) {
         return;
     }
     if (velocity_transition_ && setpoint_mode_ == SetpointMode::SLOW_DOWN &&
-        (mode == SetpointMode::HEARTBEAT || mode == SetpointMode::RAW_CTRL)) {
+        (mode == SetpointMode::HEARTBEAT || mode == SetpointMode::RAW_CTRL ||
+         mode == SetpointMode::PID_CTRL)) {
         // 减速阶段不接受视觉速度接管；调用者在停止完成后重新请求。
         return;
     }
     if (mode != SetpointMode::CURVE_CTRL) velocity_transition_ = false;
+    if (mode == SetpointMode::PID_CTRL && setpoint_mode_ != SetpointMode::PID_CTRL) {
+        pid_x_.reset();
+        pid_y_.reset();
+        pid_z_.reset();
+        pid_last_time_ = now;
+    }
     setpoint_mode_ = mode;
 }
 

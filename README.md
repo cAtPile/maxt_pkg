@@ -536,11 +536,24 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 | `CONTROL` | 发布位置目标，应用工程坐标到定位坐标的 XY 旋转 |
 | `RAW_CTRL` | 发布原始设点，按 type_mask 指定启用字段 |
 | `CURVE_CTRL` | 采样五次曲线并发布参考位置、速度、加速度 |
+| `PID_CTRL` | 定时器根据实测位置计算三轴 PID，发布固定目标位置及速度修正 |
 | `SLOW_DOWN` | 生成并采样速度过渡曲线，完成后进入 HEARTBEAT 或待接管模式 |
 
 需要固定位置悬停时，可参考 Hover：记录一次位姿，再持续使用该位置目标。Nav 中断时请求 SLOW_DOWN；减速期间的 HEARTBEAT 请求不会直接截断减速，新的导航目标可以继承当前参考状态重规划。`CurveState` 是控制参考，不是实测飞行状态，参考速度归零不等于飞机已完全停止。
 
 坐标转换由 `CalibrateTools` 显式完成，不通过 TF 自动推导。`PositionTarget` 的字段、掩码、速度轴和坐标帧需要一致，尤其不能仅凭消息中的 `FRAME_LOCAL_NED` 常量就把工程中的所有坐标当作 NED。
+
+末端 PID 模式由 `src/mavkit/pid.cpp` 实现，调用示例：
+
+```cpp
+// 曲线结束后设置一次绝对工程世界坐标目标（调用方已叠加 Home）。
+mav.setPIDTarget(Eigen::Vector3d(tx, ty, tz));
+mav.setSetpointMode(maxt::SetpointMode::PID_CTRL);
+```
+
+`setPIDTarget(position, true)` 使用原始 MAVROS local 坐标，不做 Home 偏移或标定旋转；默认世界坐标模式先逆向标定实测位置，发布前再正向旋转位置和速度。每次设置目标读取 `nav/pid_kp/ki/kd`（默认 1.0/0.05/0.0）并重置 PID；每轴速度输出限幅 ±0.5 m/s，误差积分累计值限幅 ±0.3。`loadPIDRaw()` 按 `heartbeat_rate` 更新 `pid_raw_target_`，保持默认 local 航向和零加速度设点。重新进入模式也会重置 PID 及计时，重复选择当前模式不会重置；减速期间的 PID_CTRL 请求不会中断 SLOW_DOWN，调用方需在减速完成后重新请求。
+
+该模式持续纠偏，不自动判定成功或超时，由调用方检查到达条件后切换模式。不要在每个 BT tick 重复设置相同目标，否则会清除积分。现有 Nav 系列节点仍保留原来的末端 PID 实现，本次仅新增 MavKit 接口。
 
 ### 新增行为树节点
 
