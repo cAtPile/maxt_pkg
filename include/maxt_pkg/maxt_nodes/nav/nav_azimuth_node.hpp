@@ -1,5 +1,5 @@
-#ifndef MAXT_AZIMUTH_FIX_NAV_NODE_HPP
-#define MAXT_AZIMUTH_FIX_NAV_NODE_HPP
+#ifndef MAXT_NAV_AZIMUTH_NODE_HPP
+#define MAXT_NAV_AZIMUTH_NODE_HPP
 
 #include <maxt_pkg/maxt_nodes.hpp>
 #include <maxt_pkg/pid_controller.hpp>
@@ -7,9 +7,9 @@
 
 namespace maxt {
 
-class AzimuthFixNavNode : public MavActionNode {
+class NavAzimuth : public MavActionNode {
 public:
-    AzimuthFixNavNode(const std::string& name, const BT::NodeConfiguration& config,
+    NavAzimuth(const std::string& name, const BT::NodeConfiguration& config,
                       MavKit& mav, const ros::NodeHandle& nh);
     static BT::PortsList providedPorts();
     BT::NodeStatus onStart() override;

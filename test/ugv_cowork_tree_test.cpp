@@ -4,7 +4,7 @@
 #include <maxt_pkg/maxt_nodes/found_check_node.hpp>
 #include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
-#include <maxt_pkg/maxt_nodes/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/traverse_path_generator_node.hpp>
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>

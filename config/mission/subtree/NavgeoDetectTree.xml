@@ -14,7 +14,7 @@
                 <!-- 导航先启动，确保目标立即可见时也能 halt 导航并记录断点。
                      同一 tick 内导航到达或失败优先。 -->
                 <Sequence>
-                    <AzimuthFixNav name="DetectSearchLeg"
+                    <NavAzimuth name="DetectSearchLeg"
                                    nav_n="{nav_n}" nav_t="{nav_t}" nav_a="{nav_a}"
                                    bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}"
                                    bp_z_raw="{bp_z_raw}" timeout="60.0"

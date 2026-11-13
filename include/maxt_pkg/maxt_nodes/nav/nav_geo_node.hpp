@@ -1,5 +1,5 @@
-#ifndef MAXT_NODES_LA_LO_NAV_HPP
-#define MAXT_NODES_LA_LO_NAV_HPP
+#ifndef MAXT_NODES_NAV_GEO_HPP
+#define MAXT_NODES_NAV_GEO_HPP
 
 #include <maxt_pkg/maxt_nodes.hpp>
 #include <maxt_pkg/global_nav_curve.hpp>
@@ -8,9 +8,9 @@
 namespace maxt {
 
 // 经纬度绝对目标导航；保持启动时的高度，不接收高度目标。
-class LaLoNavNode : public MavActionNode {
+class NavGeo : public MavActionNode {
 public:
-    LaLoNavNode(const std::string& name, const BT::NodeConfiguration& config,
+    NavGeo(const std::string& name, const BT::NodeConfiguration& config,
                    MavKit& mav, const ros::NodeHandle& nh)
         : MavActionNode(name, config, mav), nh_(nh) {}
 

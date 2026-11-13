@@ -168,9 +168,9 @@ rosrun maxt_pkg maxt_test_node \
 
 通常直接使用 `mission.launch` 更方便，它会完成参数加载。`Nav` 的速度、加速度及 PID 参数来自私有 `nav/` 参数；到达位置容差使用 `config/nav.yaml` 的 `reach_check/position_pose_tolerance`（默认 0.1 m），不再提供 XML `tolerance` 端口。
 
-`Nav`、`AzimuthFixNav` 和 `LaLoNav` 共用 `nav/hold_timeout`，在每次启动航行时读取，未配置时默认 3.0 秒。从曲线结束后首次进入末端对齐阶段开始计时；超过该时长仍未达标则切回 HEARTBEAT 并强制返回 SUCCESS。任务总超时仍优先返回 FAILURE。该参数是 ROS 配置，不是 XML 端口。
+`Nav`、`NavAzimuth` 和 `NavGeo` 共用 `nav/hold_timeout`，在每次启动航行时读取，未配置时默认 3.0 秒。从曲线结束后首次进入末端对齐阶段开始计时；超过该时长仍未达标则切回 HEARTBEAT 并强制返回 SUCCESS。任务总超时仍优先返回 FAILURE。该参数是 ROS 配置，不是 XML 端口。
 
-`Nav`、`AzimuthFixNav` 和 `LaLoNav` 在行为树中被 halt 中断时，会在请求减速之前记录当时的实测位置。新增可选输出端口 `breakpoint_x/y/z` 和 `breakpoint_valid`，将端口映射到黑板即可保存。三个节点输出均为相对内部 Home 的标定坐标（米），可直接交给 `Nav` 返回断点，包括从经纬度导航中断后返回原高度。输出仅在中断时更新，成功、失败和重新启动不会清除断点；尚未中断时输出未初始化，应先在黑板初始化 `bp_valid=false`。没有有效定位或坐标非有限数时，仅将有效标志设为 false，不覆盖旧坐标。调用方必须检查有效标志后再返回。
+`Nav`、`NavAzimuth` 和 `NavGeo` 在行为树中被 halt 中断时，会在请求减速之前记录当时的实测位置。新增可选输出端口 `breakpoint_x/y/z` 和 `breakpoint_valid`，将端口映射到黑板即可保存。三个节点输出均为相对内部 Home 的标定坐标（米），可直接交给 `Nav` 返回断点，包括从经纬度导航中断后返回原高度。输出仅在中断时更新，成功、失败和重新启动不会清除断点；尚未中断时输出未初始化，应先在黑板初始化 `bp_valid=false`。没有有效定位或坐标非有限数时，仅将有效标志设为 false，不覆盖旧坐标。调用方必须检查有效标志后再返回。
 
 ```xml
 <!-- 放在可被高优先级分支中断的导航分支中 -->
@@ -183,9 +183,9 @@ rosrun maxt_pkg maxt_test_node \
 
 断点保存在当前行为树黑板内，不跨进程重启保存；共用同一组黑板键时以最后一次中断为准，需要分别保留时请映射到不同键。记录后到返回前应保持内部 Home 和标定参数不变。此功能提供断点记录和返回目标，不自动改变行为树分支或恢复剩余航线。断点是触发中断时的位置，并非减速后的停止点；超时返回 FAILURE 不属于 halt 中断。
 
-当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`LaLoNav`、`BasePointAzimuthFix`、`AzimuthFixNav`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
+当前注册的行为树节点为：`ConnectCheck`、`CapturePose`、`Takeoff`、`Nav`、`NavGeo`、`BasePointAzimuthFix`、`NavAzimuth`、`WaitStep`、`Hover`、`Round`、`TouchDown`、`Guidance`、`TraversePathGenerator`、`GetRegionWaypoint`、`FoundCheck`、`UgvCowork`、`PlayAudio`。这些是 XML 节点，不是独立的 `rosrun` 可执行文件。`Land`、`XNavigation` 未注册。
 
-方位角固定航行使用 `BasePointAzimuthFix` 和 `AzimuthFixNav`。前者在一次 tick 内调用 `GetRawPose()`，将当前原始位置写入黑板；后者以该基点为原点，按照 `config/nav.yaml` 中的 `nav/azimuth_angle` 投影位移。角度单位为度，0° 沿原始 X 正向，90° 沿原始 Y 正向；`nav_n` 沿该方向，`nav_t` 正向为左侧，`nav_a` 为相对基点的 Z 增量，距离单位为米。每个目标都相对于保存的基点，不累计上一段位移，也不设置机头朝向。
+方位角固定航行使用 `BasePointAzimuthFix` 和 `NavAzimuth`。前者在一次 tick 内调用 `GetRawPose()`，将当前原始位置写入黑板；后者以该基点为原点，按照 `config/nav.yaml` 中的 `nav/azimuth_angle` 投影位移。角度单位为度，0° 沿原始 X 正向，90° 沿原始 Y 正向；`nav_n` 沿该方向，`nav_t` 正向为左侧，`nav_a` 为相对基点的 Z 增量，距离单位为米。每个目标都相对于保存的基点，不累计上一段位移，也不设置机头朝向。
 
 目标原始坐标为 `x = bp_x_raw + nav_n*cos(angle) - nav_t*sin(angle)`、`y = bp_y_raw + nav_n*sin(angle) + nav_t*cos(angle)`、`z = bp_z_raw + nav_a`。新节点复用五次曲线和 PID 工具，在 BT tick 中采样曲线并通过 `RAW_CTRL` 发布原始位置、速度、加速度，不应用 Home 偏移或标定旋转。曲线起点采用当前原始位置，起终点参考速度和加速度均为零；与已有 Nav 的连续参考重规划不同。速度、加速度、PID 配置仍使用 `nav/`，到达位置容差使用 `reach_check/position_pose_tolerance`。沿用 Nav 的 60 秒默认超时、末端按 `nav/hold_timeout`（默认 3 秒）强制成功及中断减速逻辑；尚未进行仿真飞行验证。
 
@@ -194,7 +194,7 @@ rosrun maxt_pkg maxt_test_node \
 ```xml
 <Sequence>
     <BasePointAzimuthFix bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}" />
-    <AzimuthFixNav nav_n="2" nav_t="0" nav_a="0"
+    <NavAzimuth nav_n="2" nav_t="0" nav_a="0"
                    bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}" bp_z_raw="{bp_z_raw}"
                    timeout="60" />
 </Sequence>
@@ -420,10 +420,10 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `CapturePose` | `height_offset(0)` | `x`、`y`、`z` |
 | `PlayAudio` | `filename` | 无 |
 | `Takeoff` | `target_alt(0.5)` | `home_x`、`home_y`、`home_z`、`return_z` |
-| `LaLoNav` | `latitude/longitude`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
+| `NavGeo` | `latitude/longitude`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
 | `Nav` | `x/y/z`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
 | `BasePointAzimuthFix` | 无 | `bp_x_raw/bp_y_raw/bp_z_raw` |
-| `AzimuthFixNav` | `nav_n/nav_t/nav_a`、`bp_x_raw/bp_y_raw/bp_z_raw`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
+| `NavAzimuth` | `nav_n/nav_t/nav_a`、`bp_x_raw/bp_y_raw/bp_z_raw`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
 | `WaitStep` | `wait_duration(1)` | 无 |
 | `Hover` | `hover_duration(1)` | 无 |
 | `Round` | `center_x/center_y/center_z`、`radius(0)`、`angular_speed(30)`、`total_angle(360)`、`tolerance(0.3)`、`timeout(60)`、`ramp_time(2)` | 无 |
@@ -630,17 +630,17 @@ rosrun maxt_pkg test_calibrate_tools
 
 ### 经纬度导航
 
-`LaLoNav` 使用 WGS-84 经纬度绝对目标（度），只接收 `latitude`、`longitude` 和可选的 `timeout`，不接收 `altitude`。航行期间固定启动时的高度，由飞控高度控制器保持，不规划升降曲线。例如：
+`NavGeo` 使用 WGS-84 经纬度绝对目标（度），只接收 `latitude`、`longitude` 和可选的 `timeout`，不接收 `altitude`。航行期间固定启动时的高度，由飞控高度控制器保持，不规划升降曲线。例如：
 
 ```xml
-<LaLoNav latitude="31.230400" longitude="121.473700" timeout="60"/>
+<NavGeo latitude="31.230400" longitude="121.473700" timeout="60"/>
 ```
 
-上述坐标仅为端口示例，执行任务前应替换为实际航点。节点运行前需要有效的 `/mavros/global_position/global`（`sensor_msgs/NavSatFix`）、`/mavros/global_position/rel_alt`（`std_msgs/Float64`）及 `/mavros/local_position/pose`。不依赖海拔或 NavSatFix 的椭球高。原 `LaLoAlNav` 节点已更名为 `LaLoNav`，旧 XML 需更换节点名称并移除 `altitude` 属性。
+上述坐标仅为端口示例，执行任务前应替换为实际航点。节点运行前需要有效的 `/mavros/global_position/global`（`sensor_msgs/NavSatFix`）、`/mavros/global_position/rel_alt`（`std_msgs/Float64`）及 `/mavros/local_position/pose`。不依赖海拔或 NavSatFix 的椭球高。原 `LaLoAlNav` 节点已更名为 `NavGeo`，旧 XML 需更换节点名称并移除 `altitude` 属性。
 
 启动时记录 local Z 用于高度保持误差的到达检查，记录飞控相对 Home 高度作为固定的全球设点高度。MavKit 的 `GetGlobalPose()` 返回经纬度及飞控相对 Home 高度，`hasGlobalPose()` 检查定位、相对高度及 local 位姿是否就绪。`SetGlobalRawTarget()` 设置全球 raw 设点，`GLOBAL_RAW_CTRL` 由心跳定时器向 `/mavros/setpoint_raw/global` 持续发布。节点使用 `FRAME_GLOBAL_REL_ALT` 并沿用已锁定的默认偏航，不需要叠加应用 Home Z。
 
-LaLoNav 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/lalo_max_duration` 设置安全上限（默认 60.0 秒，须为有限正数）。若 T 超过上限，记录错误并返回 FAILURE，在发送全球设点、切换 GLOBAL_RAW_CTRL 前拒绝启动。T 等于上限时允许启动。此安全门替代原 XY 偏移限制；T 仅指曲线时长，不包含 PID 末端对齐时间，与 XML 的运行总超时 `timeout` 独立。
+NavGeo 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/lalo_max_duration` 设置安全上限（默认 60.0 秒，须为有限正数）。若 T 超过上限，记录错误并返回 FAILURE，在发送全球设点、切换 GLOBAL_RAW_CTRL 前拒绝启动。T 等于上限时允许启动。此安全门替代原 XY 偏移限制；T 仅指曲线时长，不包含 PID 末端对齐时间，与 XML 的运行总超时 `timeout` 独立。
 
 `GlobalNavCurve` 仅对水平测地距离生成五次曲线，再转换为经纬度及 ENU 水平速度、加速度；高度始终固定为起点高度，Z 速度和 Z 加速度均为零。时长估算及 `nav/v_max`、`nav/a_max` 与 Nav 一致。BT tick 采样曲线，定时器发布最近一次设点。曲线结束后仅对东、北方向做 PID 速度修正，复用 `nav/pid_kp/pid_ki/pid_kd`，各轴输出限幅 0.5 m/s、积分限幅 0.3，不做高度 PID 对齐。飞控负责位置控制及高度保持，前馈支持情况需结合飞控验证。
 

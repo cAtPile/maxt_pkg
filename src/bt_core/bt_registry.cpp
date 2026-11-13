@@ -15,12 +15,12 @@
 #include <maxt_pkg/maxt_nodes/connect_check_node.hpp>
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>
 
-#include <maxt_pkg/maxt_nodes/nav_node.hpp>
-#include <maxt_pkg/maxt_nodes/nav_raw_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_raw_node.hpp>
 #include <maxt_pkg/maxt_nodes/re_heading_node.hpp>
-#include <maxt_pkg/maxt_nodes/la_lo_nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_geo_node.hpp>
 #include <maxt_pkg/maxt_nodes/base_point_azimuth_fix_node.hpp>
-#include <maxt_pkg/maxt_nodes/azimuth_fix_nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_azimuth_node.hpp>
 #include <maxt_pkg/maxt_nodes/found_check_node.hpp>
 #include <maxt_pkg/maxt_nodes/target_check_node.hpp>
 #include <maxt_pkg/maxt_nodes/recorded_targets_node.hpp>
@@ -37,9 +37,9 @@ void MaxtCore::registerNodes() {
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<BasePointAzimuthFixNode>(name, config, *mav_);
         });
-    factory_.registerBuilder<AzimuthFixNavNode>("AzimuthFixNav",
+    factory_.registerBuilder<NavAzimuth>("NavAzimuth",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<AzimuthFixNavNode>(name, config, *mav_, nh_);
+            return std::make_unique<NavAzimuth>(name, config, *mav_, nh_);
         });
     factory_.registerBuilder<PlayAudioNode>("PlayAudio",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
@@ -78,9 +78,9 @@ void MaxtCore::registerNodes() {
             return std::make_unique<TakeoffNode>(name, config, *mav_);
         });
 
-    factory_.registerBuilder<LaLoNavNode>("LaLoNav",
+    factory_.registerBuilder<NavGeo>("NavGeo",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<LaLoNavNode>(name, config, *mav_, nh_);
+            return std::make_unique<NavGeo>(name, config, *mav_, nh_);
         });
 
     factory_.registerBuilder<ReHeadingNode>("ReHeading",

@@ -1,9 +1,9 @@
-#include <maxt_pkg/maxt_nodes/la_lo_nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_geo_node.hpp>
 #include <cmath>
 
 namespace maxt {
 
-BT::PortsList LaLoNavNode::providedPorts() {
+BT::PortsList NavGeo::providedPorts() {
     return {
         BT::OutputPort<double>("breakpoint_x"),
         BT::OutputPort<double>("breakpoint_y"),
@@ -15,20 +15,20 @@ BT::PortsList LaLoNavNode::providedPorts() {
     };
 }
 
-BT::NodeStatus LaLoNavNode::onStart() {
+BT::NodeStatus NavGeo::onStart() {
     nh_.param<double>("nav/hold_timeout", hold_timeout_, 3.0);
     nh_.param<double>("nav/lalo_max_duration", max_duration_, 60.0);
     if (!std::isfinite(max_duration_) || max_duration_ <= 0.0) {
-        ROS_ERROR("[LaLoNav] nav/lalo_max_duration must be finite and positive.");
+        ROS_ERROR("[NavGeo] nav/lalo_max_duration must be finite and positive.");
         return BT::NodeStatus::FAILURE;
     }
     if (!getInput<double>("latitude", target_.latitude) ||
         !getInput<double>("longitude", target_.longitude)) {
-        ROS_ERROR("[LaLoNav] Missing latitude/longitude.");
+        ROS_ERROR("[NavGeo] Missing latitude/longitude.");
         return BT::NodeStatus::FAILURE;
     }
     if (!mav_.hasGlobalPose()) {
-        ROS_ERROR("[LaLoNav] Waiting for valid global position, relative altitude and local pose.");
+        ROS_ERROR("[NavGeo] Waiting for valid global position, relative altitude and local pose.");
         return BT::NodeStatus::FAILURE;
     }
     getInput<double>("timeout", timeout_);
@@ -40,7 +40,7 @@ BT::NodeStatus LaLoNavNode::onStart() {
     double kp, ki, kd, v_max, a_max;
     if (!nh_.getParam("nav/pid_kp", kp) || !nh_.getParam("nav/pid_ki", ki) ||
         !nh_.getParam("nav/pid_kd", kd)) {
-        ROS_ERROR("[LaLoNav] Missing PID configuration; load config/nav.yaml.");
+        ROS_ERROR("[NavGeo] Missing PID configuration; load config/nav.yaml.");
         return BT::NodeStatus::FAILURE;
     }
     nh_.param<double>("nav/v_max", v_max, 2.5);
@@ -48,7 +48,7 @@ BT::NodeStatus LaLoNavNode::onStart() {
     curve_.setTarget(start, target_, v_max, a_max);
     // 在发送设点前检查预计曲线时长，拦截错误经纬度造成的长距离航行。
     if (curve_.duration() > max_duration_) {
-        ROS_ERROR("[LaLoNav] Estimated duration T=%.2f s exceeds limit %.2f s.",
+        ROS_ERROR("[NavGeo] Estimated duration T=%.2f s exceeds limit %.2f s.",
                   curve_.duration(), max_duration_);
         return BT::NodeStatus::FAILURE;
     }
@@ -63,16 +63,16 @@ BT::NodeStatus LaLoNavNode::onStart() {
     holding_ = false;
     mav_.SetGlobalRawTarget(curve_.sample(0.0));
     mav_.setSetpointMode(SetpointMode::GLOBAL_RAW_CTRL);
-    ROS_INFO("[LaLoNav] START: lat=%.8f lon=%.8f hold_local_z=%.2f T=%.2fs",
+    ROS_INFO("[NavGeo] START: lat=%.8f lon=%.8f hold_local_z=%.2f T=%.2fs",
              target_.latitude, target_.longitude, altitude_raw_, curve_.duration());
     return BT::NodeStatus::RUNNING;
 }
 
-BT::NodeStatus LaLoNavNode::onRunning() {
+BT::NodeStatus NavGeo::onRunning() {
     const auto now = ros::Time::now();
     const double elapsed = (now - start_time_).toSec();
     if (elapsed > timeout_) {
-        ROS_ERROR("[LaLoNav] Timeout.");
+        ROS_ERROR("[NavGeo] Timeout.");
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::FAILURE;
     }
@@ -80,7 +80,7 @@ BT::NodeStatus LaLoNavNode::onRunning() {
     if (dt <= 1e-6) return BT::NodeStatus::RUNNING;
     last_time_ = now;
     if (!mav_.hasGlobalPose()) {
-        ROS_ERROR("[LaLoNav] Global position, relative altitude or local pose unavailable.");
+        ROS_ERROR("[NavGeo] Global position, relative altitude or local pose unavailable.");
         mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
         return BT::NodeStatus::FAILURE;
     }
@@ -94,13 +94,13 @@ BT::NodeStatus LaLoNavNode::onRunning() {
         hold_start_ = now;
     }
     if (mav_.ReachGlobalCheck(target_, altitude_raw_)) {
-        ROS_INFO("[LaLoNav] REACHED.");
+        ROS_INFO("[NavGeo] REACHED.");
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
     const double hold_elapsed = (now - hold_start_).toSec();
     if (hold_elapsed > hold_timeout_) {
-        ROS_WARN("[LaLoNav] Hold timeout (%.1fs). Forcing SUCCESS.", hold_elapsed);
+        ROS_WARN("[NavGeo] Hold timeout (%.1fs). Forcing SUCCESS.", hold_elapsed);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
@@ -123,7 +123,7 @@ BT::NodeStatus LaLoNavNode::onRunning() {
 
 
 
-void LaLoNavNode::onHalted() {
+void NavGeo::onHalted() {
     recordBreakpointAndSlowDown();
 }
 

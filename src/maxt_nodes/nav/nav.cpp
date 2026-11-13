@@ -1,4 +1,4 @@
-#include <maxt_pkg/maxt_nodes/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_node.hpp>
 #include <cmath>
 
 namespace maxt {
