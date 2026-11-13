@@ -40,10 +40,11 @@ void MavKit::setRawTarget(const mavros_msgs::PositionTarget& target, bool apply_
     }
 }
 
-void MavKit::SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target) {
+void MavKit::SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target,
+                               bool apply_default_yaw) {
     std::lock_guard<std::mutex> lock(data_mtx_);
     global_target_ = target;
-    if (has_default_yaw_) {
+    if (apply_default_yaw && has_default_yaw_) {
         global_target_.yaw = default_yaw_;
         global_target_.yaw_rate = 0.0;
         global_target_.type_mask &= ~mavros_msgs::GlobalPositionTarget::IGNORE_YAW;
