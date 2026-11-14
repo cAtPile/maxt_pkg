@@ -1,0 +1,14 @@
+<root main_tree_to_execute="Test1114A">
+    <!-- A 的经纬度是仿真示例；实飞前替换。B 沿配置航向前进 5 m。 -->
+    <BehaviorTree ID="Test1114A">
+        <Sequence>
+            <ConnectCheck />
+            <Takeoff target_alt="3.0" home_x="{home_x}" home_y="{home_y}"
+                     home_z="{home_z}" return_z="{return_z}" />
+            <NavGeo latitude="47.3977419" longitude="8.5455939" timeout="90.0" />
+            <Hover hover_duration="5.0" />
+            <Nav x="{home_x}" y="{home_y}" z="{return_z}" timeout="90.0" />
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>
