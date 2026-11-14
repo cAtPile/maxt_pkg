@@ -113,9 +113,7 @@ void MavKit::setSetpointMode(SetpointMode mode) {
     }
     if (mode != SetpointMode::CURVE_CTRL) velocity_transition_ = false;
     if (mode == SetpointMode::PID_CTRL && setpoint_mode_ != SetpointMode::PID_CTRL) {
-        pid_x_.reset();
-        pid_y_.reset();
-        pid_z_.reset();
+        resetPIDControllers();
         pid_last_time_ = now;
     }
     setpoint_mode_ = mode;

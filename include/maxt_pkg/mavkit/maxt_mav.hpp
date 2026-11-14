@@ -20,6 +20,8 @@
 #include <maxt_pkg/calibrate_tools.hpp>
 #include <maxt_pkg/quintic_curve.hpp>
 #include <maxt_pkg/pid_controller.hpp>
+#include <maxt_pkg/global_nav_curve.hpp>
+#include <array>
 #include <maxt_pkg/audio_caller.hpp>
 #include <Eigen/Core>
 #include <mutex>
@@ -132,6 +134,12 @@ public:
     // 绝对世界坐标目标，不叠加 Home；raw_local=true 使用原始 MAVROS local 坐标。
     // 每次调用重置 PID 并读取 nav/pid_*，随后由调用方切换到 PID_CTRL。
     void setPIDTarget(const Eigen::Vector3d& position, bool raw_local = false);
+    // 固定原始 local 位置，仅用航向 PID 输出角速度。
+    void setPIDYawTarget(const geometry_msgs::Point& position, double yaw);
+    // 接管全球导航末端：未结束的平移/航向曲线继续采样，结束后分别进入 PID。
+    void setGlobalPIDTarget(const GlobalNavCurve& curve,
+                            const std::array<double, 6>& yaw_coefficients,
+                            double yaw_duration, const ros::Time& start);
 
     /**
      * @brief 设置 setpoint 模式
@@ -240,6 +248,9 @@ private:
     void loadCurveRaw(const ros::Time& now);
     // 调用方持有 data_mtx_；反馈与 PID 目标使用同一坐标系。
     void loadPIDRaw(const ros::Time& now);
+    void resetPIDControllers();
+    void configurePIDControllers();
+    double updatePIDYaw(double target, double dt);
     void setQuinticCurveTargetLocked(const Eigen::Vector3d& position, const ros::Time& now);
     void startStopCurve(const ros::Time& now);
     void captureCurveState(const ros::Time& now);
@@ -268,6 +279,15 @@ private:
     mavros_msgs::PositionTarget curve_raw_target_;
     mavros_msgs::PositionTarget pid_raw_target_;
     PIDController pid_x_, pid_y_, pid_z_;
+    PIDController pid_yaw_;
+    enum class PIDTargetKind { POSITION, YAW, GLOBAL };
+    PIDTargetKind pid_target_kind_{PIDTargetKind::POSITION};
+    double pid_target_yaw_{0.0}, pid_last_yaw_{0.0}, pid_measured_yaw_{0.0};
+    GlobalNavCurve pid_global_curve_;
+    mavros_msgs::GlobalPositionTarget pid_global_raw_target_;
+    std::array<double, 6> pid_yaw_coefficients_{};
+    double pid_yaw_duration_{0.0};
+    ros::Time pid_global_start_;
     bool pid_raw_local_{false};
     ros::Time pid_last_time_;
     CurveState curve_state_;

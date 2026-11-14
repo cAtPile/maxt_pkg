@@ -3,9 +3,6 @@
 
 namespace maxt {
 
-static constexpr uint16_t TYPE_MASK =
-    mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
-
 static constexpr double DT_MIN = 1e-6;
 
 BT::PortsList NavRawNode::providedPorts() {
@@ -73,14 +70,6 @@ BT::NodeStatus NavRawNode::startNavigation() {
     T_ = mav_.getCurveTime();
     mav_.setSetpointMode(SetpointMode::CURVE_CTRL);
 
-    // 初始化三轴 PID，用于末端闭环对齐
-    pid_x_.reset(); pid_x_.setGains(pid_kp_, pid_ki_, pid_kd_);
-    pid_y_.reset(); pid_y_.setGains(pid_kp_, pid_ki_, pid_kd_);
-    pid_z_.reset(); pid_z_.setGains(pid_kp_, pid_ki_, pid_kd_);
-    pid_x_.setOutputClamp(0.5); pid_x_.setIntegralClamp(0.3);
-    pid_y_.setOutputClamp(0.5); pid_y_.setIntegralClamp(0.3);
-    pid_z_.setOutputClamp(0.5); pid_z_.setIntegralClamp(0.3);
-
     start_time_ = ros::Time::now();
     traj_start_ = start_time_;
     last_time_ = start_time_;
@@ -123,6 +112,9 @@ BT::NodeStatus NavRawNode::onRunning() {
     if (!holding_) {
         holding_ = true;
         hold_start_ = now;
+        // 仅在进入末端阶段时设置，避免每个 tick 清除积分。
+        mav_.setPIDTarget(Eigen::Vector3d(tx_, ty_, tz_), true);
+        mav_.setSetpointMode(SetpointMode::PID_CTRL);
     }
 
     if (err < tolerance_) {
@@ -140,22 +132,6 @@ BT::NodeStatus NavRawNode::onRunning() {
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
-
-    // 曲线完成后，在目标位置叠加 PID 速度修正进行末端对齐。
-    mavros_msgs::PositionTarget target;
-    target.header.stamp = now;
-    target.header.frame_id = "map";
-    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
-    target.type_mask = TYPE_MASK;
-    target.position.x = tx_;
-    target.position.y = ty_;
-    target.position.z = tz_;
-    target.velocity.x = pid_x_.update(tx_, pose.pose.position.x, dt);
-    target.velocity.y = pid_y_.update(ty_, pose.pose.position.y, dt);
-    target.velocity.z = pid_z_.update(tz_, pose.pose.position.z, dt);
-    // 先填充设点再切换模式，避免发布上次 RAW_CTRL 留下的设点。
-    mav_.setRawTarget(target);
-    mav_.setSetpointMode(SetpointMode::RAW_CTRL);
 
     return BT::NodeStatus::RUNNING;
 }

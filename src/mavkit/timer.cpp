@@ -36,9 +36,13 @@ void MavKit::heartbeatTimerCallback(const ros::TimerEvent& event) {
         raw_setpoint_pub_.publish(raw);
     }else if(setpoint_mode_ == SetpointMode::PID_CTRL){
         loadPIDRaw(ros::Time::now());
-        auto raw = pid_raw_target_;
-        if (!pid_raw_local_) calib_.transRaw(raw);
-        raw_setpoint_pub_.publish(raw);
+        if (pid_target_kind_ == PIDTargetKind::GLOBAL) {
+            global_raw_setpoint_pub_.publish(pid_global_raw_target_);
+        } else {
+            auto raw = pid_raw_target_;
+            if (!pid_raw_local_) calib_.transRaw(raw);
+            raw_setpoint_pub_.publish(raw);
+        }
     }else if(setpoint_mode_ == SetpointMode::GLOBAL_RAW_CTRL){
         // 全球目标不经过局部 Home 偏移或标定旋转。
         auto target = global_target_;

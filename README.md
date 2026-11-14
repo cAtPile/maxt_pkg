@@ -187,7 +187,7 @@ rosrun maxt_pkg maxt_test_node \
 
 方位角固定航行使用 `BasePointAzimuthFix` 和 `NavAzimuth`。前者在一次 tick 内调用 `GetRawPose()`，将当前原始位置写入黑板；后者以该基点为原点，按照 `config/nav.yaml` 中的 `nav/azimuth_angle` 投影位移。角度单位为度，0° 沿原始 X 正向，90° 沿原始 Y 正向；`nav_n` 沿该方向，`nav_t` 正向为左侧，`nav_a` 为相对基点的 Z 增量，距离单位为米。每个目标都相对于保存的基点，不累计上一段位移，也不设置机头朝向。
 
-目标原始坐标为 `x = bp_x_raw + nav_n*cos(angle) - nav_t*sin(angle)`、`y = bp_y_raw + nav_n*sin(angle) + nav_t*cos(angle)`、`z = bp_z_raw + nav_a`。新节点复用五次曲线和 PID 工具，在 BT tick 中采样曲线并通过 `RAW_CTRL` 发布原始位置、速度、加速度，不应用 Home 偏移或标定旋转。曲线起点采用当前原始位置，起终点参考速度和加速度均为零；与已有 Nav 的连续参考重规划不同。速度、加速度、PID 配置仍使用 `nav/`，到达位置容差使用 `reach_check/position_pose_tolerance`。沿用 Nav 的 60 秒默认超时、末端按 `nav/hold_timeout`（默认 3 秒）强制成功及中断减速逻辑；尚未进行仿真飞行验证。
+目标原始坐标为 `x = bp_x_raw + nav_n*cos(angle) - nav_t*sin(angle)`、`y = bp_y_raw + nav_n*sin(angle) + nav_t*cos(angle)`、`z = bp_z_raw + nav_a`。节点在 BT tick 中采样五次曲线，通过 `RAW_CTRL` 发布原始位置、速度、加速度；曲线结束后调用 `setPIDTarget(position, true)` 并切换 `PID_CTRL`。两个阶段均不应用 Home 偏移或标定旋转。曲线起点采用当前原始位置，起终点参考速度和加速度均为零；与已有 Nav 的连续参考重规划不同。速度、加速度、PID 配置仍使用 `nav/`，到达位置容差使用 `reach_check/position_pose_tolerance`。沿用 Nav 的 60 秒默认超时、末端按 `nav/hold_timeout`（默认 3 秒）强制成功及中断减速逻辑；尚未进行仿真飞行验证。
 
 例如，在完成连接和起飞后记录基点，再沿配置方向移动 2 m 并保持基点高度：
 
@@ -536,7 +536,7 @@ BT 回调和 ROS 回调可能并发执行，共享状态需要同步；例如 Fo
 | `CONTROL` | 发布位置目标，应用工程坐标到定位坐标的 XY 旋转 |
 | `RAW_CTRL` | 发布原始设点，按 type_mask 指定启用字段 |
 | `CURVE_CTRL` | 采样五次曲线并发布参考位置、速度、加速度 |
-| `PID_CTRL` | 定时器根据实测位置计算三轴 PID，发布固定目标位置及速度修正 |
+| `PID_CTRL` | 定时器执行位置、航向或全球导航末端 PID，并发布相应 local/global 设点 |
 | `SLOW_DOWN` | 生成并采样速度过渡曲线，完成后进入 HEARTBEAT 或待接管模式 |
 
 需要固定位置悬停时，可参考 Hover：记录一次位姿，再持续使用该位置目标。Nav 中断时请求 SLOW_DOWN；减速期间的 HEARTBEAT 请求不会直接截断减速，新的导航目标可以继承当前参考状态重规划。`CurveState` 是控制参考，不是实测飞行状态，参考速度归零不等于飞机已完全停止。
@@ -553,7 +553,11 @@ mav.setSetpointMode(maxt::SetpointMode::PID_CTRL);
 
 `setPIDTarget(position, true)` 使用原始 MAVROS local 坐标，不做 Home 偏移或标定旋转；默认世界坐标模式先逆向标定实测位置，发布前再正向旋转位置和速度。每次设置目标读取 `nav/pid_kp/ki/kd`（默认 1.0/0.05/0.0）并重置 PID；每轴速度输出限幅 ±0.5 m/s，误差积分累计值限幅 ±0.3。`loadPIDRaw()` 按 `heartbeat_rate` 更新 `pid_raw_target_`，保持默认 local 航向和零加速度设点。重新进入模式也会重置 PID 及计时，重复选择当前模式不会重置；减速期间的 PID_CTRL 请求不会中断 SLOW_DOWN，调用方需在减速完成后重新请求。
 
-该模式持续纠偏，不自动判定成功或超时，由调用方检查到达条件后切换模式。不要在每个 BT tick 重复设置相同目标，否则会清除积分。现有 Nav 系列节点仍保留原来的末端 PID 实现，本次仅新增 MavKit 接口。
+`setPIDYawTarget(position, yaw)` 用于 ReHeading：固定原始 local 位置，仅启用航向角速度 PID；速度和加速度字段被忽略。角速度限幅使用 `re_heading/yaw_rate_max`，按最短角差控制，连续展开测量角以避免 ±π 跳变。
+
+`setGlobalPIDTarget(curve, yaw_coefficients, yaw_duration, start)` 用于 NavGeo：复制原平移/航向曲线及启动时间，按各自结束时间切换为水平测地误差 PID 和航向 PID。通过 `/mavros/setpoint_raw/global` 发布，保持原相对高度，不增加高度 PID。两条曲线均结束后才开始节点的末端超时计时。
+
+该模式持续纠偏，不自动判定成功或超时，由调用方检查到达条件后切换模式。不要在每个 BT tick 重复设置相同目标，否则会清除积分。Nav、NavRaw、NavAzimuth、NavGeo 和 ReHeading 的末端对齐均使用 PID_CTRL；节点只在进入末端阶段时设置一次目标，后续 tick 负责到达检查、超时及中断。Guidance 的图像误差控制不属于导航末端对齐，继续使用原有控制逻辑。
 
 ### 新增行为树节点
 
@@ -657,7 +661,7 @@ rosrun maxt_pkg test_calibrate_tools
 
 NavGeo 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/lalo_max_duration` 设置安全上限（默认 60.0 秒，须为有限正数）。若 T 超过上限，记录错误并返回 FAILURE，在发送全球设点、切换 GLOBAL_RAW_CTRL 前拒绝启动。T 等于上限时允许启动。此安全门替代原 XY 偏移限制；T 仅指平移曲线时长，不包含航向曲线时长及 PID 末端对齐时间，与 XML 的运行总超时 `timeout` 独立。
 
-`GlobalNavCurve` 仅对水平测地距离生成五次曲线，再转换为经纬度及 ENU 水平速度、加速度；高度始终固定为起点高度，Z 速度和 Z 加速度均为零。时长估算及 `nav/v_max`、`nav/a_max` 与 Nav 一致。BT tick 采样曲线，定时器发布最近一次设点。曲线结束后仅对东、北方向做 PID 速度修正，复用 `nav/pid_kp/pid_ki/pid_kd`，各轴输出限幅 0.5 m/s、积分限幅 0.3，不做高度 PID 对齐。飞控负责位置控制及高度保持，前馈支持情况需结合飞控验证。
+`GlobalNavCurve` 仅对水平测地距离生成五次曲线，再转换为经纬度及 ENU 水平速度、加速度；高度始终固定为起点高度，Z 速度和 Z 加速度均为零。时长估算及 `nav/v_max`、`nav/a_max` 与 Nav 一致。平移与航向曲线均未结束时由 BT tick 采样；任一曲线结束后，通过 `setGlobalPIDTarget()` 切换到 PID_CTRL，定时器继续采样尚未结束的曲线，并对已结束的轴计算 PID。平移曲线结束后仅对东、北方向做 PID 速度修正，复用 `nav/pid_kp/pid_ki/pid_kd`，各轴输出限幅 0.5 m/s、积分限幅 0.3，不做高度 PID 对齐。飞控负责位置控制及高度保持，前馈支持情况需结合飞控验证。
 
 `ReachGlobalCheck(target, altitude_raw)` 同时检查水平距离、相对启动 local Z 的高度误差和实测速度。对应配置为 `reach_check/global_position_tolerance`（代码默认 1.0 m）、`reach_check/global_altitude_tolerance`（默认 0.5 m）及 `reach_check/position_vel_tolerance`（默认 0.2 m/s）。水平距离使用 GeographicLib 的 WGS-84 椭球测地距离，容差单位为米。
 

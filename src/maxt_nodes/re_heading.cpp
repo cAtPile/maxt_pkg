@@ -64,10 +64,6 @@ BT::NodeStatus ReHeadingNode::onStart() {
                               std::sqrt(5.774 * std::abs(delta) / acceleration), 0.5});
     QuinticCurve::solveAxis(measured_yaw_, 0.0, 0.0, unwrapped_target_, 0.0, 0.0,
                             duration_, coefficients_);
-    pid_.reset();
-    pid_.setGains(kp, ki, kd);
-    pid_.setOutputClamp(rate);
-    pid_.setIntegralClamp(0.3);
     start_time_ = last_time_ = ros::Time::now();
     holding_ = false;
     publish(last_yaw_, 0.0, false);
@@ -100,8 +96,6 @@ BT::NodeStatus ReHeadingNode::onRunning() {
     last_time_ = now;
     const double elapsed = (now - start_time_).toSec();
     const double yaw = yawOf(mav_.GetRawPose());
-    measured_yaw_ += wrap(yaw - last_yaw_);
-    last_yaw_ = yaw;
     if (elapsed > timeout_) {
         ROS_ERROR("[ReHeading] Timeout! elapsed=%.2fs", elapsed);
         mav_.setDefaultYaw(yaw);
@@ -116,6 +110,8 @@ BT::NodeStatus ReHeadingNode::onRunning() {
     if (!holding_) {
         holding_ = true;
         hold_start_ = now;
+        mav_.setPIDYawTarget(position_, target_yaw_);
+        mav_.setSetpointMode(SetpointMode::PID_CTRL);
     }
     const double error = wrap(target_yaw_ - yaw);
     if (std::abs(error) < tolerance_ || (now - hold_start_).toSec() > hold_timeout_) {
@@ -129,8 +125,6 @@ BT::NodeStatus ReHeadingNode::onRunning() {
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
-    // PID 使用展开后的测量角；目标取最近等价角，始终沿最短方向修正。
-    publish(target_yaw_, pid_.update(measured_yaw_ + error, measured_yaw_, dt), true);
     return BT::NodeStatus::RUNNING;
 }
 
