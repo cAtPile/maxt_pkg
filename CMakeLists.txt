@@ -130,6 +130,7 @@ add_library(${PROJECT_NAME}
   src/bt_core/bt_registry.cpp
   src/mavkit/callback.cpp
   src/mavkit/set.cpp
+  src/mavkit/pid.cpp
   src/mavkit/timer.cpp
   src/mavkit/get_pose.cpp
   src/mavkit/reach_check.cpp

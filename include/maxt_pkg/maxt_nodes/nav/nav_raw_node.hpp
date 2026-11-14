@@ -2,7 +2,6 @@
 #define MAXT_NODES_NAV_RAW_HPP
 
 #include <maxt_pkg/maxt_nodes.hpp>
-#include <maxt_pkg/pid_controller.hpp>
 
 namespace maxt {
 
@@ -33,7 +32,6 @@ private:
     bool holding_{false};
     double hold_timeout_{3.0};
 
-    PIDController pid_x_, pid_y_, pid_z_;
 };
 
 } // namespace maxt

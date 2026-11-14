@@ -95,11 +95,7 @@ BT::NodeStatus NavGeo::onStart() {
         return BT::NodeStatus::FAILURE;
     }
     QuinticCurve::solveAxis(measured_yaw_, 0.0, 0.0, measured_yaw_ + delta, 0.0, 0.0,
-                            yaw_duration_, yaw_coefficients_);
-    pid_yaw_.reset();
-    pid_yaw_.setGains(kp, ki, kd);
-    pid_yaw_.setOutputClamp(yaw_rate);
-    pid_yaw_.setIntegralClamp(0.3);
+                            yaw_duration_, yaw_coefficients_.data());
     curve_.setTarget(start, target_, v_max, a_max);
     // 在发送设点前检查预计曲线时长，拦截错误经纬度造成的长距离航行。
     if (curve_.duration() > max_duration_) {
@@ -107,17 +103,12 @@ BT::NodeStatus NavGeo::onStart() {
                   curve_.duration(), max_duration_);
         return BT::NodeStatus::FAILURE;
     }
-    for (auto* pid : {&pid_east_, &pid_north_}) {
-        pid->reset();
-        pid->setGains(kp, ki, kd);
-        pid->setOutputClamp(0.5);
-        pid->setIntegralClamp(0.3);
-    }
     start_time_ = ros::Time::now();
     last_time_ = start_time_;
     holding_ = false;
+    pid_started_ = false;
     auto initial_target = curve_.sample(0.0);
-    applyYaw(initial_target, 0.0, 0.0);
+    applyYaw(initial_target, 0.0);
     mav_.SetGlobalRawTarget(initial_target, false);
     mav_.setSetpointMode(SetpointMode::GLOBAL_RAW_CTRL);
     ROS_INFO("[NavGeo] START: lat=%.8f lon=%.8f hold_local_z=%.2f T=%.2fs yaw_T=%.2fs",
@@ -144,16 +135,20 @@ BT::NodeStatus NavGeo::onRunning() {
         return BT::NodeStatus::FAILURE;
     }
     const double yaw = yawOf(mav_.GetRawPose());
-    measured_yaw_ += wrap(yaw - last_yaw_);
-    last_yaw_ = yaw;
-    if (elapsed < curve_.duration()) {
+    if (elapsed < std::min(curve_.duration(), yaw_duration_)) {
         auto target = curve_.sample(elapsed);
-        applyYaw(target, elapsed, dt);
+        applyYaw(target, elapsed);
         mav_.SetGlobalRawTarget(target, false);
         return BT::NodeStatus::RUNNING;
     }
+    if (!pid_started_) {
+        // 任一曲线结束即交给定时器；另一轴继续按原曲线采样。
+        mav_.setGlobalPIDTarget(curve_, yaw_coefficients_, yaw_duration_, start_time_);
+        mav_.setSetpointMode(SetpointMode::PID_CTRL);
+        pid_started_ = true;
+    }
     // 平移和航向曲线均结束后，才开始计算末端对齐超时。
-    const bool curves_finished = elapsed >= yaw_duration_;
+    const bool curves_finished = elapsed >= std::max(curve_.duration(), yaw_duration_);
     if (curves_finished && !holding_) {
         holding_ = true;
         hold_start_ = now;
@@ -174,39 +169,16 @@ BT::NodeStatus NavGeo::onRunning() {
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
-    // 保持启动高度，仅对东、北方向做 PID 末端对齐。
-    const auto pose = mav_.GetGlobalPose();
-    double distance, azimuth, end_azimuth;
-    GeographicLib::Geodesic::WGS84().Inverse(
-        pose.latitude, pose.longitude, target_.latitude, target_.longitude,
-        distance, azimuth, end_azimuth);
-    const double heading = azimuth * M_PI / 180.0;
-    const double error_east = distance * std::sin(heading);
-    const double error_north = distance * std::cos(heading);
-    auto target = curve_.sample(curve_.duration());
-    // 固定零设点、负误差测量值，使现有 PID 的测量微分也能正确作用。
-    target.velocity.x = pid_east_.update(0.0, -error_east, dt);
-    target.velocity.y = pid_north_.update(0.0, -error_north, dt);
-    applyYaw(target, elapsed, dt);
-    mav_.SetGlobalRawTarget(target, false);
     return BT::NodeStatus::RUNNING;
 }
 
 
 
-void NavGeo::applyYaw(mavros_msgs::GlobalPositionTarget& target, double elapsed, double dt) {
+void NavGeo::applyYaw(mavros_msgs::GlobalPositionTarget& target, double elapsed) {
     using Target = mavros_msgs::GlobalPositionTarget;
     target.type_mask &= ~(Target::IGNORE_YAW | Target::IGNORE_YAW_RATE);
-    if (elapsed < yaw_duration_) {
-        target.yaw = wrap(QuinticCurve::evalPos(yaw_coefficients_, elapsed));
-        target.yaw_rate = QuinticCurve::evalVel(yaw_coefficients_, elapsed);
-    } else {
-        // 展开测量角以避免跨越 +/-pi 时产生微分跳变；按最近等价角修正。
-        const double error = wrap(target_yaw_ - measured_yaw_);
-        target.type_mask |= Target::IGNORE_YAW;
-        target.yaw = target_yaw_;
-        target.yaw_rate = pid_yaw_.update(measured_yaw_ + error, measured_yaw_, dt);
-    }
+    target.yaw = wrap(QuinticCurve::evalPos(yaw_coefficients_.data(), elapsed));
+    target.yaw_rate = QuinticCurve::evalVel(yaw_coefficients_.data(), elapsed);
 }
 
 void NavGeo::onHalted() {

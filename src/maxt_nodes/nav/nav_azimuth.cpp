@@ -74,12 +74,6 @@ BT::NodeStatus NavAzimuth::onStart() {
     const double t_acc = std::sqrt(distance * 5.774 / a_max);
     duration_ = 1.2 * std::max({t_vel, t_acc, 0.5});
     curve_.setWaypoints(p.x, p.y, p.z, tx_, ty_, tz_, duration_);
-    for (auto* pid : {&pid_x_, &pid_y_, &pid_z_}) {
-        pid->reset();
-        pid->setGains(kp, ki, kd);
-        pid->setOutputClamp(0.5);
-        pid->setIntegralClamp(0.3);
-    }
     start_time_ = ros::Time::now();
     last_time_ = start_time_;
     holding_ = false;
@@ -122,6 +116,9 @@ BT::NodeStatus NavAzimuth::onRunning() {
     if (!holding_) {
         holding_ = true;
         hold_start_ = now;
+        // 仅在进入末端阶段时设置，避免每个 tick 清除积分。
+        mav_.setPIDTarget(Eigen::Vector3d(tx_, ty_, tz_), true);
+        mav_.setSetpointMode(SetpointMode::PID_CTRL);
     }
     if (error < tolerance_) {
         ROS_INFO("[NavAzimuth] REACHED: pos_err=%.3f elapsed=%.2fs", error, elapsed);
@@ -134,14 +131,6 @@ BT::NodeStatus NavAzimuth::onRunning() {
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
-    auto target = makeTarget(now);
-    target.position.x = tx_;
-    target.position.y = ty_;
-    target.position.z = tz_;
-    target.velocity.x = pid_x_.update(tx_, p.x, dt);
-    target.velocity.y = pid_y_.update(ty_, p.y, dt);
-    target.velocity.z = pid_z_.update(tz_, p.z, dt);
-    mav_.setRawTarget(target);
     return BT::NodeStatus::RUNNING;
 }
 
