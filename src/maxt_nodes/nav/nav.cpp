@@ -50,6 +50,7 @@ BT::NodeStatus NavNode::onStart() {
     nav_nh_.param<double>("hold_timeout", hold_timeout_, 3.0);
 
     //获取参数
+    //TODO:清理pid
     if (!nav_nh_.getParam("pid_kp", pid_kp_) ||
         !nav_nh_.getParam("pid_ki", pid_ki_) ||
         !nav_nh_.getParam("pid_kd", pid_kd_)) {
@@ -58,7 +59,7 @@ BT::NodeStatus NavNode::onStart() {
         return BT::NodeStatus::FAILURE;
     }
 
-    //验证参数
+    //验证参数、//TODO:清理pid
     if (!std::isfinite(pid_kp_) || !std::isfinite(pid_ki_) ||
         !std::isfinite(pid_kd_)) {
         ROS_ERROR("[Nav] Invalid configuration: PID gains must be finite.");
@@ -100,6 +101,7 @@ BT::NodeStatus NavNode::onRunning() {
     if (dt <= DT_MIN) return BT::NodeStatus::RUNNING;
     last_time_ = now;
 
+    //超时失败
     double elapsed = (now - start_time_).toSec();
     if (elapsed > timeout_) {
         ROS_ERROR("[Nav] Timeout! elapsed=%.1f", elapsed);
@@ -107,11 +109,13 @@ BT::NodeStatus NavNode::onRunning() {
         return BT::NodeStatus::FAILURE;
     }
 
+    //曲线控制状态
     const double t = (now - traj_start_).toSec();
     if (t < T_) {
         return BT::NodeStatus::RUNNING;
     }
 
+    //TODO：到达检查可以用mavkit
     // 曲线结束后检查到达情况，按配置的末端对齐超时强制完成。
     auto pose = mav_.GetCalibratePose();
     double err_x = tx_ - pose.pose.position.x;
@@ -119,14 +123,15 @@ BT::NodeStatus NavNode::onRunning() {
     double err_z = tz_ - pose.pose.position.z;
     double err = std::sqrt(err_x*err_x + err_y*err_y + err_z*err_z);
 
+    //进入PID末端对齐
     if (!holding_) {
         holding_ = true;
         hold_start_ = now;
-        // 仅在进入末端阶段时设置，避免每个 tick 清除积分。
         mav_.setPIDTarget(Eigen::Vector3d(tx_, ty_, tz_));
         mav_.setSetpointMode(SetpointMode::PID_CTRL);
     }
 
+    //达标成功
     if (err < tolerance_) {
         ROS_INFO("[Nav] REACHED: pos=(%.3f, %.3f, %.3f) pos_err=%.3f elapsed=%.2fs",
                  pose.pose.position.x, pose.pose.position.y, pose.pose.position.z,
@@ -135,6 +140,7 @@ BT::NodeStatus NavNode::onRunning() {
         return BT::NodeStatus::SUCCESS;
     }
 
+    //末端强制成功
     double hold_elapsed = (now - hold_start_).toSec();
     if (hold_elapsed > hold_timeout_) {
         ROS_WARN("[Nav] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
