@@ -130,6 +130,7 @@ add_library(${PROJECT_NAME}
   src/bt_core/bt_registry.cpp
   src/mavkit/callback.cpp
   src/mavkit/set.cpp
+  src/mavkit/pid.cpp
   src/mavkit/timer.cpp
   src/mavkit/get_pose.cpp
   src/mavkit/reach_check.cpp
@@ -155,12 +156,12 @@ add_library(${PROJECT_NAME}
 
   src/maxt_nodes/touch_down.cpp
 
-  src/maxt_nodes/la_lo_nav.cpp
+  src/maxt_nodes/nav/nav_geo.cpp
   src/maxt_nodes/re_heading.cpp
-  src/maxt_nodes/nav.cpp
-  src/maxt_nodes/nav_raw.cpp
+  src/maxt_nodes/nav/nav.cpp
+  src/maxt_nodes/nav/nav_raw.cpp
   src/maxt_nodes/base_point_azimuth_fix.cpp
-  src/maxt_nodes/azimuth_fix_nav.cpp
+  src/maxt_nodes/nav/nav_azimuth.cpp
 )
 
 ## Add cmake target dependencies of the library

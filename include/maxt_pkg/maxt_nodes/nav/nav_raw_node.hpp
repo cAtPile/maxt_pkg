@@ -1,14 +1,13 @@
-#ifndef MAXT_NODES_NAV_HPP
-#define MAXT_NODES_NAV_HPP
+#ifndef MAXT_NODES_NAV_RAW_HPP
+#define MAXT_NODES_NAV_RAW_HPP
 
 #include <maxt_pkg/maxt_nodes.hpp>
-#include <maxt_pkg/pid_controller.hpp>
 
 namespace maxt {
 
-class NavNode : public MavActionNode {
+class NavRawNode : public MavActionNode {
 public:
-    NavNode(const std::string& name, const BT::NodeConfiguration& config, MavKit& mav, const ros::NodeHandle& nh);
+    NavRawNode(const std::string& name, const BT::NodeConfiguration& config, MavKit& mav, const ros::NodeHandle& nh);
 
     static BT::PortsList providedPorts();
 
@@ -17,11 +16,12 @@ public:
     void onHalted() override;
 
 private:
+    BT::NodeStatus startNavigation();
+    bool waiting_for_stop_{false};
     ros::NodeHandle nav_nh_;
     double tx_{0.0}, ty_{0.0}, tz_{0.0};
     double tolerance_{0.1};
     double timeout_{60.0};
-    double pid_kp_{1.0}, pid_ki_{0.05}, pid_kd_{0.0};
 
     double T_{1.0};
     ros::Time traj_start_;
@@ -31,7 +31,6 @@ private:
     bool holding_{false};
     double hold_timeout_{3.0};
 
-    PIDController pid_x_, pid_y_, pid_z_;
 };
 
 } // namespace maxt

@@ -110,7 +110,7 @@ void runTraverse(int mode, const std::string& xml) {
     BT::BehaviorTreeFactory f;
     f.registerNodeType<maxt::TraversePathGeneratorNode>("TraversePathGenerator");
     f.registerNodeType<maxt::GetRegionWaypointNode>("GetRegionWaypoint");
-    f.registerBuilder<Search>("AzimuthFixNav", [&](const std::string& n, const BT::NodeConfiguration& c) {
+    f.registerBuilder<Search>("NavAzimuth", [&](const std::string& n, const BT::NodeConfiguration& c) {
         return std::make_unique<Search>(n, c, s); });
     f.registerBuilder<Detection>("TargetCheck", [&](const std::string& n, const BT::NodeConfiguration& c) {
         return std::make_unique<Detection>(n, c, s); });
@@ -132,7 +132,7 @@ void runTraverse(int mode, const std::string& xml) {
         BT::OutputPort<double>("home_y"), BT::OutputPort<double>("home_z"), BT::OutputPort<double>("return_z")});
     f.registerSimpleAction("ReHeading", [](BT::TreeNode&) { return BT::NodeStatus::SUCCESS; },
                            {BT::InputPort<double>("timeout")});
-    f.registerSimpleAction("LaLoNav", [](BT::TreeNode&) { return BT::NodeStatus::SUCCESS; },
+    f.registerSimpleAction("NavGeo", [](BT::TreeNode&) { return BT::NodeStatus::SUCCESS; },
                            {BT::InputPort<double>("latitude"), BT::InputPort<double>("longitude"), BT::InputPort<double>("timeout")});
     f.registerSimpleAction("BasePointAzimuthFix", [](BT::TreeNode& n) {
         n.setOutput("bp_x_raw", 10.0); n.setOutput("bp_y_raw", 0.0); n.setOutput("bp_z_raw", 0.0);

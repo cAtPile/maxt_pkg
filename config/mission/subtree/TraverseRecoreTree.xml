@@ -13,7 +13,7 @@
             <SetBlackboard output_key="detected_target_id" value="" />
             <Parallel success_threshold="1" failure_threshold="1">
                 <Sequence>
-                    <AzimuthFixNav name="RecordSearchLeg"
+                    <NavAzimuth name="RecordSearchLeg"
                                    nav_n="{nav_n}" nav_t="{nav_t}" nav_a="{nav_a}"
                                    bp_x_raw="{bp_x_raw}" bp_y_raw="{bp_y_raw}"
                                    bp_z_raw="{bp_z_raw}" timeout="60.0" />

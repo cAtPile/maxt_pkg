@@ -1,10 +1,27 @@
-#include <maxt_pkg/maxt_nodes/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_node.hpp>
 #include <cmath>
 
 namespace maxt {
 
-static constexpr uint16_t TYPE_MASK =
-    mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+void MavActionNode::recordBreakpointAndSlowDown() {
+    const auto pose = mav_.GetRawPose();
+    const auto& p = pose.pose.position;
+    const bool valid = !pose.header.stamp.isZero() &&
+        std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z);
+    setOutput("breakpoint_valid", false);
+    if (valid) {
+        setOutput("breakpoint_x", p.x);
+        setOutput("breakpoint_y", p.y);
+        setOutput("breakpoint_z", p.z);
+        setOutput("breakpoint_valid", true);
+        ROS_WARN("[%s] Halted: breakpoint=(%.3f, %.3f, %.3f). Slowing down.",
+                 name().c_str(), p.x, p.y, p.z);
+    } else {
+        ROS_WARN("[%s] Halted without valid pose; breakpoint unavailable. Slowing down.",
+                 name().c_str());
+    }
+    mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+}
 
 static constexpr double DT_MIN = 1e-6;
 
@@ -32,22 +49,6 @@ NavNode::NavNode(const std::string& name,
 BT::NodeStatus NavNode::onStart() {
     nav_nh_.param<double>("hold_timeout", hold_timeout_, 3.0);
 
-    //获取参数
-    if (!nav_nh_.getParam("pid_kp", pid_kp_) ||
-        !nav_nh_.getParam("pid_ki", pid_ki_) ||
-        !nav_nh_.getParam("pid_kd", pid_kd_)) {
-        ROS_ERROR("[Nav] Missing configuration under %s; load config/nav.yaml.",
-                  nav_nh_.getNamespace().c_str());
-        return BT::NodeStatus::FAILURE;
-    }
-
-    //验证参数
-    if (!std::isfinite(pid_kp_) || !std::isfinite(pid_ki_) ||
-        !std::isfinite(pid_kd_)) {
-        ROS_ERROR("[Nav] Invalid configuration: PID gains must be finite.");
-        return BT::NodeStatus::FAILURE;
-    }
-
     //获取bt参数
     if (!getInput<double>("x", tx_) ||
         !getInput<double>("y", ty_) ||
@@ -68,14 +69,6 @@ BT::NodeStatus NavNode::onStart() {
     T_ = mav_.getCurveTime();
     mav_.setSetpointMode(SetpointMode::CURVE_CTRL);
 
-    // 初始化三轴 PID，用于末端闭环对齐
-    pid_x_.reset(); pid_x_.setGains(pid_kp_, pid_ki_, pid_kd_);
-    pid_y_.reset(); pid_y_.setGains(pid_kp_, pid_ki_, pid_kd_);
-    pid_z_.reset(); pid_z_.setGains(pid_kp_, pid_ki_, pid_kd_);
-    pid_x_.setOutputClamp(0.5); pid_x_.setIntegralClamp(0.3);
-    pid_y_.setOutputClamp(0.5); pid_y_.setIntegralClamp(0.3);
-    pid_z_.setOutputClamp(0.5); pid_z_.setIntegralClamp(0.3);
-
     start_time_ = ros::Time::now();
     traj_start_ = start_time_;
     last_time_ = start_time_;
@@ -91,6 +84,7 @@ BT::NodeStatus NavNode::onRunning() {
     if (dt <= DT_MIN) return BT::NodeStatus::RUNNING;
     last_time_ = now;
 
+    //超时失败
     double elapsed = (now - start_time_).toSec();
     if (elapsed > timeout_) {
         ROS_ERROR("[Nav] Timeout! elapsed=%.1f", elapsed);
@@ -98,11 +92,13 @@ BT::NodeStatus NavNode::onRunning() {
         return BT::NodeStatus::FAILURE;
     }
 
+    //曲线控制状态
     const double t = (now - traj_start_).toSec();
     if (t < T_) {
         return BT::NodeStatus::RUNNING;
     }
 
+    //TODO：到达检查可以用mavkit
     // 曲线结束后检查到达情况，按配置的末端对齐超时强制完成。
     auto pose = mav_.GetCalibratePose();
     double err_x = tx_ - pose.pose.position.x;
@@ -110,11 +106,15 @@ BT::NodeStatus NavNode::onRunning() {
     double err_z = tz_ - pose.pose.position.z;
     double err = std::sqrt(err_x*err_x + err_y*err_y + err_z*err_z);
 
+    //进入PID末端对齐
     if (!holding_) {
         holding_ = true;
         hold_start_ = now;
+        mav_.setPIDTarget(Eigen::Vector3d(tx_, ty_, tz_));
+        mav_.setSetpointMode(SetpointMode::PID_CTRL);
     }
 
+    //达标成功
     if (err < tolerance_) {
         ROS_INFO("[Nav] REACHED: pos=(%.3f, %.3f, %.3f) pos_err=%.3f elapsed=%.2fs",
                  pose.pose.position.x, pose.pose.position.y, pose.pose.position.z,
@@ -123,6 +123,7 @@ BT::NodeStatus NavNode::onRunning() {
         return BT::NodeStatus::SUCCESS;
     }
 
+    //末端强制成功
     double hold_elapsed = (now - hold_start_).toSec();
     if (hold_elapsed > hold_timeout_) {
         ROS_WARN("[Nav] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
@@ -131,46 +132,13 @@ BT::NodeStatus NavNode::onRunning() {
         return BT::NodeStatus::SUCCESS;
     }
 
-    // 曲线完成后，在目标位置叠加 PID 速度修正进行末端对齐。
-    mavros_msgs::PositionTarget target;
-    target.header.stamp = now;
-    target.header.frame_id = "map";
-    target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
-    target.type_mask = TYPE_MASK;
-    target.position.x = tx_;
-    target.position.y = ty_;
-    target.position.z = tz_;
-    target.velocity.x = pid_x_.update(tx_, pose.pose.position.x, dt);
-    target.velocity.y = pid_y_.update(ty_, pose.pose.position.y, dt);
-    target.velocity.z = pid_z_.update(tz_, pose.pose.position.z, dt);
-    // 先填充设点再切换模式，避免发布上次 RAW_CTRL 留下的设点。
-    mav_.setRawTarget(target);
-    mav_.setSetpointMode(SetpointMode::RAW_CTRL);
-
     return BT::NodeStatus::RUNNING;
 }
 
 
 
 void NavNode::onHalted() {
-    // 记录原始 local 实测中断点，不做 Home 偏移或标定旋转，再触发减速。
-    const auto pose = mav_.GetRawPose();
-    const auto& p = pose.pose.position;
-    const bool valid = !pose.header.stamp.isZero() &&
-        std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z);
-    setOutput("breakpoint_valid", false);
-    if (valid) {
-        setOutput("breakpoint_x", p.x);
-        setOutput("breakpoint_y", p.y);
-        setOutput("breakpoint_z", p.z);
-        setOutput("breakpoint_valid", true);
-        ROS_WARN("[%s] Halted: breakpoint=(%.3f, %.3f, %.3f). Slowing down.",
-                 name().c_str(), p.x, p.y, p.z);
-    } else {
-        ROS_WARN("[%s] Halted without valid pose; breakpoint unavailable. Slowing down.",
-                 name().c_str());
-    }
-    mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+    recordBreakpointAndSlowDown();
 }
 
 } // namespace maxt

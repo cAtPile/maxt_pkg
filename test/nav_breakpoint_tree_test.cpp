@@ -1,8 +1,8 @@
 #include <behaviortree_cpp_v3/bt_factory.h>
-#include <maxt_pkg/maxt_nodes/nav_node.hpp>
-#include <maxt_pkg/maxt_nodes/nav_raw_node.hpp>
-#include <maxt_pkg/maxt_nodes/la_lo_nav_node.hpp>
-#include <maxt_pkg/maxt_nodes/azimuth_fix_nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_raw_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_geo_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_azimuth_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 #include <maxt_pkg/maxt_nodes/found_check_node.hpp>
 #include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
@@ -94,8 +94,8 @@ void run(const std::string& path, const std::string& mode) {
     };
     add("Nav", maxt::NavNode::providedPorts());
     add("NavRaw", maxt::NavRawNode::providedPorts());
-    add("LaLoNav", maxt::LaLoNavNode::providedPorts());
-    add("AzimuthFixNav", maxt::AzimuthFixNavNode::providedPorts());
+    add("NavGeo", maxt::NavGeo::providedPorts());
+    add("NavAzimuth", maxt::NavAzimuth::providedPorts());
     add("Guidance", maxt::GuidanceNode::providedPorts());
     add("FoundCheck", maxt::FoundCheckNode::providedPorts());
     add("Takeoff", maxt::TakeoffNode::providedPorts());

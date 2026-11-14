@@ -17,6 +17,9 @@ public:
     MavActionNode() = delete;
 
 protected:
+    // 记录原始 local 实测中断点，再触发减速。调用方须声明 breakpoint 输出端口。
+    void recordBreakpointAndSlowDown();
+
     MavKit& mav_;
 };
 

@@ -1,11 +1,11 @@
 # 无人机统一配置：所有行为树任务共用，由 mission.launch 加载到节点私有命名空间。
 # Nav 节点的速度、加速度与三轴 PID 参数。
 nav:
-  azimuth_angle: 0.0  # 方位角固定航行方向，度；原始 +X 为 0，朝 +Y 为正
+  azimuth_angle: 0.0  # NavAzimuth 位移方向、NavGeo/ReHeading 目标航向，度；原始 +X 为 0，朝 +Y 为正
   v_max: 10       # m/s
   a_max: 1       # m/s^2
-  hold_timeout: 3.0  # Nav/AzimuthFixNav/LaLoNav 末端对齐强制成功超时，s
-  lalo_max_duration: 60.0  # LaLoNav 预计曲线时长 T 上限，s，须为有限正数；超限拒绝启动
+  hold_timeout: 3.0  # Nav/NavAzimuth/NavGeo 末端对齐强制成功超时，s
+  lalo_max_duration: 60.0  # NavGeo 预计曲线时长 T 上限，s，须为有限正数；超限拒绝启动
   slow_down_time: 1.0  # 停止曲线最短时长，s；按实测速度和减速度自动延长
   stop_velocity_tolerance: 0.1  # 实测三维速度模长停止阈值，m/s
   stop_acceleration: 1.0  # 停止曲线峰值参考减速度上限，m/s²
@@ -21,7 +21,7 @@ reach_check:
   position_pose_tolerance: 0.1
   position_vel_tolerance: 0.2
   global_position_tolerance: 0.1  # 全球水平距离容差，m
-  global_altitude_tolerance: 0.5  # LaLoNav 的原始 local Z 高度容差，m
+  global_altitude_tolerance: 0.5  # NavGeo 的原始 local Z 高度容差，m
 
 # BT 节点的 ROS 参数：时间 s，速度 m/s，高度容差 m。
 connect_check:
@@ -44,7 +44,7 @@ guidance:
 found_check:
   timeout: 0.5
 
-# ReHeading 原地恢复到 nav/azimuth_angle；末端 PID 共用 nav/pid_*。
+# ReHeading/NavGeo 航向五次曲线参数；末端 PID 共用 nav/pid_*。
 re_heading:
   yaw_rate_max: 0.5  # rad/s
   yaw_acc_max: 0.5  # rad/s^2

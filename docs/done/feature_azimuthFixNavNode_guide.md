@@ -16,12 +16,12 @@
 ## 实现方式
 1. 在 config/nav.yaml 中添加 azimuth_angle 角度制，是要固定的航行角
 2. 创建新节点 BasePointAzimuthFixNode 方位角固定基点
-3. 创建新节点 AzimuthFixNavNode 方位角固定航行
+3. 创建新节点 NavAzimuth 方位角固定航行
 4. 关于 BasePointAzimuthFixNode 有以下几点要点
     1. 记录当前位置为固定方位角航行基点
     2. tick一次运行
     3. 调用 GetRawPose 获得基点位置并记录在黑板
-5. 关于 AzimuthFixNavNode 有以下几点要点
+5. 关于 NavAzimuth 有以下几点要点
     1. 输入端口
         1. nav_n: 沿着方向角航行的距离
         2. nav_t: 垂直于方向角航行的距离
