@@ -48,14 +48,9 @@ BT::NodeStatus NavAzimuth::onStart() {
     }
     getInput("timeout", timeout_);
 
-    double angle, kp, ki, kd, v_max, a_max;
+    double angle, v_max, a_max;
     nh_.param<double>("nav/azimuth_angle", angle, 0.0);
     nh_.param<double>("reach_check/position_pose_tolerance", tolerance_, 0.1);
-    if (!nh_.getParam("nav/pid_kp", kp) || !nh_.getParam("nav/pid_ki", ki) ||
-        !nh_.getParam("nav/pid_kd", kd)) {
-        ROS_ERROR("[NavAzimuth] Missing PID configuration; load config/nav.yaml.");
-        return BT::NodeStatus::FAILURE;
-    }
     nh_.param<double>("nav/v_max", v_max, 2.5);
     nh_.param<double>("nav/a_max", a_max, 1.2);
 

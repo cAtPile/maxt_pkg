@@ -61,12 +61,7 @@ BT::NodeStatus NavGeo::onStart() {
     const auto start = mav_.GetGlobalPose();
     target_.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
     target_.altitude = start.altitude;
-    double kp, ki, kd, v_max, a_max;
-    if (!nh_.getParam("nav/pid_kp", kp) || !nh_.getParam("nav/pid_ki", ki) ||
-        !nh_.getParam("nav/pid_kd", kd)) {
-        ROS_ERROR("[NavGeo] Missing PID configuration; load config/nav.yaml.");
-        return BT::NodeStatus::FAILURE;
-    }
+    double v_max, a_max;
     nh_.param<double>("nav/v_max", v_max, 2.5);
     nh_.param<double>("nav/a_max", a_max, 1.2);
     double yaw_rate, yaw_acc, tolerance_deg;
@@ -78,10 +73,9 @@ BT::NodeStatus NavGeo::onStart() {
         !std::isfinite(tolerance_deg) || tolerance_deg <= 0.0 ||
         !std::isfinite(v_max) || v_max <= 0.0 ||
         !std::isfinite(a_max) || a_max <= 0.0 ||
-        !std::isfinite(kp) || !std::isfinite(ki) || !std::isfinite(kd) ||
         !std::isfinite(timeout_) || timeout_ <= 0.0 ||
         !std::isfinite(hold_timeout_) || hold_timeout_ < 0.0) {
-        ROS_ERROR("[NavGeo] Invalid yaw/PID/timeout configuration.");
+        ROS_ERROR("[NavGeo] Invalid yaw/motion/timeout configuration.");
         return BT::NodeStatus::FAILURE;
     }
     last_yaw_ = measured_yaw_ = yawOf(raw_pose);

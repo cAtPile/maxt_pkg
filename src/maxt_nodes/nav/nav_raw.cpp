@@ -30,22 +30,6 @@ BT::NodeStatus NavRawNode::onStart() {
     waiting_for_stop_ = false;
     nav_nh_.param<double>("hold_timeout", hold_timeout_, 3.0);
 
-    //获取参数
-    if (!nav_nh_.getParam("pid_kp", pid_kp_) ||
-        !nav_nh_.getParam("pid_ki", pid_ki_) ||
-        !nav_nh_.getParam("pid_kd", pid_kd_)) {
-        ROS_ERROR("[NavRaw] Missing configuration under %s; load config/nav.yaml.",
-                  nav_nh_.getNamespace().c_str());
-        return BT::NodeStatus::FAILURE;
-    }
-
-    //验证参数
-    if (!std::isfinite(pid_kp_) || !std::isfinite(pid_ki_) ||
-        !std::isfinite(pid_kd_)) {
-        ROS_ERROR("[NavRaw] Invalid configuration: PID gains must be finite.");
-        return BT::NodeStatus::FAILURE;
-    }
-
     //获取bt参数
     if (!getInput<double>("x", tx_) ||
         !getInput<double>("y", ty_) ||

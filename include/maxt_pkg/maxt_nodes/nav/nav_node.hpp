@@ -20,7 +20,6 @@ private:
     double tx_{0.0}, ty_{0.0}, tz_{0.0};
     double tolerance_{0.1};
     double timeout_{60.0};
-    double pid_kp_{1.0}, pid_ki_{0.05}, pid_kd_{0.0};
 
     double T_{1.0};
     ros::Time traj_start_;

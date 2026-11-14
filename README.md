@@ -551,7 +551,7 @@ mav.setPIDTarget(Eigen::Vector3d(tx, ty, tz));
 mav.setSetpointMode(maxt::SetpointMode::PID_CTRL);
 ```
 
-`setPIDTarget(position, true)` 使用原始 MAVROS local 坐标，不做 Home 偏移或标定旋转；默认世界坐标模式先逆向标定实测位置，发布前再正向旋转位置和速度。每次设置目标读取 `nav/pid_kp/ki/kd`（默认 1.0/0.05/0.0）并重置 PID；每轴速度输出限幅 ±0.5 m/s，误差积分累计值限幅 ±0.3。`loadPIDRaw()` 按 `heartbeat_rate` 更新 `pid_raw_target_`，保持默认 local 航向和零加速度设点。重新进入模式也会重置 PID 及计时，重复选择当前模式不会重置；减速期间的 PID_CTRL 请求不会中断 SLOW_DOWN，调用方需在减速完成后重新请求。
+`setPIDTarget(position, true)` 使用原始 MAVROS local 坐标，不做 Home 偏移或标定旋转；默认世界坐标模式先逆向标定实测位置，发布前再正向旋转位置和速度。Nav、NavRaw、NavAzimuth、NavGeo 节点不再读取或校验 PID 增益，统一由 MavKit 管理。每次设置目标读取 `nav/pid_kp/ki/kd`（默认 1.0/0.05/0.0）并重置 PID；每轴速度输出限幅 ±0.5 m/s，误差积分累计值限幅 ±0.3。`loadPIDRaw()` 按 `heartbeat_rate` 更新 `pid_raw_target_`，保持默认 local 航向和零加速度设点。重新进入模式也会重置 PID 及计时，重复选择当前模式不会重置；减速期间的 PID_CTRL 请求不会中断 SLOW_DOWN，调用方需在减速完成后重新请求。
 
 `setPIDYawTarget(position, yaw)` 用于 ReHeading：固定原始 local 位置，仅启用航向角速度 PID；速度和加速度字段被忽略。角速度限幅使用 `re_heading/yaw_rate_max`，按最短角差控制，连续展开测量角以避免 ±π 跳变。
 
