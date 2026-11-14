@@ -58,8 +58,9 @@ void MavKit::captureCurveState(const ros::Time& now) {
                                             pose.pose.position.z);
     curve_state_.velocity.setZero();
     curve_state_.acceleration.setZero();
-    if (setpoint_mode_ == SetpointMode::GLOBAL_RAW_CTRL) {
-        // 全球位置控制没有本地参考曲线，中断减速以实测速度作为起点。
+    if (setpoint_mode_ == SetpointMode::GLOBAL_RAW_CTRL ||
+        setpoint_mode_ == SetpointMode::PID_CTRL) {
+        // 全球位置控制和末端 PID 没有运行中的参考曲线，使用实测速度衔接。
         auto twist = current_twist_;
         calib_.untransTwist(twist);
         curve_state_.velocity = Eigen::Vector3d(twist.twist.linear.x,

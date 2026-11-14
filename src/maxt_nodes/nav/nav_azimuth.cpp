@@ -1,4 +1,4 @@
-#include <maxt_pkg/maxt_nodes/azimuth_fix_nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_azimuth_node.hpp>
 #include <algorithm>
 #include <cmath>
 
@@ -18,11 +18,11 @@ mavros_msgs::PositionTarget makeTarget(const ros::Time& now) {
 }
 } // namespace
 
-AzimuthFixNavNode::AzimuthFixNavNode(const std::string& name,
+NavAzimuth::NavAzimuth(const std::string& name,
     const BT::NodeConfiguration& config, MavKit& mav, const ros::NodeHandle& nh)
     : MavActionNode(name, config, mav), nh_(nh) {}
 
-BT::PortsList AzimuthFixNavNode::providedPorts() {
+BT::PortsList NavAzimuth::providedPorts() {
     return {
         BT::OutputPort<double>("breakpoint_x"),
         BT::OutputPort<double>("breakpoint_y"),
@@ -37,25 +37,20 @@ BT::PortsList AzimuthFixNavNode::providedPorts() {
             BT::InputPort<double>("timeout", 60.0, "timeout (s)")};
 }
 
-BT::NodeStatus AzimuthFixNavNode::onStart() {
+BT::NodeStatus NavAzimuth::onStart() {
     nh_.param<double>("nav/hold_timeout", hold_timeout_, 3.0);
     double n, t, a, bx, by, bz;
     if (!getInput("nav_n", n) || !getInput("nav_t", t) || !getInput("nav_a", a) ||
         !getInput("bp_x_raw", bx) || !getInput("bp_y_raw", by) ||
         !getInput("bp_z_raw", bz)) {
-        ROS_ERROR("[AzimuthFixNav] Missing displacement or raw base point.");
+        ROS_ERROR("[NavAzimuth] Missing displacement or raw base point.");
         return BT::NodeStatus::FAILURE;
     }
     getInput("timeout", timeout_);
 
-    double angle, kp, ki, kd, v_max, a_max;
+    double angle, v_max, a_max;
     nh_.param<double>("nav/azimuth_angle", angle, 0.0);
     nh_.param<double>("reach_check/position_pose_tolerance", tolerance_, 0.1);
-    if (!nh_.getParam("nav/pid_kp", kp) || !nh_.getParam("nav/pid_ki", ki) ||
-        !nh_.getParam("nav/pid_kd", kd)) {
-        ROS_ERROR("[AzimuthFixNav] Missing PID configuration; load config/nav.yaml.");
-        return BT::NodeStatus::FAILURE;
-    }
     nh_.param<double>("nav/v_max", v_max, 2.5);
     nh_.param<double>("nav/a_max", a_max, 1.2);
 
@@ -74,23 +69,17 @@ BT::NodeStatus AzimuthFixNavNode::onStart() {
     const double t_acc = std::sqrt(distance * 5.774 / a_max);
     duration_ = 1.2 * std::max({t_vel, t_acc, 0.5});
     curve_.setWaypoints(p.x, p.y, p.z, tx_, ty_, tz_, duration_);
-    for (auto* pid : {&pid_x_, &pid_y_, &pid_z_}) {
-        pid->reset();
-        pid->setGains(kp, ki, kd);
-        pid->setOutputClamp(0.5);
-        pid->setIntegralClamp(0.3);
-    }
     start_time_ = ros::Time::now();
     last_time_ = start_time_;
     holding_ = false;
     publishCurve(0.0, start_time_);
     mav_.setSetpointMode(SetpointMode::RAW_CTRL);
-    ROS_INFO("[AzimuthFixNav] START: raw target=(%.2f,%.2f,%.2f) T=%.2f",
+    ROS_INFO("[NavAzimuth] START: raw target=(%.2f,%.2f,%.2f) T=%.2f",
              tx_, ty_, tz_, duration_);
     return BT::NodeStatus::RUNNING;
 }
 
-void AzimuthFixNavNode::publishCurve(double t, const ros::Time& now) {
+void NavAzimuth::publishCurve(double t, const ros::Time& now) {
     auto target = makeTarget(now);
     curve_.evaluate(t, target.position.x, target.position.y, target.position.z,
                     target.velocity.x, target.velocity.y, target.velocity.z,
@@ -99,14 +88,14 @@ void AzimuthFixNavNode::publishCurve(double t, const ros::Time& now) {
     mav_.setRawTarget(target);
 }
 
-BT::NodeStatus AzimuthFixNavNode::onRunning() {
+BT::NodeStatus NavAzimuth::onRunning() {
     const auto now = ros::Time::now();
     const double dt = (now - last_time_).toSec();
     if (dt <= DT_MIN) return BT::NodeStatus::RUNNING;
     last_time_ = now;
     const double elapsed = (now - start_time_).toSec();
     if (elapsed > timeout_) {
-        ROS_ERROR("[AzimuthFixNav] Timeout! elapsed=%.1f", elapsed);
+        ROS_ERROR("[NavAzimuth] Timeout! elapsed=%.1f", elapsed);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::FAILURE;
     }
@@ -122,32 +111,27 @@ BT::NodeStatus AzimuthFixNavNode::onRunning() {
     if (!holding_) {
         holding_ = true;
         hold_start_ = now;
+        // 仅在进入末端阶段时设置，避免每个 tick 清除积分。
+        mav_.setPIDTarget(Eigen::Vector3d(tx_, ty_, tz_), true);
+        mav_.setSetpointMode(SetpointMode::PID_CTRL);
     }
     if (error < tolerance_) {
-        ROS_INFO("[AzimuthFixNav] REACHED: pos_err=%.3f elapsed=%.2fs", error, elapsed);
+        ROS_INFO("[NavAzimuth] REACHED: pos_err=%.3f elapsed=%.2fs", error, elapsed);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
     if ((now - hold_start_).toSec() > hold_timeout_) {
-        ROS_WARN("[AzimuthFixNav] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
+        ROS_WARN("[NavAzimuth] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
                  (now - hold_start_).toSec(), error);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
-    auto target = makeTarget(now);
-    target.position.x = tx_;
-    target.position.y = ty_;
-    target.position.z = tz_;
-    target.velocity.x = pid_x_.update(tx_, p.x, dt);
-    target.velocity.y = pid_y_.update(ty_, p.y, dt);
-    target.velocity.z = pid_z_.update(tz_, p.z, dt);
-    mav_.setRawTarget(target);
     return BT::NodeStatus::RUNNING;
 }
 
 
 
-void AzimuthFixNavNode::onHalted() {
+void NavAzimuth::onHalted() {
     recordBreakpointAndSlowDown();
 }
 

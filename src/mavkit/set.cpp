@@ -40,10 +40,11 @@ void MavKit::setRawTarget(const mavros_msgs::PositionTarget& target, bool apply_
     }
 }
 
-void MavKit::SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target) {
+void MavKit::SetGlobalRawTarget(const mavros_msgs::GlobalPositionTarget& target,
+                               bool apply_default_yaw) {
     std::lock_guard<std::mutex> lock(data_mtx_);
     global_target_ = target;
-    if (has_default_yaw_) {
+    if (apply_default_yaw && has_default_yaw_) {
         global_target_.yaw = default_yaw_;
         global_target_.yaw_rate = 0.0;
         global_target_.type_mask &= ~mavros_msgs::GlobalPositionTarget::IGNORE_YAW;
@@ -105,11 +106,16 @@ void MavKit::setSetpointMode(SetpointMode mode) {
         return;
     }
     if (velocity_transition_ && setpoint_mode_ == SetpointMode::SLOW_DOWN &&
-        (mode == SetpointMode::HEARTBEAT || mode == SetpointMode::RAW_CTRL)) {
+        (mode == SetpointMode::HEARTBEAT || mode == SetpointMode::RAW_CTRL ||
+         mode == SetpointMode::PID_CTRL)) {
         // 减速阶段不接受视觉速度接管；调用者在停止完成后重新请求。
         return;
     }
     if (mode != SetpointMode::CURVE_CTRL) velocity_transition_ = false;
+    if (mode == SetpointMode::PID_CTRL && setpoint_mode_ != SetpointMode::PID_CTRL) {
+        resetPIDControllers();
+        pid_last_time_ = now;
+    }
     setpoint_mode_ = mode;
 }
 
