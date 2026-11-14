@@ -10,5 +10,7 @@
    输入坐标先加 home，误差使用 GetCalibratePose()，PID 目标则依赖 raw_local=false 的默认值。这些必须保持一致，但接口没有明确表达坐标类型。
 5. 公共基类实现放在 Nav 源文件里。
    MavActionNode::recordBreakpointAndSlowDown() 被多个导航节点使用，却定义在 nav.cpp，使公共行为依赖具体节点的编译单元。适合移到基类对应源文件。见 nav.cpp:6 (src/maxt_nodes/nav/nav.cpp:6)。
+6. navgeo GEO_CTRL 下沉
+7. T_ 可以被整合
 
 另外，到达阈值、总超时、末端超时后返回 SUCCESS 属于行为树任务策略，留在 Nav 层是合理的，不必全部下沉

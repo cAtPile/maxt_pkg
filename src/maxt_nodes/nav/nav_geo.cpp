@@ -5,8 +5,8 @@
 
 namespace maxt {
 namespace {
-double wrap(double angle) { return std::atan2(std::sin(angle), std::cos(angle)); }
-double yawOf(const geometry_msgs::PoseStamped& pose) {
+double wrap(double angle) { return std::atan2(std::sin(angle), std::cos(angle)); }//？wrap是什么
+double yawOf(const geometry_msgs::PoseStamped& pose) {//？yawOf是什么
     const auto& q = pose.pose.orientation;
     double roll, pitch, yaw;
     tf2::Matrix3x3(tf2::Quaternion(q.x, q.y, q.z, q.w)).getRPY(roll, pitch, yaw);

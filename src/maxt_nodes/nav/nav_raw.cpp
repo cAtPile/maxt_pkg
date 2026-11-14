@@ -39,6 +39,7 @@ BT::NodeStatus NavRawNode::onStart() {
     }
     getInput<double>("timeout", timeout_);
 
+    //等待减速
     waiting_for_stop_ = mav_.isSlowingDown();
     if (waiting_for_stop_) {
         ROS_INFO("[NavRaw] Waiting for slowdown to complete before navigation.");
@@ -49,7 +50,6 @@ BT::NodeStatus NavRawNode::onStart() {
 
 BT::NodeStatus NavRawNode::startNavigation() {
     // x/y/z 直接使用 MAVROS 原始 local 坐标，不叠加 Home 或标定旋转。
-    // 曲线由 MavKit 维护，BT 只负责生命周期和末端闭环。
     mav_.setQuinticCurveTarget(Eigen::Vector3d(tx_, ty_, tz_), true);
     T_ = mav_.getCurveTime();
     mav_.setSetpointMode(SetpointMode::CURVE_CTRL);
@@ -64,16 +64,20 @@ BT::NodeStatus NavRawNode::startNavigation() {
 }
 
 BT::NodeStatus NavRawNode::onRunning() {
+
+    //等待减速
     if (waiting_for_stop_) {
         if (mav_.isSlowingDown()) return BT::NodeStatus::RUNNING;
         waiting_for_stop_ = false;
         return startNavigation();
     }
+
     ros::Time now = ros::Time::now();
     double dt = (now - last_time_).toSec();
     if (dt <= DT_MIN) return BT::NodeStatus::RUNNING;
     last_time_ = now;
 
+    //超时失败
     double elapsed = (now - start_time_).toSec();
     if (elapsed > timeout_) {
         ROS_ERROR("[NavRaw] Timeout! elapsed=%.1f", elapsed);
@@ -81,11 +85,13 @@ BT::NodeStatus NavRawNode::onRunning() {
         return BT::NodeStatus::FAILURE;
     }
 
+    //曲线控制
     const double t = (now - traj_start_).toSec();
     if (t < T_) {
         return BT::NodeStatus::RUNNING;
     }
 
+    //TODO：使用mavkit的到达检查
     // 曲线结束后检查到达情况，按配置的末端对齐超时强制完成。
     auto pose = mav_.GetRawPose();
     double err_x = tx_ - pose.pose.position.x;
@@ -93,6 +99,7 @@ BT::NodeStatus NavRawNode::onRunning() {
     double err_z = tz_ - pose.pose.position.z;
     double err = std::sqrt(err_x*err_x + err_y*err_y + err_z*err_z);
 
+    //末端对齐
     if (!holding_) {
         holding_ = true;
         hold_start_ = now;
@@ -101,6 +108,7 @@ BT::NodeStatus NavRawNode::onRunning() {
         mav_.setSetpointMode(SetpointMode::PID_CTRL);
     }
 
+    //正常成功
     if (err < tolerance_) {
         ROS_INFO("[NavRaw] REACHED: pos=(%.3f, %.3f, %.3f) pos_err=%.3f elapsed=%.2fs",
                  pose.pose.position.x, pose.pose.position.y, pose.pose.position.z,
@@ -109,6 +117,7 @@ BT::NodeStatus NavRawNode::onRunning() {
         return BT::NodeStatus::SUCCESS;
     }
 
+    //强制成功
     double hold_elapsed = (now - hold_start_).toSec();
     if (hold_elapsed > hold_timeout_) {
         ROS_WARN("[NavRaw] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
