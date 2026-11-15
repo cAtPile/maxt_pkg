@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Independent lidar simulation; PX4 airframe remains Iris. -->
+  <arg name="world" default="$(find maxt_pkg)/worlds/obstacle_world.world"/>
+  <arg name="sdf" default="$(find maxt_pkg)/models/iris_downward_depth_camera_lidar/model.sdf"/>
+  <arg name="x" default="0"/>
+  <arg name="y" default="0"/>
+  <arg name="z" default="0"/>
+  <arg name="R" default="0"/>
+  <arg name="P" default="0"/>
+  <arg name="Y" default="0"/>
+  <arg name="gui" default="true"/>
+  <arg name="paused" default="false"/>
+  <arg name="debug" default="false"/>
+  <arg name="verbose" default="false"/>
+  <arg name="interactive" default="false"/>
+  <arg name="respawn_gazebo" default="true"/>
+  <arg name="fcu_url" default="udp://:14540@localhost:14557"/>
+  <arg name="gcs_url" default="udp://@127.0.0.1:14550"/>
+  <arg name="respawn_mavros" default="false"/>
+  <arg name="publish_lidar_tf" default="true"/>
+
+  <env name="GAZEBO_MODEL_PATH" value="$(find maxt_pkg)/models:$(optenv GAZEBO_MODEL_PATH)"/>
+  <include file="$(find px4)/launch/posix_sitl.launch">
+    <arg name="vehicle" value="iris"/>
+    <arg name="sdf" value="$(arg sdf)"/>
+    <arg name="world" value="$(arg world)"/>
+    <arg name="x" value="$(arg x)"/>
+    <arg name="y" value="$(arg y)"/>
+    <arg name="z" value="$(arg z)"/>
+    <arg name="R" value="$(arg R)"/>
+    <arg name="P" value="$(arg P)"/>
+    <arg name="Y" value="$(arg Y)"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="debug" value="$(arg debug)"/>
+    <arg name="verbose" value="$(arg verbose)"/>
+    <arg name="interactive" value="$(arg interactive)"/>
+    <arg name="respawn_gazebo" value="$(arg respawn_gazebo)"/>
+  </include>
+  <include file="$(find mavros)/launch/px4.launch">
+    <arg name="fcu_url" value="$(arg fcu_url)"/>
+    <arg name="gcs_url" value="$(arg gcs_url)"/>
+    <arg name="respawn_mavros" value="$(arg respawn_mavros)"/>
+  </include>
+  <!-- Must match the mounting pose in the lidar SDF. -->
+  <node if="$(arg publish_lidar_tf)" pkg="tf2_ros" type="static_transform_publisher"
+        name="lidar_static_tf" args="0 0 0.25 0 0 0 base_link lidar_link"/>
+</launch>
