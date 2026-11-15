@@ -280,6 +280,34 @@ rosrun maxt_pkg xytraj_monitor.py _pose_topic:=/mavros/local_position/pose
 
 两个命令分别打开速度和 XY 轨迹窗口，实际使用时放在独立终端。轨迹工具还支持 `_x_range:='[-1, 8]'`、`_y_range:='[-3, 3]'` 调整坐标轴范围。
 
+#### 仿真三维激光雷达
+
+`lidar_sim.launch` 默认加载本包的 `iris_downward_depth_camera_lidar` 模型，保留下视深度相机，
+在机体上方 0.25 m 安装通用 16 线雷达（并非特定厂商扫描模型）。水平覆盖 360°，
+水平间隔 0.5°，垂直覆盖 -15°～15°，量程 0.3～50 m，更新率 10 Hz，距离噪声标准差 0.01 m。
+配置位于 `models/iris_downward_depth_camera_lidar/model.sdf`，依赖已有的 `gazebo_plugins`。
+
+```bash
+roslaunch maxt_pkg lidar_sim.launch
+rostopic type /lidar/points
+rostopic hz /lidar/points
+```
+
+输出 `/lidar/points` 类型为 `sensor_msgs/PointCloud`，坐标系为 `lidar_link`，
+X 向前、Y 向左、Z 向上。RViz 的 Fixed Frame 可设为 `base_link`，添加 PointCloud 并选择该话题。
+launch 发布 `base_link -> lidar_link` 静态 TF；修改安装位置时需同步更新 SDF 和该 TF。
+雷达传感器直接安装在 `base_link` 内，SDF 中的 sensor pose 为 `0 0 0.25 0 0 0`，没有独立雷达刚体或挂载关节。
+本包模型包含从当前 PX4 `iris.sdf` 派生的机体定义；升级 PX4 机体配置时需同步此文件。
+`lidar_link` 是静态 TF 定义的扫描坐标系，不是 Gazebo 物理链接；检查机体位置使用
+`rosservice call /gazebo/get_link_state "{link_name: 'iris::base_link', reference_frame: 'world'}"`。
+以世界坐标显示时还需要飞行定位节点提供到 `base_link` 的 TF。
+雷达使用 CPU 射线，可无界面运行；只检测具有 collision 的物体，纯视觉贴图不会产生回波。
+点云插件按订阅需求工作，检查频率时需保持订阅。此配置不接入飞控避障或建图。
+
+默认地图为 `worlds/obstacle_world.world`：中心 `(0, 0)` 为起飞区，周围配置不同高度的箱体、圆柱和四面墙，所有障碍物均有碰撞几何。无人机默认在中心出生。
+可通过 `world:=/绝对路径/地图.world` 切换地图，通过 `x:=... y:=...` 修改出生位置。
+`sim.launch` 保持原有相机仿真入口。自定义雷达模型时，可用 `publish_lidar_tf:=false` 关闭默认安装 TF。
+
 #### 旧版靶标控制：moving_target.py
 
 当前场景由原生 Gazebo 插件驱动，无需另启此脚本。仅在需要旧版 ROS 服务控制时使用：
