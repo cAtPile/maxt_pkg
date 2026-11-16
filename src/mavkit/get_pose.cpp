@@ -1,4 +1,5 @@
 #include <maxt_pkg/mavkit/maxt_mav.hpp>
+#include <cmath>
 
 namespace maxt {
 namespace pose_tools {
@@ -66,6 +67,26 @@ mavros_msgs::GlobalPositionTarget MavKit::GetGlobalPose() const {
 bool MavKit::hasGlobalPose() const {
     std::lock_guard<std::mutex> lock(data_mtx_);
     return has_global_fix_ && has_global_altitude_ && has_pose_;
+}
+
+bool MavKit::hasFreshNavigationData(bool global, double max_age) const {
+    std::lock_guard<std::mutex> lock(data_mtx_);
+    const auto now = ros::Time::now();
+    const auto fresh = [&](const ros::Time& stamp) {
+        const double age = (now-stamp).toSec();
+        return !stamp.isZero() && age >= -0.05 && age <= max_age;
+    };
+    const auto& p = current_pose_.pose.position;
+    const auto& v = current_twist_.twist.linear;
+    const auto& q = current_pose_.pose.orientation;
+    const double norm = q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w;
+    if (!has_pose_ || !fresh(current_pose_.header.stamp) || !fresh(current_twist_.header.stamp) ||
+        !std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z) ||
+        !std::isfinite(v.x) || !std::isfinite(v.y) || !std::isfinite(v.z) ||
+        !std::isfinite(norm) || norm < 1e-12) return false;
+    return !global || (has_global_fix_ && has_global_altitude_ && fresh(global_pose_.header.stamp) &&
+        !global_altitude_received_.isZero() &&
+        (ros::WallTime::now()-global_altitude_received_).toSec() <= max_age);
 }
 
 } // namespace maxt

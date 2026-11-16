@@ -122,6 +122,8 @@ public:
     // 经纬度及飞控相对 Home 高度，FRAME_GLOBAL_REL_ALT。
     mavros_msgs::GlobalPositionTarget GetGlobalPose() const;
     bool hasGlobalPose() const;
+    // Strict QR survey nodes require recent pose/velocity and, optionally, global inputs.
+    bool hasFreshNavigationData(bool global = false, double max_age = 1.0) const;
     // 水平按经纬度测地距离检查，高度按原始 local Z 检查。
     bool ReachGlobalCheck(const mavros_msgs::GlobalPositionTarget& target,
                           double altitude_raw) const;
@@ -276,6 +278,7 @@ private:
     mavros_msgs::GlobalPositionTarget global_pose_;
     bool has_global_fix_{false};
     bool has_global_altitude_{false};
+    ros::WallTime global_altitude_received_;
     mavros_msgs::PositionTarget curve_raw_target_;
     mavros_msgs::PositionTarget pid_raw_target_;
     PIDController pid_x_, pid_y_, pid_z_;

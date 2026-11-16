@@ -6,7 +6,7 @@
 
 namespace maxt {
 
-// 经纬度绝对目标导航；保持启动时的高度，不接收高度目标。
+// 经纬度导航；可选 target_alt 为相对起飞点高度，省略则保持当前高度。
 class NavGeo : public MavActionNode {
 public:
     NavGeo(const std::string& name, const BT::NodeConfiguration& config,
@@ -33,6 +33,8 @@ private:
     double hold_timeout_{3.0};
     double altitude_raw_{0.0};
     double timeout_{60.0};
+    bool strict_reach_{false};
+    ros::Time reached_since_;
 };
 
 } // namespace maxt

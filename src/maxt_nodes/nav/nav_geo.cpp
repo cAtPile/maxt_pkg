@@ -22,11 +22,14 @@ BT::PortsList NavGeo::providedPorts() {
         BT::OutputPort<bool>("breakpoint_valid"),
         BT::InputPort<double>("latitude"),
         BT::InputPort<double>("longitude"),
+        BT::InputPort<double>("target_alt", "Optional height above takeoff, metres; omit to hold"),
+        BT::InputPort<bool>("strict_reach", false, "Timeout cannot count as arrival"),
         BT::InputPort<double>("timeout", 60.0, "timeout (s)")
     };
 }
 
 BT::NodeStatus NavGeo::onStart() {
+    getInput("strict_reach", strict_reach_);
     nh_.param<double>("nav/hold_timeout", hold_timeout_, 3.0);
     nh_.param<double>("nav/lalo_max_duration", max_duration_, 60.0);
     double azimuth_angle;
@@ -40,7 +43,9 @@ BT::NodeStatus NavGeo::onStart() {
         return BT::NodeStatus::FAILURE;
     }
     if (!getInput<double>("latitude", target_.latitude) ||
-        !getInput<double>("longitude", target_.longitude)) {
+        !getInput<double>("longitude", target_.longitude) ||
+        !std::isfinite(target_.latitude) || !std::isfinite(target_.longitude) ||
+        std::abs(target_.latitude) > 90 || std::abs(target_.longitude) > 180) {
         ROS_ERROR("[NavGeo] Missing latitude/longitude.");
         return BT::NodeStatus::FAILURE;
     }
@@ -48,6 +53,7 @@ BT::NodeStatus NavGeo::onStart() {
         ROS_ERROR("[NavGeo] Waiting for valid global position, relative altitude and local pose.");
         return BT::NodeStatus::FAILURE;
     }
+    if (strict_reach_ && !mav_.hasFreshNavigationData(true)) return BT::NodeStatus::FAILURE;
     getInput<double>("timeout", timeout_);
     // 固定启动时的相对高度设点；到达检查使用同一时刻附近的 local Z。
     const auto raw_pose = mav_.GetRawPose();
@@ -61,6 +67,18 @@ BT::NodeStatus NavGeo::onStart() {
     const auto start = mav_.GetGlobalPose();
     target_.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
     target_.altitude = start.altitude;
+    double requested_altitude;
+    const bool change_altitude = config().input_ports.count("target_alt") != 0;
+    if (change_altitude) {
+        if (!getInput("target_alt", requested_altitude) ||
+            !std::isfinite(requested_altitude) || requested_altitude <= 0.0) {
+            ROS_ERROR("[NavGeo] target_alt must be a positive takeoff-relative height.");
+            return BT::NodeStatus::FAILURE;
+        }
+        // FCU relative altitude and local Z may have different origins.
+        altitude_raw_ += requested_altitude - start.altitude;
+        target_.altitude = requested_altitude;
+    }
     double v_max, a_max;
     nh_.param<double>("nav/v_max", v_max, 2.5);
     nh_.param<double>("nav/a_max", a_max, 1.2);
@@ -90,7 +108,7 @@ BT::NodeStatus NavGeo::onStart() {
     }
     QuinticCurve::solveAxis(measured_yaw_, 0.0, 0.0, measured_yaw_ + delta, 0.0, 0.0,
                             yaw_duration_, yaw_coefficients_.data());
-    curve_.setTarget(start, target_, v_max, a_max);
+    curve_.setTarget(start, target_, v_max, a_max, change_altitude);
     // 在发送设点前检查预计曲线时长，拦截错误经纬度造成的长距离航行。
     if (curve_.duration() > max_duration_) {
         ROS_ERROR("[NavGeo] Estimated duration T=%.2f s exceeds limit %.2f s.",
@@ -100,6 +118,7 @@ BT::NodeStatus NavGeo::onStart() {
     start_time_ = ros::Time::now();
     last_time_ = start_time_;
     holding_ = false;
+    reached_since_ = ros::Time();
     pid_started_ = false;
     auto initial_target = curve_.sample(0.0);
     applyYaw(initial_target, 0.0);
@@ -111,6 +130,10 @@ BT::NodeStatus NavGeo::onStart() {
 }
 
 BT::NodeStatus NavGeo::onRunning() {
+    if (strict_reach_ && !mav_.hasFreshNavigationData(true)) {
+        mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+        return BT::NodeStatus::FAILURE;
+    }
     const auto now = ros::Time::now();
     const double elapsed = (now - start_time_).toSec();
     if (elapsed > timeout_) {
@@ -150,13 +173,23 @@ BT::NodeStatus NavGeo::onRunning() {
     const double yaw_error = wrap(target_yaw_ - yaw);
     if (curves_finished && mav_.ReachGlobalCheck(target_, altitude_raw_) &&
         std::abs(yaw_error) < yaw_tolerance_) {
+        if (strict_reach_) {
+            if (reached_since_.isZero()) reached_since_ = now;
+            if ((now-reached_since_).toSec() < 0.4) return BT::NodeStatus::RUNNING;
+        }
         ROS_INFO("[NavGeo] REACHED.");
         mav_.setDefaultYaw(target_yaw_);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
+    reached_since_ = ros::Time();
     const double hold_elapsed = holding_ ? (now - hold_start_).toSec() : 0.0;
     if (holding_ && hold_elapsed > hold_timeout_) {
+        if (strict_reach_) {
+            ROS_ERROR("[NavGeo] Strict arrival failed: alignment timed out.");
+            mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+            return BT::NodeStatus::FAILURE;
+        }
         ROS_WARN("[NavGeo] Hold timeout (%.1fs), yaw_err=%.2f deg. Forcing SUCCESS.",
                  hold_elapsed, yaw_error * 180.0 / M_PI);
         mav_.setDefaultYaw(target_yaw_);

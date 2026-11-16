@@ -42,6 +42,7 @@ void MavKit::globalAltitudeCb(const std_msgs::Float64::ConstPtr& msg) {
     // 全球相对高度用于设点转换；任务的高度闭环和到达判断使用 local Z。
     has_global_altitude_ = std::isfinite(msg->data);
     global_pose_.altitude = msg->data;
+    global_altitude_received_ = ros::WallTime::now();
 }
 
 } // namespace maxt

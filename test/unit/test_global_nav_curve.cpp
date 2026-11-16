@@ -110,6 +110,35 @@ TEST(GlobalNavCurve, CoincidentGoalRemainsStationary) {
     EXPECT_DOUBLE_EQ(norm(target.velocity), 0.0);
     EXPECT_DOUBLE_EQ(norm(target.acceleration_or_force), 0.0);
 }
+
+TEST(GlobalNavCurve, OptionalRelativeHeightChangeHasSmoothVerticalMotion) {
+    maxt::GlobalNavCurve curve;
+    const auto start = pose(31.2,121.4,3.0f);
+    const auto goal = pose(31.2001,121.4001,5.0f);
+    curve.setTarget(start, goal, 2.5, 1.2, true);
+    EXPECT_FLOAT_EQ(curve.sample(0).altitude, 3.0f);
+    const auto middle = curve.sample(curve.duration()/2);
+    EXPECT_NEAR(middle.altitude, 4.0, 1e-5);
+    EXPECT_GT(middle.velocity.z, 0);
+    const auto end = curve.sample(curve.duration());
+    EXPECT_FLOAT_EQ(end.altitude, 5.0f);
+    EXPECT_EQ(end.velocity.z, 0);
+    for (int i = 0; i <= 100; ++i) {
+        const auto sample = curve.sample(curve.duration()*i/100.0);
+        EXPECT_LE(norm(sample.velocity), 2.5);
+        EXPECT_LE(norm(sample.acceleration_or_force), 1.2);
+    }
+}
+
+TEST(GlobalNavCurve, PureRelativeHeightDescentDoesNotMoveHorizontally) {
+    maxt::GlobalNavCurve curve;
+    curve.setTarget(pose(31.2,121.4,8), pose(31.2,121.4,5), 2.5, 1.2, true);
+    const auto middle = curve.sample(curve.duration()/2);
+    EXPECT_NEAR(middle.altitude, 6.5, 1e-5);
+    EXPECT_LT(middle.velocity.z, 0);
+    EXPECT_NEAR(middle.latitude, 31.2, 1e-12);
+    EXPECT_NEAR(middle.longitude, 121.4, 1e-12);
+}
 } // namespace
 
 int main(int argc, char** argv) {

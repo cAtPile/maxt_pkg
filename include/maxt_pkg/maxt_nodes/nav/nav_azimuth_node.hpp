@@ -25,6 +25,7 @@ private:
     ros::Time start_time_, last_time_, hold_start_;
     bool holding_{false};
     double hold_timeout_{3.0};
+    bool strict_reach_{false};
 };
 
 } // namespace maxt

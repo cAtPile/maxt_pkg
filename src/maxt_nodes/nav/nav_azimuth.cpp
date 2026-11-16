@@ -34,10 +34,13 @@ BT::PortsList NavAzimuth::providedPorts() {
             BT::InputPort<double>("bp_x_raw"),
             BT::InputPort<double>("bp_y_raw"),
             BT::InputPort<double>("bp_z_raw"),
+            BT::InputPort<bool>("strict_reach", false, "Require position and low velocity"),
             BT::InputPort<double>("timeout", 60.0, "timeout (s)")};
 }
 
 BT::NodeStatus NavAzimuth::onStart() {
+    getInput("strict_reach", strict_reach_);
+    if (strict_reach_ && !mav_.hasFreshNavigationData()) return BT::NodeStatus::FAILURE;
     nh_.param<double>("nav/hold_timeout", hold_timeout_, 3.0);
     double n, t, a, bx, by, bz;
     if (!getInput("nav_n", n) || !getInput("nav_t", t) || !getInput("nav_a", a) ||
@@ -53,6 +56,14 @@ BT::NodeStatus NavAzimuth::onStart() {
     nh_.param<double>("reach_check/position_pose_tolerance", tolerance_, 0.1);
     nh_.param<double>("nav/v_max", v_max, 2.5);
     nh_.param<double>("nav/a_max", a_max, 1.2);
+    if (!std::isfinite(n) || !std::isfinite(t) || !std::isfinite(a) ||
+        !std::isfinite(bx) || !std::isfinite(by) || !std::isfinite(bz) ||
+        !std::isfinite(angle) || !std::isfinite(v_max) || v_max <= 0 ||
+        !std::isfinite(a_max) || a_max <= 0 || !std::isfinite(timeout_) || timeout_ <= 0 ||
+        !std::isfinite(hold_timeout_) || hold_timeout_ < 0) {
+        ROS_ERROR("[NavAzimuth] Invalid position or motion limits.");
+        return BT::NodeStatus::FAILURE;
+    }
 
     // 正角度从原始 +X 转向 +Y；横向正方向为左侧，不改变机头 yaw。
     const double radians = angle * M_PI / 180.0;
@@ -89,6 +100,10 @@ void NavAzimuth::publishCurve(double t, const ros::Time& now) {
 }
 
 BT::NodeStatus NavAzimuth::onRunning() {
+    if (strict_reach_ && !mav_.hasFreshNavigationData()) {
+        mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+        return BT::NodeStatus::FAILURE;
+    }
     const auto now = ros::Time::now();
     const double dt = (now - last_time_).toSec();
     if (dt <= DT_MIN) return BT::NodeStatus::RUNNING;
@@ -115,12 +130,21 @@ BT::NodeStatus NavAzimuth::onRunning() {
         mav_.setPIDTarget(Eigen::Vector3d(tx_, ty_, tz_), true);
         mav_.setSetpointMode(SetpointMode::PID_CTRL);
     }
-    if (error < tolerance_) {
+    auto goal = pose;
+    goal.pose.position.x = tx_;
+    goal.pose.position.y = ty_;
+    goal.pose.position.z = tz_;
+    if (error < tolerance_ && (!strict_reach_ || mav_.ReachPoseCheck(goal))) {
         ROS_INFO("[NavAzimuth] REACHED: pos_err=%.3f elapsed=%.2fs", error, elapsed);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
         return BT::NodeStatus::SUCCESS;
     }
     if ((now - hold_start_).toSec() > hold_timeout_) {
+        if (strict_reach_) {
+            ROS_ERROR("[NavAzimuth] Strict arrival failed: alignment timed out.");
+            mav_.setSetpointMode(SetpointMode::SLOW_DOWN);
+            return BT::NodeStatus::FAILURE;
+        }
         ROS_WARN("[NavAzimuth] Hold timeout (%.1fs), err=%.3f. Forcing SUCCESS.",
                  (now - hold_start_).toSec(), error);
         mav_.setSetpointMode(SetpointMode::HEARTBEAT);
