@@ -3,10 +3,10 @@ qr_survey:
   ordinary_ids: [QR002, QR003]
   drop_target_id: QR001
   mission_namespace: /uav_qr_mission
-  length_x: 5.0
-  length_y: 5.0
-  step: 1.0            # include 0..5 on both axes: 6 x 6 = 36 stops
-  survey_height: 3.0   # metres above takeoff; flat-field assumption
+  length_x: 10.0
+  length_y: 10.0
+  step: 5.0            # include 0..5 on both axes: 6 x 6 = 36 stops
+  survey_height: 2.5   # metres above takeoff; flat-field assumption
   drop_height: 3.0     # never use the QR's ellipsoid altitude as a flight altitude
   stable_seconds: 0.4
   settle_seconds: 1.0   # extra delay AFTER continuous low-speed/low-tilt stability

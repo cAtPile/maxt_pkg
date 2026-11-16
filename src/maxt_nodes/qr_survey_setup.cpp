@@ -70,8 +70,15 @@ BT::NodeStatus QrSurveySetup::onRunning() {
         accepted_ = true;
     }
     uav_qr_mission::MissionResult result;
-    if (!context_->snapshot(service_.request.mission_id, result) ||
-        result.geolocation_input_status != "VALID") return BT::NodeStatus::RUNNING;
+    if (!context_->snapshot(service_.request.mission_id, result)) {
+        ROS_WARN_THROTTLE(2.0, "QrSurveySetup: waiting for mission heartbeat/registration.");
+        return BT::NodeStatus::RUNNING;
+    }
+    if (result.geolocation_input_status != "VALID") {
+        ROS_WARN_THROTTLE(2.0, "QrSurveySetup: waiting for geolocation: %s",
+                          result.geolocation_input_status.c_str());
+        return BT::NodeStatus::RUNNING;
+    }
     setOutput("mission_id", service_.request.mission_id);
     setOutput("drop_target_id", service_.request.position_target_id);
     setOutput("waypoints", points_);

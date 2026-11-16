@@ -106,6 +106,10 @@ BT::NodeStatus QrCapture::onRunning() {
     }
     if (result.capture_id != service_.request.capture_id || !result.capture_done)
         return BT::NodeStatus::RUNNING;
+    if (!result.capture_success) {
+        ROS_ERROR("QrCapture: capture failed: %s (capture_id=%s)",
+                  result.capture_status.c_str(), result.capture_id.c_str());
+    }
     return result.capture_success ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
 }
 
