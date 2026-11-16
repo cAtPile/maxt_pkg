@@ -21,7 +21,7 @@ private:
         OFFBOARD,
         INIT,
         ASCEND,
-        DONE
+        SETTLE
     } phase_{Phase::WAIT_ARM};
 
     double target_alt_{1.5};
@@ -30,7 +30,17 @@ private:
 
     double hold_yaw_{0.0};
     double aim_altitude_raw_{0.0};
-    ros::Time start_time_;
+    double altitude_tolerance_{0.1};
+    double vertical_velocity_tolerance_{0.2};
+    double settle_time_{0.4};
+    geometry_msgs::PoseStamped goal_raw_;
+    geometry_msgs::Point last_valid_position_;
+    mavros_msgs::PositionTarget hold_target_;
+    bool target_initialized_{false};
+    ros::SteadyTime start_time_, stable_since_;
+
+    void holdTarget();
+    void stopClimb();
 };
 
 } // namespace maxt

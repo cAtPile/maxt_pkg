@@ -30,7 +30,8 @@ capture_pose:
   timeout: 10.0
 takeoff:
   ascent_speed: 0.5
-  timeout: 60.0  # 解锁后切换 OFFBOARD 与爬升的超时，s
+  settle_time: 0.4  # 目标位置、低速连续稳定时间；超高后回到原目标高度再计时
+  timeout: 60.0  # 解锁后 OFFBOARD、爬升、稳定保持的总超时，s
 touch_down:
   descent_speed: -0.3
   timeout: 60.0

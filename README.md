@@ -6,8 +6,9 @@
 该入口不启动 MAVROS、PX4、Gazebo 或相机驱动；复用已经就绪的飞控和视觉系统。
 起飞沿用现有 `Takeoff` 的外部解锁约定，不新增自动解锁。
 
-当前已知起飞限制：原 `Takeoff` 只检查是否进入高度容差窗口，较快上升或定位跳变直接越过窗口时，
-可能继续爬升直到超时；模拟测试已复现。该问题修正或增加独立保护前，本任务仅用于离线验证。
+`Takeoff` 在接近或越过目标高度时立即停止速度爬升，切换到原始目标高度的固定位置保持。
+高度、位置和低速连续满足 `takeoff/settle_time`（默认 0.4 秒）后才完成；超高时保持原目标，
+不会把超高位置当作起飞成功高度。超时、中止或飞行反馈丢失时清除正向爬升命令。
 
 任务流程：连接检查 → 注册两个普通码和一个投放码/检查原始 RTK 与 IMU → 起飞 →
 完整九点扫描 → 冻结测量结果 → 按投放码经纬度飞到相对起飞点 5 m → 固定位置持续等待。
@@ -98,7 +99,8 @@ roslaunch maxt_pkg qr_stop_survey.launch \
 
 单元测试覆盖九点网格、边界、固定 raw 设点和高度曲线。
 `test/qr_stop_survey_contract.py` 使用真实 BT/任务节点和模拟 ROS 飞行接口，拒绝连接默认或非 loopback Master，
-不启动 MAVROS/飞控/硬件。三个场景分别验证完整扫描待命、航点不能到达、投放码缺失。
+不启动 MAVROS/飞控/硬件。场景覆盖完整扫描待命、航点不能到达、投放码缺失、
+起飞高度跳过整个容差区间，以及起飞超时清除爬升命令。
 
 ```bash
 # 独立测试终端一，勿指向实机 ROS Master：
@@ -110,6 +112,7 @@ roscore -p 11349
 python3 ~/catkin_ws/src/maxt_pkg/test/qr_stop_survey_contract.py \
   --scenario happy --log-dir /tmp/qr-stop-happy
 # 另外可分别运行 --scenario navigation_failure / missing_drop。
+# 起飞修复回归：--scenario takeoff_overshoot / takeoff_timeout。
 ```
 
 测试模拟器会故意丢失第一次小车响应，检查重试及单条/批量显示；成功场景检查完整九点、
@@ -753,7 +756,7 @@ rosrun maxt_pkg test_calibrate_tools
 
 区域原点偏移、边长和航带间距在主任务 XML 中配置，方向使用 `nav/azimuth_angle`。子树不负责起飞、返航或降落，这些步骤由主任务编排。
 
-`Takeoff` 持续等待外部解锁，不主动发送解锁请求，不设置等待解锁超时。检测到解锁后重新计时，使用 `takeoff.timeout` 限制 OFFBOARD 切换和爬升阶段。
+`Takeoff` 持续等待外部解锁，不主动发送解锁请求，不设置等待解锁超时。检测到解锁后使用单调时钟重新计时，`takeoff.timeout` 限制 OFFBOARD 切换、爬升和稳定保持的总时长。
 
 `Takeoff` 在开始爬升前等待有效定位，将标定坐标系中的起飞位置输出到 `home_x/home_y/home_z`，并将起飞 Z 加 `target_alt` 输出到 `return_z`。输出端口按需映射到黑板，每次执行重新记录，爬升过程中不覆盖。例如 `<Takeoff target_alt="4.0" home_x="{home_x}" home_y="{home_y}" home_z="{home_z}" return_z="{return_z}" />`；随后用 `<Nav x="{home_x}" y="{home_y}" z="{return_z}" />` 返回起飞点上方，再执行 `<TouchDown />`。
 

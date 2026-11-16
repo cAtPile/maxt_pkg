@@ -16,6 +16,7 @@ import time
 from urllib.parse import urlparse
 
 import rospy
+import yaml
 from geometry_msgs.msg import PoseStamped, TwistStamped, TransformStamped
 from mavros_msgs.msg import State, PositionTarget, GlobalPositionTarget
 from sensor_msgs.msg import Imu, NavSatFix
@@ -43,6 +44,10 @@ class FlightDouble:
         self.display = {}
         self.outside_window_violation = False
         self.failure = None
+        self.overshoot_injected = False
+        self.takeoff_hold_time = None
+        self.first_navigation_time = None
+        self.climb_after_hold = False
         self.running = True
         self.origin = (31.2,121.4,100.)
         self.ecef_origin = geodetic_to_ecef(*self.origin)
@@ -66,7 +71,14 @@ class FlightDouble:
         self.thread.start()
 
     def local_command(self,message):
-        with self.lock: self.command = ('raw',message)
+        with self.lock:
+            self.command = ('raw',message)
+            if self.scenario == 'takeoff_overshoot' and self.overshoot_injected:
+                if not message.type_mask & PositionTarget.IGNORE_PZ and abs(message.position.z-5) < 1e-6:
+                    if self.takeoff_hold_time is None: self.takeoff_hold_time = time.monotonic()
+                if (self.takeoff_hold_time is not None and message.type_mask & PositionTarget.IGNORE_PZ
+                        and message.velocity.z > 0):
+                    self.climb_after_hold = True
 
     def pose_command(self,message):
         with self.lock: self.command = ('pose',message)
@@ -87,7 +99,10 @@ class FlightDouble:
             self.latest = message
 
     def status(self,message):
-        with self.lock: self.active = json.loads(message.data).get('active',[])
+        with self.lock:
+            self.active = json.loads(message.data).get('active',[])
+            if self.first_navigation_time is None and any(n.get('name') == 'ToCaptureStop' for n in self.active):
+                self.first_navigation_time = time.monotonic()
 
     def report(self,request):
         with self.lock:
@@ -135,7 +150,21 @@ class FlightDouble:
                             self.position[2] = message.altitude
                     if self.scenario == 'navigation_failure' and self.captures:
                         self.position[:2] = [0.,0.]
+                    if self.scenario == 'takeoff_timeout':
+                        self.position[2] = 0.  # altitude never responds to the climb command
+                    if (self.scenario == 'takeoff_overshoot' and not self.overshoot_injected
+                            and self.command and self.command[0] == 'raw'
+                            and self.command[1].type_mask & PositionTarget.IGNORE_PZ
+                            and self.position[2] >= 4.8):
+                        # Jump across the entire [4.9, 5.1] m tolerance band.
+                        self.position[2] = 5.35
+                        self.overshoot_injected = True
                     velocity = [(a-b)/max(dt,1e-6) for a,b in zip(self.position,before)]
+                    if (self.scenario == 'takeoff_overshoot' and self.takeoff_hold_time is not None
+                            and now-self.takeoff_hold_time < .5):
+                        # Height has reached 5 m but the velocity estimator still
+                        # reports motion. Takeoff must remain RUNNING until it settles.
+                        velocity[2] = 1.
                     if sum(v*v for v in velocity) > .2**2: self.last_motion = now
                     self.publish(velocity)
                 time.sleep(.02)
@@ -199,7 +228,8 @@ class FlightDouble:
 
 def main():
     args = argparse.ArgumentParser()
-    args.add_argument('--scenario',choices=['happy','navigation_failure','missing_drop'],default='happy')
+    args.add_argument('--scenario',choices=['happy','navigation_failure','missing_drop',
+                                          'takeoff_overshoot','takeoff_timeout'],default='happy')
     args.add_argument('--log-dir',required=True)
     options = args.parse_args(rospy.myargv()[1:])
     uri = urlparse(os.environ.get('ROS_MASTER_URI',''))
@@ -210,27 +240,29 @@ def main():
     log_dir = Path(options.log_dir)
     log_dir.mkdir(parents=True,exist_ok=True)
     # All motion speeds below are TEST-ONLY; the fixture teleports along setpoints.
-    rospy.set_param('/maxt_test_node/takeoff/ascent_speed',1.)
+    ascent_speed = 5. if options.scenario == 'takeoff_overshoot' else 1.
+    nav_config = yaml.safe_load((Path(__file__).resolve().parents[1]/'config/nav.yaml').read_text())
+    nav_config['takeoff']['ascent_speed'] = ascent_speed
+    if options.scenario == 'takeoff_timeout': nav_config['takeoff']['timeout'] = .8
+    nav_config['nav']['hold_timeout'] = .7
+    test_nav_path = log_dir/'nav-test.yaml'
+    test_nav_path.write_text(yaml.safe_dump(nav_config))
     log = (log_dir/'launch.log').open('w')
     child = subprocess.Popen(['roslaunch','maxt_pkg','qr_stop_survey.launch',
                               'start_qr_mission:=true','survey_speed:=50',
-                              'survey_acceleration:=100'],stdout=log,stderr=subprocess.STDOUT,
+                              'survey_acceleration:=100','nav_config:='+str(test_nav_path)],
+                             stdout=log,stderr=subprocess.STDOUT,
                              start_new_session=True)
     try:
-        # Override after rosparam loading, before the takeoff stage begins.
-        deadline = time.monotonic()+10
-        while not rospy.has_param('/maxt_test_node/bt_xml_path'):
-            if time.monotonic() > deadline: raise AssertionError('Launch did not load parameters')
-            time.sleep(.02)
-        rospy.set_param('/maxt_test_node/takeoff/ascent_speed',1.)
-        rospy.set_param('/maxt_test_node/nav/hold_timeout',.7)
+        # Load overrides atomically through launch, not racing persistent ROS params.
         deadline = time.monotonic()+100
-        final_name = 'ReadyForDrop' if options.scenario == 'happy' else 'SurveyFailureHold'
+        success_scenario = options.scenario in ('happy','takeoff_overshoot')
+        final_name = 'ReadyForDrop' if success_scenario else 'SurveyFailureHold'
         while time.monotonic() < deadline:
             with fixture.lock:
                 if fixture.failure: raise fixture.failure
                 ready = any(n.get('name') == final_name for n in fixture.active)
-                if options.scenario == 'happy' and any(n.get('name') == 'SurveyFailureHold' for n in fixture.active):
+                if success_scenario and any(n.get('name') == 'SurveyFailureHold' for n in fixture.active):
                     raise AssertionError('Unexpected failure hold; see launch.log')
             if ready: break
             if child.poll() is not None: raise AssertionError('Mission process exited')
@@ -241,7 +273,14 @@ def main():
             assert not fixture.outside_window_violation, 'In-flight observations entered the registry'
             assert all(t >= .95 for t in fixture.capture_stable_times), fixture.capture_stable_times
             expected = [(0,0),(0,10),(0,20),(10,20),(10,10),(10,0),(20,0),(20,10),(20,20)]
-            if options.scenario == 'navigation_failure':
+            if options.scenario == 'takeoff_timeout':
+                assert not fixture.captures and not fixture.global_targets
+                assert fixture.first_navigation_time is None
+                kind,last_command = fixture.command
+                assert kind == 'raw' and not last_command.type_mask & PositionTarget.IGNORE_PZ
+                assert last_command.type_mask & PositionTarget.IGNORE_VZ
+                assert abs(last_command.position.z) < .1
+            elif options.scenario == 'navigation_failure':
                 assert len(fixture.captures) == 1, fixture.capture_positions
                 assert not fixture.global_targets, 'Failed waypoint incorrectly reached drop navigation'
             else:
@@ -249,7 +288,7 @@ def main():
                 for position,point in zip(fixture.capture_positions,expected):
                     assert math.hypot(position[0]-point[0],position[1]-point[1]) < .15
                 assert fixture.latest.survey_finished
-                if options.scenario == 'happy':
+                if success_scenario:
                     assert fixture.latest.all_localized
                     assert fixture.global_targets
                     assert abs(fixture.global_targets[-1].altitude-5) < 1e-6
@@ -258,6 +297,13 @@ def main():
                     assert len(fixture.display) == 3
                     assert any(len(r.targets) == 1 for r in fixture.received_reports)
                     assert any(len(r.targets) > 1 for r in fixture.received_reports)
+                    if options.scenario == 'takeoff_overshoot':
+                        assert fixture.overshoot_injected and fixture.takeoff_hold_time is not None
+                        assert not fixture.climb_after_hold, 'Positive VZ resumed after height capture'
+                        assert fixture.first_navigation_time-fixture.takeoff_hold_time >= .85, \
+                            'Takeoff succeeded while moving or before stable dwell'
+                        assert all(abs(p[2]-5) < .1 for p in fixture.capture_positions), \
+                            'Overshoot was adopted as the survey altitude'
                 else:
                     assert not fixture.global_targets, 'Missing drop code must never navigate'
                     assert len(fixture.display) == 2, 'Both ordinary codes must still reach the screen'
@@ -268,6 +314,8 @@ def main():
                            targets=[dict(content=t.content,found=t.found,valid=t.position_valid,status=t.status)
                                     for t in fixture.latest.targets],
                            final_position=fixture.position,active=fixture.active)
+            if options.scenario == 'takeoff_overshoot':
+                summary['takeoff_hold_before_navigation_s'] = fixture.first_navigation_time-fixture.takeoff_hold_time
         (log_dir/'summary.json').write_text(json.dumps(summary,indent=2))
         print('PASS:',options.scenario,json.dumps(summary))
     finally:
