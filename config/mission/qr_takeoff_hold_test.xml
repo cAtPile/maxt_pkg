@@ -1,0 +1,14 @@
+<root main_tree_to_execute="QrTakeoffHoldTest">
+  <BehaviorTree ID="QrTakeoffHoldTest">
+    <!-- Start on the ground. External arming starts automatic takeoff to 3 m.
+         No horizontal navigation, QR registration, or payload release. -->
+    <Fallback>
+      <Sequence>
+        <ConnectCheck />
+        <Takeoff target_alt="3.0" />
+        <QrHold name="TakeoffTestHold" />
+      </Sequence>
+      <QrHold name="TakeoffTestFailureHold" />
+    </Fallback>
+  </BehaviorTree>
+</root>

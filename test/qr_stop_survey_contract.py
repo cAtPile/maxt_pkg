@@ -30,6 +30,9 @@ from uav_qr_mission.geolocation import geodetic_to_ecef, offset_wgs84
 class FlightDouble:
     def __init__(self, scenario):
         self.scenario = scenario
+        self.field_profile = scenario == 'field_5m'
+        self.survey_height = 3. if self.field_profile else 5.
+        self.drop_location = (1.,1.) if self.field_profile else (2.,10.)
         self.lock = threading.RLock()
         self.position = [0.,0.,0.]
         self.command = None
@@ -199,12 +202,14 @@ class FlightDouble:
         # The scene depends on physical position, never on an asynchronously
         # received capture ACK (otherwise the first image may show the old scene).
         x,y,z = self.position
-        if z < 3: codes = ['QR001','QR002','QR003']  # in-flight frames must be ignored
-        elif math.hypot(x,y) < 1: codes = ['QR001']
-        elif math.hypot(x,y-10) < 1: codes = ['QR002','QR003']
+        radius = .4 if self.field_profile else 1.
+        second_y = 1. if self.field_profile else 10.
+        if z < self.survey_height/2: codes = ['QR001','QR002','QR003']  # in-flight frames must be ignored
+        elif math.hypot(x,y) < radius: codes = ['QR001']
+        elif math.hypot(x,y-second_y) < radius: codes = ['QR002','QR003']
         else: codes = []
         if self.scenario == 'missing_drop': codes = [c for c in codes if c != 'QR003']
-        locations = {'QR001':(0,0), 'QR002':(0,10), 'QR003':(2,10)}
+        locations = {'QR001':(0,0), 'QR002':(0,second_y), 'QR003':self.drop_location}
         for i,content in enumerate(codes):
             if self.position[2] <= .2: continue
             detections.detections.append(Detection(content=content,center_u=i,center_v=0,depth_valid=True))
@@ -229,7 +234,7 @@ class FlightDouble:
 def main():
     args = argparse.ArgumentParser()
     args.add_argument('--scenario',choices=['happy','navigation_failure','missing_drop',
-                                          'takeoff_overshoot','takeoff_timeout'],default='happy')
+                                          'takeoff_overshoot','takeoff_timeout','field_5m'],default='happy')
     args.add_argument('--log-dir',required=True)
     options = args.parse_args(rospy.myargv()[1:])
     uri = urlparse(os.environ.get('ROS_MASTER_URI',''))
@@ -247,16 +252,25 @@ def main():
     nav_config['nav']['hold_timeout'] = .7
     test_nav_path = log_dir/'nav-test.yaml'
     test_nav_path.write_text(yaml.safe_dump(nav_config))
+    # Keep the original regression scenarios independent of deployment defaults.
+    # field_5m deliberately exercises the current real-flight profile instead.
+    survey_config = yaml.safe_load((Path(__file__).resolve().parents[1]/'config/qr_stop_survey.yaml').read_text())
+    if not fixture.field_profile:
+        survey_config['qr_survey'].update(length_x=20.,length_y=20.,step=10.,
+                                         survey_height=5.,drop_height=5.)
+    test_survey_path = log_dir/'survey-test.yaml'
+    test_survey_path.write_text(yaml.safe_dump(survey_config))
     log = (log_dir/'launch.log').open('w')
     child = subprocess.Popen(['roslaunch','maxt_pkg','qr_stop_survey.launch',
                               'start_qr_mission:=true','survey_speed:=50',
-                              'survey_acceleration:=100','nav_config:='+str(test_nav_path)],
+                              'survey_acceleration:=100','nav_config:='+str(test_nav_path),
+                              'survey_config:='+str(test_survey_path)],
                              stdout=log,stderr=subprocess.STDOUT,
                              start_new_session=True)
     try:
         # Load overrides atomically through launch, not racing persistent ROS params.
-        deadline = time.monotonic()+100
-        success_scenario = options.scenario in ('happy','takeoff_overshoot')
+        deadline = time.monotonic()+(180 if fixture.field_profile else 100)
+        success_scenario = options.scenario in ('happy','takeoff_overshoot','field_5m')
         final_name = 'ReadyForDrop' if success_scenario else 'SurveyFailureHold'
         while time.monotonic() < deadline:
             with fixture.lock:
@@ -273,6 +287,9 @@ def main():
             assert not fixture.outside_window_violation, 'In-flight observations entered the registry'
             assert all(t >= .95 for t in fixture.capture_stable_times), fixture.capture_stable_times
             expected = [(0,0),(0,10),(0,20),(10,20),(10,10),(10,0),(20,0),(20,10),(20,20)]
+            if fixture.field_profile:
+                expected = [(x,y) for x in range(6)
+                            for y in (range(6) if x%2 == 0 else reversed(range(6)))]
             if options.scenario == 'takeoff_timeout':
                 assert not fixture.captures and not fixture.global_targets
                 assert fixture.first_navigation_time is None
@@ -284,16 +301,17 @@ def main():
                 assert len(fixture.captures) == 1, fixture.capture_positions
                 assert not fixture.global_targets, 'Failed waypoint incorrectly reached drop navigation'
             else:
-                assert len(fixture.captures) == 9, fixture.capture_positions
+                assert len(fixture.captures) == len(expected), fixture.capture_positions
                 for position,point in zip(fixture.capture_positions,expected):
                     assert math.hypot(position[0]-point[0],position[1]-point[1]) < .15
                 assert fixture.latest.survey_finished
                 if success_scenario:
                     assert fixture.latest.all_localized
                     assert fixture.global_targets
-                    assert abs(fixture.global_targets[-1].altitude-5) < 1e-6
-                    assert abs(fixture.position[2]-5) < .1
-                    assert math.hypot(fixture.position[0]-2,fixture.position[1]-10) < .15
+                    assert abs(fixture.global_targets[-1].altitude-fixture.survey_height) < 1e-6
+                    assert abs(fixture.position[2]-fixture.survey_height) < .1
+                    assert math.hypot(fixture.position[0]-fixture.drop_location[0],
+                                      fixture.position[1]-fixture.drop_location[1]) < .15
                     assert len(fixture.display) == 3
                     assert any(len(r.targets) == 1 for r in fixture.received_reports)
                     assert any(len(r.targets) > 1 for r in fixture.received_reports)
