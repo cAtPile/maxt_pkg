@@ -10,6 +10,7 @@ import math
 import os
 from pathlib import Path
 import signal
+import struct
 import subprocess
 import threading
 import time
@@ -18,7 +19,7 @@ from urllib.parse import urlparse
 import rospy
 import yaml
 from geometry_msgs.msg import PoseStamped, TwistStamped, TransformStamped
-from mavros_msgs.msg import State, PositionTarget, GlobalPositionTarget
+from mavros_msgs.msg import State, PositionTarget, GlobalPositionTarget, Mavlink, TimesyncStatus
 from sensor_msgs.msg import Imu, NavSatFix
 from std_msgs.msg import Float64, String
 from uav_odin_qr.msg import Detection, DetectionArray, QrTransform, QrTransformArray
@@ -38,7 +39,10 @@ class FlightDouble:
         self.survey_height = 3. if self.field_profile else 5.
         self.drop_location = (1.,1.) if self.field_profile else (2.,10.)
         self.lock = threading.RLock()
-        self.position = [0.,0.,0.]
+        self.signed_heading = scenario == 'signed_heading'
+        self.position = [12.,-7.,0.] if self.signed_heading else [0.,0.,0.]
+        self.wait_arm_seen = None
+        self.boot_origin_ns = rospy.Time.now().to_nsec()-10000000000
         self.command = None
         self.captures = []
         self.capture_positions = []
@@ -64,6 +68,7 @@ class FlightDouble:
                            ('/mavros/global_position/global',NavSatFix),
                            ('/mavros/global_position/raw/fix',NavSatFix),
                            ('/mavros/global_position/rel_alt',Float64),('/mavros/imu/data',Imu),
+                           ('/mavlink/from',Mavlink),('/mavros/timesync_status',TimesyncStatus),
                            ('/uav_odin_qr/detections',DetectionArray),
                            ('/uav_odin_qr/tf_targets',QrTransformArray)]:
             self.publishers[topic] = rospy.Publisher(topic,cls,queue_size=10)
@@ -108,6 +113,8 @@ class FlightDouble:
     def status(self,message):
         with self.lock:
             self.active = json.loads(message.data).get('active',[])
+            if self.wait_arm_seen is None and any(n.get('name') == 'Takeoff' for n in self.active):
+                self.wait_arm_seen = time.monotonic()
             if self.first_navigation_time is None and any(n.get('name') == 'ToCaptureStop' for n in self.active):
                 self.first_navigation_time = time.monotonic()
 
@@ -180,12 +187,24 @@ class FlightDouble:
 
     def publish(self,velocity):
         stamp = rospy.Time.now()
-        state = State(connected=True,armed=True,mode='OFFBOARD')
+        armed = not self.signed_heading or (self.wait_arm_seen is not None and time.monotonic()-self.wait_arm_seen>1.2)
+        yaw = math.pi/2 if self.signed_heading and self.wait_arm_seen is not None and time.monotonic()-self.wait_arm_seen>.6 else 0.
+        # Simulate an attitude change after the first stop: region axes must stay frozen.
+        if self.signed_heading and self.captures:
+            yaw = -math.pi/3
+        state = State(connected=True,armed=armed,mode='OFFBOARD')
+        boot_ms = (stamp.to_nsec()-self.boot_origin_ns)//1000000
+        payload = struct.pack('<QI',stamp.to_nsec()//1000,boot_ms)
+        wire = Mavlink(framing_status=Mavlink.FRAMING_OK,sysid=1,compid=1,msgid=2,len=12,
+                       payload64=list(struct.unpack('<QQ',payload.ljust(16,b'\0'))))
+        self.publishers['/mavlink/from'].publish(wire)
+        self.publishers['/mavros/timesync_status'].publish(TimesyncStatus(estimated_offset_ns=self.boot_origin_ns,round_trip_time_ms=1))
         self.publishers['/mavros/state'].publish(state)
         pose,twist = PoseStamped(),TwistStamped()
         pose.header.stamp = twist.header.stamp = stamp
         pose.pose.position.x,pose.pose.position.y,pose.pose.position.z = self.position
-        pose.pose.orientation.w = 1
+        pose.pose.orientation.z = math.sin(yaw/2)
+        pose.pose.orientation.w = math.cos(yaw/2)
         twist.twist.linear.x,twist.twist.linear.y,twist.twist.linear.z = velocity
         self.publishers['/mavros/local_position/pose'].publish(pose)
         self.publishers['/mavros/local_position/velocity_local'].publish(twist)
@@ -199,7 +218,8 @@ class FlightDouble:
             self.publishers[topic].publish(fix)
         imu = Imu()
         imu.header.stamp = stamp
-        imu.orientation.w = 1
+        imu.orientation.z = math.sin(yaw/2)
+        imu.orientation.w = math.cos(yaw/2)
         self.publishers['/mavros/imu/data'].publish(imu)
         detections,targets = DetectionArray(),QrTransformArray()
         detections.header.stamp = targets.header.stamp = stamp
@@ -212,6 +232,7 @@ class FlightDouble:
         elif math.hypot(x,y) < radius: codes = self.ordinary_ids[:1]
         elif math.hypot(x,y-second_y) < radius: codes = self.ordinary_ids[1:]+[self.drop_id]
         else: codes = []
+        if self.signed_heading: codes = []
         if self.scenario == 'missing_drop': codes = [c for c in codes if c != self.drop_id]
         locations = {self.ordinary_ids[0]:(0,0), self.ordinary_ids[1]:(0,second_y),
                      self.drop_id:self.drop_location}
@@ -239,7 +260,7 @@ class FlightDouble:
 def main():
     args = argparse.ArgumentParser()
     args.add_argument('--scenario',choices=['happy','navigation_failure','missing_drop',
-                                          'takeoff_overshoot','takeoff_timeout','field_5m'],default='happy')
+                                          'takeoff_overshoot','takeoff_timeout','field_5m','signed_heading'],default='happy')
     args.add_argument('--log-dir',required=True)
     options = args.parse_args(rospy.myargv()[1:])
     uri = urlparse(os.environ.get('ROS_MASTER_URI',''))
@@ -258,11 +279,15 @@ def main():
     test_nav_path = log_dir/'nav-test.yaml'
     test_nav_path.write_text(yaml.safe_dump(nav_config))
     # Keep the original regression scenarios independent of deployment defaults.
-    # field_5m deliberately exercises the current real-flight profile instead.
+    # field_5m explicitly keeps its historical 5m / 1m / 3m regression profile.
     survey_config = yaml.safe_load((Path(__file__).resolve().parents[1]/'config/qr_stop_survey.yaml').read_text())
     if not fixture.field_profile:
-        survey_config['qr_survey'].update(length_x=20.,length_y=20.,step=10.,
+        survey_config['qr_survey'].update(corner_x=20.,corner_y=20.,step=10.,
                                          survey_height=5.,drop_height=5.)
+    if fixture.field_profile:
+        survey_config['qr_survey'].update(corner_x=5.,corner_y=5.,step=1.,survey_height=3.,drop_height=3.)
+    if fixture.signed_heading:
+        survey_config['qr_survey'].update(corner_x=5.,corner_y=-5.,step=2.)
     test_survey_path = log_dir/'survey-test.yaml'
     test_survey_path.write_text(yaml.safe_dump(survey_config))
     log = (log_dir/'launch.log').open('w')
@@ -295,6 +320,10 @@ def main():
             if fixture.field_profile:
                 expected = [(x,y) for x in range(6)
                             for y in (range(6) if x%2 == 0 else reversed(range(6)))]
+            if fixture.signed_heading:
+                grid=[(x,y) for i,x in enumerate([0,2,4,5])
+                      for y in ([0,-2,-4,-5] if i%2==0 else [-5,-4,-2,0])]
+                expected=[(12-y,-7+x) for x,y in grid]
             if options.scenario == 'takeoff_timeout':
                 assert not fixture.captures and not fixture.global_targets
                 assert fixture.first_navigation_time is None
@@ -333,7 +362,7 @@ def main():
                 else:
                     assert not fixture.global_targets, 'Missing drop code must never navigate'
                     assert not next(t for t in fixture.latest.targets if t.content == fixture.drop_id).position_valid
-                    assert len(fixture.display) == 2, 'Both ordinary codes must still reach the screen'
+                    assert len(fixture.display) == (0 if fixture.signed_heading else 2), 'Both ordinary codes must still reach the screen'
             summary = dict(scenario=options.scenario,stops=fixture.capture_positions,
                            stable_before_capture=fixture.capture_stable_times,
                            displayed_codes=sorted(t.content for t in fixture.display.values()),

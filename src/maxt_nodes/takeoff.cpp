@@ -6,6 +6,10 @@ namespace maxt {
 BT::PortsList TakeoffNode::providedPorts() {
     return {
         BT::InputPort<double>("target_alt", 0.5, "takeoff altitude"),
+        BT::OutputPort<double>("takeoff_x_raw", "Raw local X at ascent start"),
+        BT::OutputPort<double>("takeoff_y_raw", "Raw local Y at ascent start"),
+        BT::OutputPort<double>("takeoff_yaw_raw", "Raw local yaw captured at external arming"),
+        BT::OutputPort<double>("takeoff_target_z_raw", "Raw local takeoff target Z"),
         BT::OutputPort<double>("home_x", "takeoff X in calibrated navigation frame"),
         BT::OutputPort<double>("home_y", "takeoff Y in calibrated navigation frame"),
         BT::OutputPort<double>("home_z", "takeoff Z in calibrated navigation frame"),
@@ -88,6 +92,13 @@ BT::NodeStatus TakeoffNode::onRunning() {
         if (!mav_.isArmed()) {
             return BT::NodeStatus::RUNNING;
         }
+        // Survey axes are captured at arming, not while waiting on the ground.
+        // Other task trees retain their existing heading behavior.
+        if (config().output_ports.count("takeoff_yaw_raw")) {
+            if (!mav_.hasFreshNavigationData()) return BT::NodeStatus::RUNNING;
+            hold_yaw_ = mav_.get_current_yaw();
+            mav_.setDefaultYaw(hold_yaw_);
+        }
         start_time_ = now;
         ROS_INFO("TakeoffNode: Armed, switching to OFFBOARD...");
         // 确认已解锁后只触发一次，随阶段切换避免每个 tick 重复播报。
@@ -132,6 +143,14 @@ BT::NodeStatus TakeoffNode::onRunning() {
         last_valid_position_ = current.pose.position;
         aim_altitude_raw_ = current.pose.position.z + target_alt_;
         if (!std::isfinite(aim_altitude_raw_)) return BT::NodeStatus::FAILURE;
+        write_output("takeoff_x_raw", current.pose.position.x);
+        write_output("takeoff_y_raw", current.pose.position.y);
+        write_output("takeoff_yaw_raw", hold_yaw_);
+        write_output("takeoff_target_z_raw", aim_altitude_raw_);
+        if (config().output_ports.count("takeoff_yaw_raw")) {
+            ROS_INFO("TakeoffNode: survey origin=(%.3f,%.3f), fixed yaw=%.2f deg; X forward, Y left.",
+                     current.pose.position.x, current.pose.position.y, hold_yaw_*180.0/M_PI);
+        }
         goal_raw_ = current;
         goal_raw_.pose.position.z = aim_altitude_raw_;
         hold_target_ = mavros_msgs::PositionTarget();

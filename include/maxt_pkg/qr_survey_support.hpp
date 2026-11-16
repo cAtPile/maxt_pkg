@@ -1,5 +1,5 @@
 #pragma once
-#include <maxt_pkg/maxt_nodes/region_waypoints.hpp>
+#include <maxt_pkg/survey_geometry.hpp>
 #include <maxt_pkg/mavkit/maxt_mav.hpp>
 #include <uav_qr_mission/MissionResult.h>
 #include <uav_qr_mission/SetTask.h>
@@ -13,24 +13,6 @@
 #include <algorithm>
 
 namespace maxt {
-
-// Endpoints are included, unlike the continuous strip-coverage generator.
-// 20 x 20 / step 10 => nine stops, with adjacent rows connected serpentine.
-inline RegionWaypoints stopSurveyGrid(double length_x, double length_y, double step) {
-    if (!std::isfinite(length_x) || !std::isfinite(length_y) || !std::isfinite(step) ||
-        length_x <= 0 || length_y <= 0 || step <= 0)
-        throw std::invalid_argument("Survey dimensions and step must be finite and positive");
-    const double nx = std::ceil(length_x/step), ny = std::ceil(length_y/step);
-    if ((nx+1)*(ny+1) > 10000) throw std::invalid_argument("Survey exceeds 10000 stops");
-    RegionWaypoints points;
-    for (int x = 0; x <= static_cast<int>(nx); ++x) {
-        for (int j = 0; j <= static_cast<int>(ny); ++j) {
-            const int y = x%2 == 0 ? j : static_cast<int>(ny)-j;
-            points.push_back({{std::min(x*step, length_x), std::min(y*step, length_y)}});
-        }
-    }
-    return points;
-}
 
 // A ROS service can block indefinitely over a radio. Never call it on a BT tick
 // or join a blocked worker on halt. At most one outstanding call per instance;

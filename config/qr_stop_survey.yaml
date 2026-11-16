@@ -1,11 +1,15 @@
-# Local origin is the aircraft position after takeoff; n/t axes follow nav/azimuth_angle.
+# Fixed origin: aircraft XY at ascent start; fixed axes: heading at external arming.
+# X positive = forward, Y positive = left. Negative Y selects the right side.
+nav:
+  v_max: 0.5          # survey speed limit, m/s
+  a_max: 0.5          # survey acceleration limit, m/s^2
 qr_survey:
   ordinary_ids: [QR002, QR003]
   drop_target_id: QR001
   mission_namespace: /uav_qr_mission
-  length_x: 10.0
-  length_y: 10.0
-  step: 5.0            # include 0..5 on both axes: 6 x 6 = 36 stops
+  corner_x: 10.0      # signed opposite corner X; +forward / -backward
+  corner_y: 10.0      # signed opposite corner Y; +left / -right
+  step: 5.0          # spacing in metres; both edges included (here 3 x 3 = 9 stops)
   survey_height: 2.5   # metres above takeoff; flat-field assumption
   drop_height: 3.0     # never use the QR's ellipsoid altitude as a flight altitude
   stable_seconds: 0.4

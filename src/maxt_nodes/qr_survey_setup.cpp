@@ -13,9 +13,17 @@ BT::PortsList QrSurveySetup::providedPorts() {
 }
 
 BT::NodeStatus QrSurveySetup::onStart() {
-    double length_x, length_y, step;
-    params_.param("length_x", length_x, 20.0);
-    params_.param("length_y", length_y, 20.0);
+    double corner_x, corner_y, step;
+    if (params_.hasParam("corner_x") || params_.hasParam("corner_y")) {
+        if (!params_.getParam("corner_x", corner_x) || !params_.getParam("corner_y", corner_y)) {
+            ROS_ERROR("QrSurveySetup: configure both corner_x and corner_y.");
+            return BT::NodeStatus::FAILURE;
+        }
+    } else {
+        params_.param("length_x", corner_x, 20.0);
+        params_.param("length_y", corner_y, 20.0);
+        ROS_WARN("QrSurveySetup: legacy length_x/length_y; migrate to signed corner_x/corner_y.");
+    }
     params_.param("step", step, 10.0);
     params_.param("survey_height", survey_height_, 5.0);
     params_.param("drop_height", drop_height_, 5.0);
@@ -31,8 +39,11 @@ BT::NodeStatus QrSurveySetup::onStart() {
         ROS_ERROR("QrSurveySetup: need two distinct ordinary codes, one distinct drop code, positive heights.");
         return BT::NodeStatus::FAILURE;
     }
-    try { points_ = stopSurveyGrid(length_x, length_y, step); }
-    catch (const std::exception& e) {
+    try {
+        points_ = stopSurveyGrid(corner_x, corner_y, step);
+        ROS_INFO("QrSurveySetup: takeoff-heading rectangle (0,0) to (%.2f,%.2f), step=%.2f; X forward, Y left.",
+                 corner_x, corner_y, step);
+    } catch (const std::exception& e) {
         ROS_ERROR("QrSurveySetup: %s", e.what());
         return BT::NodeStatus::FAILURE;
     }

@@ -1,5 +1,6 @@
 #include <maxt_pkg/maxt_nodes/nav/nav_azimuth_node.hpp>
 #include <algorithm>
+#include <maxt_pkg/survey_geometry.hpp>
 #include <cmath>
 
 namespace maxt {
@@ -34,6 +35,7 @@ BT::PortsList NavAzimuth::providedPorts() {
             BT::InputPort<double>("bp_x_raw"),
             BT::InputPort<double>("bp_y_raw"),
             BT::InputPort<double>("bp_z_raw"),
+            BT::InputPort<double>("azimuth_rad", "Optional frozen raw-local yaw; overrides nav/azimuth_angle"),
             BT::InputPort<bool>("strict_reach", false, "Require position and low velocity"),
             BT::InputPort<double>("timeout", 60.0, "timeout (s)")};
 }
@@ -66,9 +68,16 @@ BT::NodeStatus NavAzimuth::onStart() {
     }
 
     // 正角度从原始 +X 转向 +Y；横向正方向为左侧，不改变机头 yaw。
-    const double radians = angle * M_PI / 180.0;
-    tx_ = bx + n * std::cos(radians) - t * std::sin(radians);
-    ty_ = by + n * std::sin(radians) + t * std::cos(radians);
+    double radians = angle * M_PI / 180.0;
+    if (config().input_ports.count("azimuth_rad")) {
+        if (!getInput("azimuth_rad", radians) || !std::isfinite(radians)) {
+            ROS_ERROR("[NavAzimuth] Invalid frozen navigation yaw; no target sent.");
+            return BT::NodeStatus::FAILURE;
+        }
+    }
+    const auto offset = surveyOffsetToLocal(n,t,radians);
+    tx_ = bx + offset[0];
+    ty_ = by + offset[1];
     tz_ = bz + a;
 
     // 曲线在原始坐标系内采样，RAW_CTRL 不再应用 Home 或标定变换。

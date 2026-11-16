@@ -8,8 +8,9 @@
         <QrSurveySetup mission_id="{qr_mission_id}" drop_target_id="{drop_id}"
                        waypoints="{stops}" waypoint_count="{stop_count}"
                        survey_height="{survey_height}" drop_height="{drop_height}" />
-        <Takeoff target_alt="{survey_height}" />
-        <BasePointAzimuthFix bp_x_raw="{base_x}" bp_y_raw="{base_y}" bp_z_raw="{base_z}" />
+        <Takeoff target_alt="{survey_height}"
+                 takeoff_x_raw="{base_x}" takeoff_y_raw="{base_y}"
+                 takeoff_target_z_raw="{base_z}" takeoff_yaw_raw="{survey_yaw}" />
         <SetBlackboard output_key="stop_index" value="0" />
         <Repeat num_cycles="{stop_count}">
           <Sequence>
@@ -17,7 +18,7 @@
                                x="{stop_n}" y="{stop_t}" />
             <NavAzimuth name="ToCaptureStop" nav_n="{stop_n}" nav_t="{stop_t}" nav_a="0"
                         bp_x_raw="{base_x}" bp_y_raw="{base_y}" bp_z_raw="{base_z}"
-                        timeout="90" strict_reach="true" />
+                        azimuth_rad="{survey_yaw}" timeout="90" strict_reach="true" />
             <QrCapture mission_id="{qr_mission_id}" />
           </Sequence>
         </Repeat>
