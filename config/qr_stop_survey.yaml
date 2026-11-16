@@ -1,7 +1,7 @@
 # Local origin is the aircraft position after takeoff; n/t axes follow nav/azimuth_angle.
 qr_survey:
-  ordinary_ids: [QR001, QR002]
-  drop_target_id: QR003
+  ordinary_ids: [QR002, QR003]
+  drop_target_id: QR001
   mission_namespace: /uav_qr_mission
   length_x: 5.0
   length_y: 5.0

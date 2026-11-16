@@ -22,7 +22,7 @@ BT::NodeStatus QrSurveySetup::onStart() {
     auto& request = service_.request;
     std::vector<std::string> ordinary;
     params_.getParam("ordinary_ids", ordinary);
-    params_.param<std::string>("drop_target_id", request.position_target_id, "QR003");
+    params_.param<std::string>("drop_target_id", request.position_target_id, "QR001");
     std::set<std::string> unique(ordinary.begin(), ordinary.end());
     unique.insert(request.position_target_id);
     if (ordinary.size() != 2 || unique.size() != 3 || unique.count("") ||

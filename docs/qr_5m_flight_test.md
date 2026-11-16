@@ -2,7 +2,7 @@
 
 本轮配置：`config/qr_stop_survey.yaml`。扫描与投放点待命高度均为相对起飞点 3 m，
 场地按水平地面处理。步长 1 m，两个方向都包含 0 和 5，合计 **36 个停点**。
-默认普通码 QR001、QR002，投放码 QR003，按实际二维码原文修改。
+默认普通码 QR002、QR003，投放码 QR001，按实际二维码原文修改。
 
 ## 航迹及当前边界
 
@@ -69,7 +69,7 @@ rosservice type /ugv/qr_display/update
 
 ```bash
 rosservice call /uav_qr_mission/set_task \
-  "{mission_id: 'ground_check_01', target_ids: ['QR001','QR002','QR003'], position_target_id: 'QR003', capture_only: false}"
+  "{mission_id: 'ground_check_qr001_01', target_ids: ['QR002','QR003','QR001'], position_target_id: 'QR001', capture_only: false}"
 roslaunch uav_qr_mission qr_report_sender.launch service:=/ugv/qr_display/update
 ```
 

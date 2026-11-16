@@ -30,6 +30,10 @@ from uav_qr_mission.geolocation import geodetic_to_ecef, offset_wgs84
 class FlightDouble:
     def __init__(self, scenario):
         self.scenario = scenario
+        roles_path = Path(__file__).resolve().parents[1]/'config/qr_stop_survey.yaml'
+        roles = yaml.safe_load(roles_path.read_text())['qr_survey']
+        self.ordinary_ids = roles['ordinary_ids']
+        self.drop_id = roles['drop_target_id']
         self.field_profile = scenario == 'field_5m'
         self.survey_height = 3. if self.field_profile else 5.
         self.drop_location = (1.,1.) if self.field_profile else (2.,10.)
@@ -204,12 +208,13 @@ class FlightDouble:
         x,y,z = self.position
         radius = .4 if self.field_profile else 1.
         second_y = 1. if self.field_profile else 10.
-        if z < self.survey_height/2: codes = ['QR001','QR002','QR003']  # in-flight frames must be ignored
-        elif math.hypot(x,y) < radius: codes = ['QR001']
-        elif math.hypot(x,y-second_y) < radius: codes = ['QR002','QR003']
+        if z < self.survey_height/2: codes = self.ordinary_ids+[self.drop_id]  # in-flight frames must be ignored
+        elif math.hypot(x,y) < radius: codes = self.ordinary_ids[:1]
+        elif math.hypot(x,y-second_y) < radius: codes = self.ordinary_ids[1:]+[self.drop_id]
         else: codes = []
-        if self.scenario == 'missing_drop': codes = [c for c in codes if c != 'QR003']
-        locations = {'QR001':(0,0), 'QR002':(0,second_y), 'QR003':self.drop_location}
+        if self.scenario == 'missing_drop': codes = [c for c in codes if c != self.drop_id]
+        locations = {self.ordinary_ids[0]:(0,0), self.ordinary_ids[1]:(0,second_y),
+                     self.drop_id:self.drop_location}
         for i,content in enumerate(codes):
             if self.position[2] <= .2: continue
             detections.detections.append(Detection(content=content,center_u=i,center_v=0,depth_valid=True))
@@ -306,6 +311,9 @@ def main():
                     assert math.hypot(position[0]-point[0],position[1]-point[1]) < .15
                 assert fixture.latest.survey_finished
                 if success_scenario:
+                    assert fixture.latest.position_target_id == fixture.drop_id
+                    assert any(t.content == fixture.drop_id and t.is_drop_target and t.position_valid
+                               for t in fixture.latest.targets)
                     assert fixture.latest.all_localized
                     assert fixture.global_targets
                     assert abs(fixture.global_targets[-1].altitude-fixture.survey_height) < 1e-6
@@ -324,6 +332,7 @@ def main():
                             'Overshoot was adopted as the survey altitude'
                 else:
                     assert not fixture.global_targets, 'Missing drop code must never navigate'
+                    assert not next(t for t in fixture.latest.targets if t.content == fixture.drop_id).position_valid
                     assert len(fixture.display) == 2, 'Both ordinary codes must still reach the screen'
             summary = dict(scenario=options.scenario,stops=fixture.capture_positions,
                            stable_before_capture=fixture.capture_stable_times,

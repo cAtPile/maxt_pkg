@@ -20,7 +20,7 @@
 
 编辑 `config/qr_stop_survey.yaml`：
 
-- `ordinary_ids: [QR001, QR002]`，`drop_target_id: QR003`。
+- `ordinary_ids: [QR002, QR003]`，`drop_target_id: QR001`。
 - 当前试飞区域 5×5 m，步长 1 m，共 36 个停点。以起飞结束时的位置为水平原点，方向采用 `nav/azimuth_angle`。
 - `survey_height`、`drop_height` 均以起飞点为高度基准，当前均为 3 m；在当前水平场地假设下作为离地高度。
 - 先连续满足低速、位置及倾角约束 `stable_seconds=0.4`，再延时 `settle_seconds=1.0`；期间扰动会重新计时。
