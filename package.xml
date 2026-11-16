@@ -9,6 +9,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   
   <depend>actionlib</depend>
+  <depend>uav_qr_mission</depend>
   <depend>actionlib_msgs</depend>
   <build_depend>message_generation</build_depend>
   <build_export_depend>message_runtime</build_export_depend>

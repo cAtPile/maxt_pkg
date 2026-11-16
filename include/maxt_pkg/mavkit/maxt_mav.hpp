@@ -278,7 +278,7 @@ private:
     mavros_msgs::GlobalPositionTarget global_pose_;
     bool has_global_fix_{false};
     bool has_global_altitude_{false};
-    ros::WallTime global_altitude_received_;
+    ros::SteadyTime global_altitude_received_;
     mavros_msgs::PositionTarget curve_raw_target_;
     mavros_msgs::PositionTarget pid_raw_target_;
     PIDController pid_x_, pid_y_, pid_z_;

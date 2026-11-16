@@ -30,7 +30,8 @@ void MavKit::twistCb(const geometry_msgs::TwistStamped::ConstPtr& msg) {
 void MavKit::globalPoseCb(const sensor_msgs::NavSatFix::ConstPtr& msg) {
     std::lock_guard<std::mutex> lock(data_mtx_);
     has_global_fix_ = msg->status.status >= sensor_msgs::NavSatStatus::STATUS_FIX &&
-        std::isfinite(msg->latitude) && std::isfinite(msg->longitude);
+        std::isfinite(msg->latitude) && std::isfinite(msg->longitude) &&
+        std::abs(msg->latitude) <= 90.0 && std::abs(msg->longitude) <= 180.0;
     global_pose_.header = msg->header;
     global_pose_.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
     global_pose_.latitude = msg->latitude;
@@ -42,7 +43,7 @@ void MavKit::globalAltitudeCb(const std_msgs::Float64::ConstPtr& msg) {
     // 全球相对高度用于设点转换；任务的高度闭环和到达判断使用 local Z。
     has_global_altitude_ = std::isfinite(msg->data);
     global_pose_.altitude = msg->data;
-    global_altitude_received_ = ros::WallTime::now();
+    global_altitude_received_ = ros::SteadyTime::now();
 }
 
 } // namespace maxt

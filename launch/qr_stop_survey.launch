@@ -1,0 +1,23 @@
+<launch>
+  <!-- This entry NEVER launches MAVROS, PX4, Gazebo, or camera hardware. -->
+  <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml"/>
+  <arg name="survey_config" default="$(find maxt_pkg)/config/qr_stop_survey.yaml"/>
+  <arg name="start_qr_mission" default="false"/>
+  <arg name="start_report_sender" default="true"/>
+  <arg name="display_service" default="/ugv/qr_display/update"/>
+  <arg name="survey_speed" default="2.0"/>
+  <arg name="survey_acceleration" default="1.0"/>
+  <include if="$(arg start_qr_mission)" file="$(find uav_qr_mission)/launch/uav_qr_mission.launch"/>
+  <include if="$(arg start_report_sender)" file="$(find uav_qr_mission)/launch/qr_report_sender.launch">
+    <arg name="service" value="$(arg display_service)"/>
+  </include>
+  <node pkg="maxt_pkg" type="maxt_test_node" name="maxt_test_node" output="screen">
+    <rosparam command="load" file="$(arg nav_config)"/>
+    <rosparam command="load" file="$(arg survey_config)"/>
+    <param name="nav/v_max" value="$(arg survey_speed)"/>
+    <param name="nav/a_max" value="$(arg survey_acceleration)"/>
+    <param name="bt_xml_path" value="$(find maxt_pkg)/config/mission/qr_stop_survey.xml"/>
+    <param name="bt_tick_rate" value="20.0"/>
+    <param name="heartbeat_rate" value="20.0"/>
+  </node>
+</launch>

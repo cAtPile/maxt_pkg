@@ -80,13 +80,14 @@ bool MavKit::hasFreshNavigationData(bool global, double max_age) const {
     const auto& v = current_twist_.twist.linear;
     const auto& q = current_pose_.pose.orientation;
     const double norm = q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w;
-    if (!has_pose_ || !fresh(current_pose_.header.stamp) || !fresh(current_twist_.header.stamp) ||
+    if (!current_state_.connected || !has_pose_ ||
+        !fresh(current_pose_.header.stamp) || !fresh(current_twist_.header.stamp) ||
         !std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z) ||
         !std::isfinite(v.x) || !std::isfinite(v.y) || !std::isfinite(v.z) ||
         !std::isfinite(norm) || norm < 1e-12) return false;
     return !global || (has_global_fix_ && has_global_altitude_ && fresh(global_pose_.header.stamp) &&
         !global_altitude_received_.isZero() &&
-        (ros::WallTime::now()-global_altitude_received_).toSec() <= max_age);
+        (ros::SteadyTime::now()-global_altitude_received_).toSec() <= max_age);
 }
 
 } // namespace maxt

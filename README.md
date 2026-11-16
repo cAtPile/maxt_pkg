@@ -1,5 +1,121 @@
 # Mavros eXtra function based on Behavior Tree
 
+## QR 停点扫描与投放点待命
+
+新增 `launch/qr_stop_survey.launch` 和 `config/mission/qr_stop_survey.xml`。
+该入口不启动 MAVROS、PX4、Gazebo 或相机驱动；复用已经就绪的飞控和视觉系统。
+起飞沿用现有 `Takeoff` 的外部解锁约定，不新增自动解锁。
+
+当前已知起飞限制：原 `Takeoff` 只检查是否进入高度容差窗口，较快上升或定位跳变直接越过窗口时，
+可能继续爬升直到超时；模拟测试已复现。该问题修正或增加独立保护前，本任务仅用于离线验证。
+
+任务流程：连接检查 → 注册两个普通码和一个投放码/检查原始 RTK 与 IMU → 起飞 →
+完整九点扫描 → 冻结测量结果 → 按投放码经纬度飞到相对起飞点 5 m → 固定位置持续等待。
+`QrHold` 保持 RUNNING，确保任务进程和设点定时器持续运行；不自动执行投放。
+导航、服务、采集或目标坐标失败，转入 `SurveyFailureHold`，不拿默认经纬度继续飞行。
+等待不请求新的飞控模式，人工模式接管不会被该节点重新切回 OFFBOARD。
+
+### 参数与坐标
+
+编辑 `config/qr_stop_survey.yaml`：
+
+- `ordinary_ids: [QR001, QR002]`，`drop_target_id: QR003`。
+- 默认区域 20×20 m，步长 10 m。以起飞结束时的位置为水平原点，方向采用 `nav/azimuth_angle`。
+- `survey_height`、`drop_height` 均以起飞点为高度基准，默认 5 m；在当前水平场地假设下作为离地高度。
+- 先连续满足低速、位置及倾角约束 `stable_seconds=0.4`，再延时 `settle_seconds=1.0`；期间扰动会重新计时。
+- 从连续相机流选取该时刻之后的一张新图，图像与深度时间均校验；飞行阶段暂停视觉解码和 OYO 查询。
+
+端点网格顺序为：
+
+```text
+(0,0) → (0,10) → (0,20) → (10,20) → (10,10)
+      → (10,0) → (20,0) → (20,10) → (20,20)
+```
+
+即使第一点就找到全部码，也会完成全部九点。`step=10` 采用有效识别地面覆盖为 10×10 m 的假设；
+实际部署需按相机、码尺寸、飞行高度确认有效覆盖并留适当重叠。扫描路径是矩形网格，不包含避障规划。
+普通码缺失会在结果中保留未定位状态；投放码有效时仍可转场。投放码没有有效位置则保持等待并报错。
+
+### 构建与运行
+
+maxt 依赖新版本 `uav_qr_mission` 的消息/服务，二维码工作区须作为下层工作区先构建。
+
+```bash
+source /opt/ros/noetic/setup.bash
+source /home/dlab/devices_ws/devel/setup.bash
+cd /home/dlab/qr_visual_release_20261114_Q1tLWg/ws
+catkin_make --pkg uav_qr_mission -j2
+source devel/setup.bash
+cd /home/dlab/catkin_ws
+catkin_make --pkg maxt_pkg -j2
+source devel/setup.bash
+```
+
+飞行前，由操作人员独立准备 MAVROS、RTK/IMU 和视觉节点，确认安装配置与真实设备一致。
+现有 `qr_ground.launch` 会启动视觉任务节点；复用它时保留 `start_qr_mission:=false`，避免同名节点。
+新消息/服务 MD5 已变化，所有相关发布、订阅、服务进程须加载同一构建并重启，旧任务进度不能跨重启保留。
+
+```bash
+# 此命令启动任务执行器，飞控就绪且外部解锁后会执行飞行。
+roslaunch maxt_pkg qr_stop_survey.launch \
+  start_qr_mission:=false \
+  display_service:=/ugv/qr_display/update
+```
+
+仅当没有已有任务节点时使用 `start_qr_mission:=true`。默认扫描速度 2 m/s、加速度 1 m/s²，
+通过 `survey_speed`、`survey_acceleration` 调整；不修改其他任务共用的 nav.yaml。
+地面服务使用 `uav_qr_mission/ReportQr`，支持单条/批量记录，字段及重试合同见二维码包
+`docs/ugv_display_service.md`。上报在独立进程中执行，断线保留待发送结果，不阻塞飞行。
+
+### 新 BT 节点
+
+| 节点 | 职责 |
+|---|---|
+| `QrSurveySetup` | 读取配置、生成含边界的停点网格、幂等注册本轮任务并检查 RTK/IMU 就绪 |
+| `QrCapture` | 固定位置、稳定及延时检查、发起非阻塞采集、按 capture_id 等待结果 |
+| `QrFinish` | 冻结完整扫描结果、从投放码的有效位置输出经纬度 |
+| `QrHold` | 固定位置持续等待，保持执行器运行；也用于失败保持 |
+
+共享 `QrSurveyContext` 只缓存带心跳的任务结果；有界 BT 等待通过后台服务调用完成，不在 tick 内阻塞网络。
+定位算法和每个码的状态仍由二维码包维护，不在 BT 内重复计算。
+
+### NavGeo 高度及严格到达
+
+`NavGeo` 新增可选 `target_alt`，单位 m，相对起飞点高度，使用 `FRAME_GLOBAL_REL_ALT`；
+省略该端口仍保持进入节点时的高度。水平和高度共同使用平滑曲线，到达检查换算为原始 local Z。
+它不是 WGS84 椭球高或目标地面海拔。
+
+```xml
+<NavGeo latitude="{latitude}" longitude="{longitude}"
+        target_alt="5.0" strict_reach="true" timeout="90" />
+```
+
+`NavGeo`、`NavAzimuth` 新增 `strict_reach`，默认 false 保持旧任务行为；新扫描 XML 显式启用。
+严格模式要求新鲜定位/速度及真实到达，末端超时返回 FAILURE，不强制成功。
+`NavGeo` 严格模式还要求到达条件连续稳定 0.4 秒。
+
+### 无 MAVROS 测试
+
+单元测试覆盖九点网格、边界、固定 raw 设点和高度曲线。
+`test/qr_stop_survey_contract.py` 使用真实 BT/任务节点和模拟 ROS 飞行接口，拒绝连接默认或非 loopback Master，
+不启动 MAVROS/飞控/硬件。三个场景分别验证完整扫描待命、航点不能到达、投放码缺失。
+
+```bash
+# 独立测试终端一，勿指向实机 ROS Master：
+export ROS_MASTER_URI=http://127.0.0.1:11349 ROS_IP=127.0.0.1
+unset ROS_HOSTNAME
+roscore -p 11349
+
+# 同环境的终端二，先 source 本工作区：
+python3 ~/catkin_ws/src/maxt_pkg/test/qr_stop_survey_contract.py \
+  --scenario happy --log-dir /tmp/qr-stop-happy
+# 另外可分别运行 --scenario navigation_failure / missing_drop。
+```
+
+测试模拟器会故意丢失第一次小车响应，检查重试及单条/批量显示；成功场景检查完整九点、
+每点采集前至少 1 秒稳定等待、最终相对高度 5 m 和持续 RUNNING。
+测试只验证软件编排及接口，不能替代实际飞行、识别覆盖、RTK 精度和无线链路验收。
+
 `maxt_pkg` 是基于 ROS 1、MAVROS 和 BehaviorTree.CPP v3 的无人机任务编排包，支持基础飞行、航点导航、圆周运动、区域搜索、ArUco 视觉引导及空地协同。
 
 `MaxtCore` 加载 XML 并驱动行为树；`MavKit` 封装 MAVROS 状态、定位、设点发布、解锁及模式切换。Python 脚本提供相机采集、视觉反馈、小车轻量仿真和轨迹监视。Gazebo 原生插件负责移动靶标。

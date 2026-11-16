@@ -79,6 +79,11 @@ BT::NodeStatus NavAzimuth::onStart() {
     const double t_vel = distance * 1.875 / (0.9 * v_max);
     const double t_acc = std::sqrt(distance * 5.774 / a_max);
     duration_ = 1.2 * std::max({t_vel, t_acc, 0.5});
+    if (!std::isfinite(tx_) || !std::isfinite(ty_) || !std::isfinite(tz_) ||
+        !std::isfinite(duration_)) {
+        ROS_ERROR("[NavAzimuth] Target or curve duration overflowed; no setpoint sent.");
+        return BT::NodeStatus::FAILURE;
+    }
     curve_.setWaypoints(p.x, p.y, p.z, tx_, ty_, tz_, duration_);
     start_time_ = ros::Time::now();
     last_time_ = start_time_;

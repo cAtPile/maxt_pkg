@@ -22,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   behaviortree_cpp_v3
   std_msgs
+  uav_qr_mission
 )
 
 ## System dependencies are found with CMake's conventions
@@ -97,7 +98,7 @@ find_package(gazebo REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
-  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs
+  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission
   DEPENDS Boost Eigen3 GeographicLib
 )
 
@@ -141,6 +142,10 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/ugv_cowork_node.cpp
   src/maxt_nodes/capture_pose_node.cpp
   src/maxt_nodes/send_geo_pose_node.cpp
+  src/maxt_nodes/qr_survey_setup.cpp
+  src/maxt_nodes/qr_capture.cpp
+  src/maxt_nodes/qr_finish.cpp
+  src/maxt_nodes/qr_hold.cpp
 
   src/maxt_nodes/takeoff.cpp
   src/maxt_nodes/waitstep.cpp
@@ -257,6 +262,11 @@ install(DIRECTORY launch config
 #############
 
 if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_qr_survey_grid test/unit/test_qr_survey_grid.cpp)
+  if(TARGET test_qr_survey_grid)
+    add_dependencies(test_qr_survey_grid ${catkin_EXPORTED_TARGETS})
+    target_link_libraries(test_qr_survey_grid ${catkin_LIBRARIES})
+  endif()
   add_executable(test_rollback_target_tree test/rollback_target_tree_test.cpp)
   target_link_libraries(test_rollback_target_tree ${PROJECT_NAME} ${catkin_LIBRARIES})
   add_test(NAME rollback_target_tree

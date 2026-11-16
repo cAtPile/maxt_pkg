@@ -1,0 +1,33 @@
+<root main_tree_to_execute="QrStopSurvey">
+  <BehaviorTree ID="QrStopSurvey">
+    <!-- Failure transfers to a persistent fixed hold, not process termination.
+         No stage ends early just because all three codes have been found. -->
+    <Fallback>
+      <Sequence>
+        <ConnectCheck />
+        <QrSurveySetup mission_id="{qr_mission_id}" drop_target_id="{drop_id}"
+                       waypoints="{stops}" waypoint_count="{stop_count}"
+                       survey_height="{survey_height}" drop_height="{drop_height}" />
+        <Takeoff target_alt="{survey_height}" />
+        <BasePointAzimuthFix bp_x_raw="{base_x}" bp_y_raw="{base_y}" bp_z_raw="{base_z}" />
+        <SetBlackboard output_key="stop_index" value="0" />
+        <Repeat num_cycles="{stop_count}">
+          <Sequence>
+            <GetRegionWaypoint waypoints="{stops}" index="{stop_index}" next_index="{stop_index}"
+                               x="{stop_n}" y="{stop_t}" />
+            <NavAzimuth name="ToCaptureStop" nav_n="{stop_n}" nav_t="{stop_t}" nav_a="0"
+                        bp_x_raw="{base_x}" bp_y_raw="{base_y}" bp_z_raw="{base_z}"
+                        timeout="90" strict_reach="true" />
+            <QrCapture mission_id="{qr_mission_id}" />
+          </Sequence>
+        </Repeat>
+        <QrFinish mission_id="{qr_mission_id}" drop_target_id="{drop_id}"
+                  latitude="{drop_lat}" longitude="{drop_lon}" />
+        <NavGeo name="ToDropTarget" latitude="{drop_lat}" longitude="{drop_lon}"
+                target_alt="{drop_height}" timeout="90" strict_reach="true" />
+        <QrHold name="ReadyForDrop" />
+      </Sequence>
+      <QrHold name="SurveyFailureHold" />
+    </Fallback>
+  </BehaviorTree>
+</root>

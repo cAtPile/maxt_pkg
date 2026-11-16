@@ -110,7 +110,7 @@ BT::NodeStatus NavGeo::onStart() {
                             yaw_duration_, yaw_coefficients_.data());
     curve_.setTarget(start, target_, v_max, a_max, change_altitude);
     // 在发送设点前检查预计曲线时长，拦截错误经纬度造成的长距离航行。
-    if (curve_.duration() > max_duration_) {
+    if (!std::isfinite(curve_.duration()) || curve_.duration() > max_duration_) {
         ROS_ERROR("[NavGeo] Estimated duration T=%.2f s exceeds limit %.2f s.",
                   curve_.duration(), max_duration_);
         return BT::NodeStatus::FAILURE;
