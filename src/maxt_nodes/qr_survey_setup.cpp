@@ -79,6 +79,7 @@ BT::NodeStatus QrSurveySetup::onRunning() {
             return BT::NodeStatus::FAILURE;
         }
         accepted_ = true;
+        context_->beginUgvMission(service_.request.mission_id, service_.request.position_target_id);
     }
     uav_qr_mission::MissionResult result;
     if (!context_->snapshot(service_.request.mission_id, result)) {

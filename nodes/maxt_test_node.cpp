@@ -1,8 +1,12 @@
 #include <ros/ros.h>
 #include <maxt_pkg/maxt_core.hpp>
+#include <clocale>
 
 int main(int argc, char** argv)
 {
+    // Initialize before ROS/log4cxx caches its character encoding. Keep numeric
+    // locale unchanged so coordinates and parameter parsing retain decimal dots.
+    std::setlocale(LC_CTYPE, "C.UTF-8");
     // 1. 初始化 ROS 节点
     ros::init(argc, argv, "maxt_test_node");
     ros::NodeHandle nh("~"); // 使用私有句柄以方便读取参数

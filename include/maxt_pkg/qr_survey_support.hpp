@@ -1,5 +1,6 @@
 #pragma once
 #include <maxt_pkg/survey_geometry.hpp>
+#include <maxt_pkg/qr_ugv_dispatch.hpp>
 #include <maxt_pkg/mavkit/maxt_mav.hpp>
 #include <uav_qr_mission/MissionResult.h>
 #include <uav_qr_mission/SetTask.h>
@@ -57,10 +58,11 @@ class QrSurveyContext {
     std::mutex mutex_;
     uav_qr_mission::MissionResult latest_;
     ros::SteadyTime received_;
+    QrUgvDispatch ugv_dispatch_;
     ros::Subscriber subscriber_;
 public:
     ros::ServiceClient task_client, capture_client, finish_client;
-    explicit QrSurveyContext(ros::NodeHandle nh) {
+    explicit QrSurveyContext(ros::NodeHandle nh) : ugv_dispatch_(nh) {
         std::string ns;
         nh.param<std::string>("qr_survey/mission_namespace", ns, "/uav_qr_mission");
         task_client = nh.serviceClient<uav_qr_mission::SetTask>(ns+"/set_task");
@@ -68,10 +70,16 @@ public:
         finish_client = nh.serviceClient<uav_qr_mission::FinishSurvey>(ns+"/finish_survey");
         subscriber_ = nh.subscribe<uav_qr_mission::MissionResult>(ns+"/result", 1,
             [this](const uav_qr_mission::MissionResult::ConstPtr& message) {
-                std::lock_guard<std::mutex> lock(mutex_);
-                latest_ = *message;
-                received_ = ros::SteadyTime::now();
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    latest_ = *message;
+                    received_ = ros::SteadyTime::now();
+                }
+                ugv_dispatch_.observe(*message);
             });
+    }
+    void beginUgvMission(const std::string& mission, const std::string& target) {
+        ugv_dispatch_.begin(mission, target);
     }
     bool snapshot(const std::string& mission, uav_qr_mission::MissionResult& result) {
         std::lock_guard<std::mutex> lock(mutex_);

@@ -10,6 +10,11 @@
   
   <depend>actionlib</depend>
   <depend>uav_qr_mission</depend>
+  <depend>ag_client</depend>
+  <test_depend>rostest</test_depend>
+  <test_depend>rospy</test_depend>
+  <test_depend>rosgraph_msgs</test_depend>
+  <test_depend>slicer_air_ground_msgs</test_depend>
   <depend>actionlib_msgs</depend>
   <build_depend>message_generation</build_depend>
   <build_export_depend>message_runtime</build_export_depend>

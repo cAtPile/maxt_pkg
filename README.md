@@ -1,5 +1,7 @@
 # Mavros eXtra function based on Behavior Tree
 
+QR 任务现可把选定 target 的首次有效地面经纬度异步发送给 UGV，使用公共 C++ AG_Client，不阻塞 BT；开关、日志与无飞行测试见 [QR→UGV 接入](docs/qr_target_ugv.md)。
+
 ## QR 停点扫描与投放点待命
 
 新增 `launch/qr_stop_survey.launch` 和 `config/mission/qr_stop_survey.xml`。

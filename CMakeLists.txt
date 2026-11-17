@@ -23,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   behaviortree_cpp_v3
   std_msgs
   uav_qr_mission
+  ag_client
 )
 
 ## System dependencies are found with CMake's conventions
@@ -98,7 +99,7 @@ find_package(gazebo REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
-  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission
+  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission ag_client
   DEPENDS Boost Eigen3 GeographicLib
 )
 
@@ -262,6 +263,11 @@ install(DIRECTORY launch config
 #############
 
 if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_executable(qr_ugv_dispatch_probe test/qr_ugv_dispatch_probe.cpp)
+  add_dependencies(qr_ugv_dispatch_probe ${catkin_EXPORTED_TARGETS})
+  target_link_libraries(qr_ugv_dispatch_probe ${catkin_LIBRARIES})
+  add_rostest(test/qr_ugv_dispatch.test DEPENDENCIES qr_ugv_dispatch_probe)
   catkin_add_gtest(test_qr_survey_grid test/unit/test_qr_survey_grid.cpp)
   if(TARGET test_qr_survey_grid)
     add_dependencies(test_qr_survey_grid ${catkin_EXPORTED_TARGETS})
