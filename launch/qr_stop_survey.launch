@@ -14,6 +14,7 @@
   <node pkg="maxt_pkg" type="maxt_test_node" name="maxt_test_node" output="screen">
     <rosparam command="load" file="$(arg nav_config)"/>
     <rosparam command="load" file="$(arg survey_config)"/>
+    <param name="nav/azimuth_hold_timeout" value="5.0" type="double"/>
     <param if="$(eval arg('survey_speed') != '')" name="nav/v_max" value="$(arg survey_speed)" type="double"/>
     <param if="$(eval arg('survey_acceleration') != '')" name="nav/a_max" value="$(arg survey_acceleration)" type="double"/>
     <param name="bt_xml_path" value="$(find maxt_pkg)/config/mission/qr_stop_survey.xml"/>

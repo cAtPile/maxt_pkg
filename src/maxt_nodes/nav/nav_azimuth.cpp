@@ -44,6 +44,7 @@ BT::NodeStatus NavAzimuth::onStart() {
     getInput("strict_reach", strict_reach_);
     if (strict_reach_ && !mav_.hasFreshNavigationData()) return BT::NodeStatus::FAILURE;
     nh_.param<double>("nav/hold_timeout", hold_timeout_, 3.0);
+    nh_.param<double>("nav/azimuth_hold_timeout", hold_timeout_, hold_timeout_);
     double n, t, a, bx, by, bz;
     if (!getInput("nav_n", n) || !getInput("nav_t", t) || !getInput("nav_a", a) ||
         !getInput("bp_x_raw", bx) || !getInput("bp_y_raw", by) ||
