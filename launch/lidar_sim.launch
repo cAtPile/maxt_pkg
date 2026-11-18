@@ -19,6 +19,8 @@
   <arg name="gcs_url" default="udp://@127.0.0.1:14550"/>
   <arg name="respawn_mavros" default="false"/>
   <arg name="publish_lidar_tf" default="true"/>
+  <arg name="mapping" default="false"/>
+  <arg name="rviz" default="false"/>
 
   <env name="GAZEBO_MODEL_PATH" value="$(find maxt_pkg)/models:$(optenv GAZEBO_MODEL_PATH)"/>
   <include file="$(find px4)/launch/posix_sitl.launch">
@@ -46,4 +48,10 @@
   <!-- Must match the mounting pose in the lidar SDF. -->
   <node if="$(arg publish_lidar_tf)" pkg="tf2_ros" type="static_transform_publisher"
         name="lidar_static_tf" args="0 0 0.25 0 0 0 base_link lidar_link"/>
+  <group if="$(arg mapping)">
+    <param name="/mavros/local_position/tf/send" value="true"/>
+    <include file="$(find maxt_pkg)/launch/lidar_voxel_map.launch">
+      <arg name="rviz" value="$(arg rviz)"/>
+    </include>
+  </group>
 </launch>
