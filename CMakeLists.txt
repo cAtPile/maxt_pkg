@@ -23,7 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   behaviortree_cpp_v3
   std_msgs
   uav_qr_mission
-  ag_client
+  ag_uav_client
 )
 
 ## System dependencies are found with CMake's conventions
@@ -99,7 +99,7 @@ find_package(gazebo REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
-  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission ag_client
+  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission ag_uav_client
   DEPENDS Boost Eigen3 GeographicLib
 )
 
