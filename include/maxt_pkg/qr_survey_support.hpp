@@ -78,8 +78,8 @@ public:
                 ugv_dispatch_.observe(*message);
             });
     }
-    void beginUgvMission(const std::string& mission, const std::string& target) {
-        ugv_dispatch_.begin(mission, target);
+    void beginUgvMission(const uav_qr_mission::SetTask::Request& request) {
+        ugv_dispatch_.begin(request.mission_id, request.position_target_id, request.target_ids);
     }
     bool snapshot(const std::string& mission, uav_qr_mission::MissionResult& result) {
         std::lock_guard<std::mutex> lock(mutex_);

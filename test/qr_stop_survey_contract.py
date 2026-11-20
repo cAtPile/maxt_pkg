@@ -33,8 +33,8 @@ class FlightDouble:
         self.scenario = scenario
         roles_path = Path(__file__).resolve().parents[1]/'config/qr_stop_survey.yaml'
         roles = yaml.safe_load(roles_path.read_text())['qr_survey']
-        self.ordinary_ids = roles['ordinary_ids']
-        self.drop_id = roles['drop_target_id']
+        self.ordinary_ids = roles['report_id']
+        self.drop_id = roles['target_id']
         self.field_profile = scenario == 'field_5m'
         self.survey_height = 3. if self.field_profile else 5.
         self.drop_location = (1.,1.) if self.field_profile else (2.,10.)
@@ -292,7 +292,7 @@ def main():
     test_survey_path.write_text(yaml.safe_dump(survey_config))
     log = (log_dir/'launch.log').open('w')
     child = subprocess.Popen(['roslaunch','maxt_pkg','qr_stop_survey.launch',
-                              'start_qr_mission:=true','survey_speed:=50',
+                              'start_qr_mission:=true','start_report_sender:=true','survey_speed:=50',
                               'survey_acceleration:=100','nav_config:='+str(test_nav_path),
                               'survey_config:='+str(test_survey_path)],
                              stdout=log,stderr=subprocess.STDOUT,

@@ -91,7 +91,7 @@ rosservice type /ugv/qr_display/update
 小车服务应为 `uav_qr_mission/ReportQr`，不是任意旧服务；需先按二维码包的
 `docs/ugv_display_service.md` 适配并完成 FKIE 服务同步。
 
-### 地面视觉和屏幕验收
+### 旧展示服务的地面验收
 
 确保 maxt 飞行执行器没有运行，然后登记地面检查任务：
 
@@ -106,8 +106,7 @@ roslaunch uav_qr_mission qr_report_sender.launch service:=/ugv/qr_display/update
 小车应单条出现、批量更新、重复报告不增加重复行。另一个终端看 `/qr_report_sender/status`。
 每个码首次定位后会保存，移动码重测应换一个新的 mission_id。
 
-地面检查结束后停止这个单独启动的 sender，正式任务会自行启动一个；或正式启动时设置
-`start_report_sender:=false` 复用它。正式任务自动注册新的任务 ID，不需要手动重复注册。
+地面检查结束后停止这个旧服务 sender。正式任务自动注册新的任务 ID，并使用 [AG Client V2](qr_target_ugv.md) 上报。
 
 ## 分阶段试飞
 
@@ -153,8 +152,7 @@ C/D 项完整任务：
 ```bash
 roslaunch maxt_pkg qr_stop_survey.launch \
   survey_speed:=0.5 survey_acceleration:=0.5 \
-  start_qr_mission:=false \
-  display_service:=/ugv/qr_display/update
+  start_qr_mission:=false
 ```
 
 `start_qr_mission=false` 用于复用 qr_ground.launch 的任务节点。该任务同样从地面开始，

@@ -23,7 +23,6 @@ find_package(catkin REQUIRED COMPONENTS
   behaviortree_cpp_v3
   std_msgs
   uav_qr_mission
-  ag_uav_client
 )
 
 ## System dependencies are found with CMake's conventions
@@ -36,6 +35,7 @@ find_package(Threads REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GeographicLib REQUIRED geographiclib)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_package(gazebo REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -99,7 +99,7 @@ find_package(gazebo REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
-  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission ag_uav_client
+  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission
   DEPENDS Boost Eigen3 GeographicLib
 )
 
@@ -144,6 +144,7 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/capture_pose_node.cpp
   src/maxt_nodes/send_geo_pose_node.cpp
   src/maxt_nodes/qr_survey_setup.cpp
+  src/maxt_nodes/qr_ugv_dispatch.cpp
   src/maxt_nodes/qr_capture.cpp
   src/maxt_nodes/qr_finish.cpp
   src/maxt_nodes/qr_hold.cpp
@@ -191,11 +192,13 @@ add_executable(maxt_test_node nodes/maxt_test_node.cpp)
 add_dependencies(maxt_test_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
+target_include_directories(${PROJECT_NAME} PRIVATE ${JSONCPP_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME}
   ${GeographicLib_LIBRARIES}
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
+  ${JSONCPP_LIBRARIES}
 
 )
 
@@ -266,7 +269,7 @@ if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
   add_executable(qr_ugv_dispatch_probe test/qr_ugv_dispatch_probe.cpp)
   add_dependencies(qr_ugv_dispatch_probe ${catkin_EXPORTED_TARGETS})
-  target_link_libraries(qr_ugv_dispatch_probe ${catkin_LIBRARIES})
+  target_link_libraries(qr_ugv_dispatch_probe ${PROJECT_NAME} ${catkin_LIBRARIES})
   add_rostest(test/qr_ugv_dispatch.test DEPENDENCIES qr_ugv_dispatch_probe)
   catkin_add_gtest(test_qr_survey_grid test/unit/test_qr_survey_grid.cpp)
   if(TARGET test_qr_survey_grid)

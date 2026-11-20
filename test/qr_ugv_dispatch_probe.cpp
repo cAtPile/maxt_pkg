@@ -12,11 +12,14 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "qr_ugv_dispatch_probe");
     ros::NodeHandle nh("~");
     auto context = std::make_shared<maxt::QrSurveyContext>(nh);
+    uav_qr_mission::SetTask::Request request;
+    nh.getParam("qr_survey/target_id", request.position_target_id);
+    nh.getParam("qr_survey/report_id", request.target_ids);
+    request.target_ids.push_back(request.position_target_id);
     auto start = nh.subscribe<std_msgs::String>("begin", 1,
-        [context](const std_msgs::String::ConstPtr& message) {
-            const auto split = message->data.find('|');
-            if (split != std::string::npos)
-                context->beginUgvMission(message->data.substr(0, split), message->data.substr(split+1));
+        [context, request](const std_msgs::String::ConstPtr& message) mutable {
+            request.mission_id = message->data;
+            context->beginUgvMission(request);
         });
     auto heartbeat = nh.advertise<std_msgs::UInt64>("bt_ticks", 1);
     auto duration = nh.advertise<std_msgs::Float64>("bt_tick_seconds", 1);

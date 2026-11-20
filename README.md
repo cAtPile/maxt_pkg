@@ -1,6 +1,6 @@
 # Mavros eXtra function based on Behavior Tree
 
-QR 任务现可把选定 target 的首次有效地面经纬度异步发送给 UGV，使用公共 C++ AG_Client，不阻塞 BT；开关、日志与无飞行测试见 [QR→UGV 接入](docs/qr_target_ugv.md)。
+QR 任务通过 AG Client V2 把导航目标和两个展示点异步发送给 UGV。启动、配置和隔离测试见 [QR→UGV 接入](docs/qr_target_ugv.md)。
 
 ## QR 停点扫描与投放点待命
 
@@ -22,7 +22,7 @@ QR 任务现可把选定 target 的首次有效地面经纬度异步发送给 UG
 
 编辑 `config/qr_stop_survey.yaml`：
 
-- `ordinary_ids: [QR002, QR003]`，`drop_target_id: QR001`。
+- `report_id: [QR002, QR003]`，`target_id: QR001`。
 - 当前试飞区域 5×5 m，步长 1 m，共 36 个停点。以起飞结束时的位置为水平原点，方向采用 `nav/azimuth_angle`。
 - `survey_height`、`drop_height` 均以起飞点为高度基准，当前均为 3 m；在当前水平场地假设下作为离地高度。
 - 先连续满足低速、位置及倾角约束 `stable_seconds=0.4`，再延时 `settle_seconds=1.0`；期间扰动会重新计时。
@@ -64,14 +64,12 @@ source devel/setup.bash
 ```bash
 # 此命令启动任务执行器，飞控就绪且外部解锁后会执行飞行。
 roslaunch maxt_pkg qr_stop_survey.launch \
-  start_qr_mission:=false \
-  display_service:=/ugv/qr_display/update
+  start_qr_mission:=false
 ```
 
 仅当没有已有任务节点时使用 `start_qr_mission:=true`。默认扫描速度 2 m/s、加速度 1 m/s²，
 通过 `survey_speed`、`survey_acceleration` 调整；不修改其他任务共用的 nav.yaml。
-地面服务使用 `uav_qr_mission/ReportQr`，支持单条/批量记录，字段及重试合同见二维码包
-`docs/ugv_display_service.md`。上报在独立进程中执行，断线保留待发送结果，不阻塞飞行。
+上报前按 [QR→UGV 接入](docs/qr_target_ugv.md) 启动 V2 gateway，并从车端状态检查受理结果。
 
 ### 新 BT 节点
 

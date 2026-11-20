@@ -28,15 +28,17 @@ BT::NodeStatus QrSurveySetup::onStart() {
     params_.param("survey_height", survey_height_, 5.0);
     params_.param("drop_height", drop_height_, 5.0);
     auto& request = service_.request;
-    std::vector<std::string> ordinary;
-    params_.getParam("ordinary_ids", ordinary);
-    params_.param<std::string>("drop_target_id", request.position_target_id, "QR001");
-    std::set<std::string> unique(ordinary.begin(), ordinary.end());
+    std::vector<std::string> reports;
+    if (!params_.getParam("report_id", reports))
+        params_.getParam("ordinary_ids", reports);
+    if (!params_.getParam("target_id", request.position_target_id))
+        params_.param<std::string>("drop_target_id", request.position_target_id, "QR001");
+    std::set<std::string> unique(reports.begin(), reports.end());
     unique.insert(request.position_target_id);
-    if (ordinary.size() != 2 || unique.size() != 3 || unique.count("") ||
+    if (reports.size() != 2 || unique.size() != 3 || unique.count("") ||
         !std::isfinite(survey_height_) || survey_height_ <= 0 ||
         !std::isfinite(drop_height_) || drop_height_ <= 0) {
-        ROS_ERROR("QrSurveySetup: need two distinct ordinary codes, one distinct drop code, positive heights.");
+        ROS_ERROR("QrSurveySetup: report_id needs two distinct codes, target_id a third, and heights must be positive.");
         return BT::NodeStatus::FAILURE;
     }
     try {
@@ -47,7 +49,7 @@ BT::NodeStatus QrSurveySetup::onStart() {
         ROS_ERROR("QrSurveySetup: %s", e.what());
         return BT::NodeStatus::FAILURE;
     }
-    request.target_ids = ordinary;
+    request.target_ids = reports;
     request.target_ids.push_back(request.position_target_id);
     request.mission_id = "qr_survey_"+std::to_string(ros::WallTime::now().toNSec());
     request.capture_only = true;
@@ -79,7 +81,7 @@ BT::NodeStatus QrSurveySetup::onRunning() {
             return BT::NodeStatus::FAILURE;
         }
         accepted_ = true;
-        context_->beginUgvMission(service_.request.mission_id, service_.request.position_target_id);
+        context_->beginUgvMission(service_.request);
     }
     uav_qr_mission::MissionResult result;
     if (!context_->snapshot(service_.request.mission_id, result)) {

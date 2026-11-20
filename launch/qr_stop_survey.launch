@@ -3,7 +3,7 @@
   <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml"/>
   <arg name="survey_config" default="$(find maxt_pkg)/config/qr_stop_survey.yaml"/>
   <arg name="start_qr_mission" default="false"/>
-  <arg name="start_report_sender" default="true"/>
+  <arg name="start_report_sender" default="false"/>
   <arg name="display_service" default="/ugv/qr_display/update"/>
   <arg name="survey_speed" default=""/>
   <arg name="survey_acceleration" default=""/>

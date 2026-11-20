@@ -4,8 +4,8 @@ nav:
   v_max: 2          # survey speed limit, m/s
   a_max: 1          # survey acceleration limit, m/s^2
 qr_survey:
-  ordinary_ids: [QR002, QR003]
-  drop_target_id: QR001
+  report_id: [QR002, QR003]
+  target_id: QR001
   mission_namespace: /uav_qr_mission
   corner_x: 12.0      # signed opposite corner X; +forward / -backward
   corner_y: -8.0      # signed opposite corner Y; +left / -right

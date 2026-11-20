@@ -1,4 +1,4 @@
 <launch>
-  <!-- This suite creates only a fake UGV and the no-flight test probe. -->
+  <!-- The probe, V2 gateway and mock UGV run without flight hardware. -->
   <test test-name="qr_ugv_dispatch" pkg="maxt_pkg" type="test_qr_ugv_dispatch.py" time-limit="120" />
 </launch>
