@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   mavros
   mavros_msgs
   geometry_msgs
+  quadrotor_msgs
   sensor_msgs
   nav_msgs
   tf2
@@ -161,6 +162,7 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/re_heading.cpp
   src/maxt_nodes/nav/nav.cpp
   src/maxt_nodes/nav/nav_raw.cpp
+  src/maxt_nodes/nav/nav_avoide.cpp
   src/maxt_nodes/base_point_azimuth_fix.cpp
   src/maxt_nodes/nav/nav_azimuth.cpp
 )

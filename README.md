@@ -353,7 +353,19 @@ roslaunch maxt_pkg aruco_center.launch run_guidance:=true
 roslaunch maxt_pkg mission.launch bt_xml_path:="$(rospack find maxt_pkg)/config/mission/traverse_guidance_mission.xml" sim:=false run_uav:=true
 ```
 
-其他任务的顶层 XML 和专用 launch 已清理；`config/mission/subtree/` 仅保留主任务依赖的 4 个子树。
+#### 避障导航任务
+
+`config/mission/testAvoide/nav_avoide_mission.xml` 通过 `NavAvoide` 执行避障导航，到达目标后降落。导航超时也会执行降落，任务状态为失败。运行前在 XML 中按场景设置 MAVROS 本地坐标 `x`、`y`、`z`，并启动外部规划器。Primitive-Planner 可保留默认的 `/goal`、`/cloud` 和 `/position_cmd`，并传入 `odom:=/mavros/local_position/odom`。
+
+避障节点按点云采集时刻的 TF 将 `/lidar/points` 转到 MAVROS 本地坐标系，并以 `sensor_msgs/PointCloud2` 发布到 `/cloud`。默认仿真会发布 `map → base_link → lidar_link` 的 TF。复用外部仿真时，需要由该环境提供对应的 TF。
+
+```bash
+roslaunch maxt_pkg sim_nav_avoide.launch
+```
+
+该入口加载带激光雷达的 Iris 和 `obstacle_world.world`。传入 `run_mission:=false` 可只启动仿真，传入 `sim:=false` 可在已有仿真中只启动任务，传入 `gui:=false` 可关闭 Gazebo 图形界面。
+
+传入 `rviz:=true` 会同时启动激光雷达体素建图和 RViz。只需要建图时可传入 `mapping:=true`。
 
 ### 常用配置
 
