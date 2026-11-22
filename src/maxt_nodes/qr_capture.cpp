@@ -8,10 +8,13 @@ QrCapture::QrCapture(const std::string& name, const BT::NodeConfiguration& confi
     : MavActionNode(name, config, mav), params_(nh, "qr_survey"), context_(context) {}
 
 BT::PortsList QrCapture::providedPorts() {
-    return {BT::InputPort<std::string>("mission_id")};
+    return {BT::InputPort<std::string>("mission_id"),
+            BT::OutputPort<bool>("recover"),
+            BT::OutputPort<double>("recovery_latitude"), BT::OutputPort<double>("recovery_longitude")};
 }
 
 BT::NodeStatus QrCapture::onStart() {
+    if (config().output_ports.count("recover")) setOutput("recover", false);
     if (!mav_.hasFreshNavigationData() || !getInput("mission_id", service_.request.mission_id))
         return BT::NodeStatus::FAILURE;
     params_.param("settle_seconds", settle_, 1.0);
@@ -109,6 +112,25 @@ BT::NodeStatus QrCapture::onRunning() {
     if (!result.capture_success) {
         ROS_ERROR("QrCapture: capture failed: %s (capture_id=%s)",
                   result.capture_status.c_str(), result.capture_id.c_str());
+        // Only the matching exposure's missing-frame timeout permits recovery.
+        // Motion, positioning and mission transport failures retain the hold.
+        if (result.capture_status == "TIMEOUT_WAIT_FRAME" && config().output_ports.count("recover")) {
+            for (const auto& target : result.targets) {
+                const auto& p = target.position;
+                if (target.content != result.position_target_id || !target.is_drop_target ||
+                    !target.found || !target.position_valid || !target.revision ||
+                    p.header.frame_id != "wgs84" || p.header.stamp.isZero() ||
+                    p.header.stamp > ros::Time::now() ||
+                    !std::isfinite(p.latitude) || !std::isfinite(p.longitude) ||
+                    std::abs(p.latitude) > 90 || std::abs(p.longitude) > 180) continue;
+                setOutput("recovery_latitude", p.latitude);
+                setOutput("recovery_longitude", p.longitude);
+                setOutput("recover", true);
+                ROS_WARN("QrCapture: saved target %s available after exposure timed out.",
+                         target.content.c_str());
+                break;
+            }
+        }
     }
     return result.capture_success ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
 }

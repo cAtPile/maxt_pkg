@@ -1,7 +1,8 @@
 #pragma once
 
 #include <ros/ros.h>
-#include <std_msgs/String.h>
+#include <slicer_air_ground_msgs/V2Command.h>
+#include <slicer_air_ground_msgs/V2State.h>
 #include <uav_qr_mission/MissionResult.h>
 #include <mutex>
 #include <set>
@@ -18,7 +19,7 @@ public:
     void observe(const uav_qr_mission::MissionResult& result);
 
 private:
-    void onUgvState(const std_msgs::String::ConstPtr& message);
+    void onUgvState(const slicer_air_ground_msgs::V2State::ConstPtr& message);
 
     std::mutex mutex_;
     std::string mission_, target_;

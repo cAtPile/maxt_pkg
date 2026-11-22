@@ -17,15 +17,21 @@ import time
 from urllib.parse import urlparse
 
 import rospy
+import tf2_ros
 import yaml
 from geometry_msgs.msg import PoseStamped, TwistStamped, TransformStamped
 from mavros_msgs.msg import State, PositionTarget, GlobalPositionTarget, Mavlink, TimesyncStatus
-from sensor_msgs.msg import Imu, NavSatFix
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import NavSatFix
+from maxt_pkg.srv import PlayAudio, PlayAudioResponse
 from std_msgs.msg import Float64, String
 from uav_odin_qr.msg import Detection, DetectionArray, QrTransform, QrTransformArray
 from uav_qr_mission.msg import MissionResult
 from uav_qr_mission.srv import ReportQr, ReportQrResponse
 from uav_qr_mission.geolocation import geodetic_to_ecef, offset_wgs84
+
+
+CAMERA_SCENARIOS = ('camera_failure_with_target', 'camera_failure_without_target')
 
 
 class FlightDouble:
@@ -51,6 +57,10 @@ class FlightDouble:
         self.latest = None
         self.active = []
         self.global_targets = []
+        self.camera_down = False
+        self.audio_requests = []
+        self.failure_hold_time = None
+        self.first_global_time = None
         self.received_reports = []
         self.display = {}
         self.outside_window_violation = False
@@ -67,11 +77,17 @@ class FlightDouble:
                            ('/mavros/local_position/velocity_local',TwistStamped),
                            ('/mavros/global_position/global',NavSatFix),
                            ('/mavros/global_position/raw/fix',NavSatFix),
-                           ('/mavros/global_position/rel_alt',Float64),('/mavros/imu/data',Imu),
+                           ('/mavros/global_position/rel_alt',Float64),
+                           ('/odin1/odometry_highfreq',Odometry),
                            ('/mavlink/from',Mavlink),('/mavros/timesync_status',TimesyncStatus),
                            ('/uav_odin_qr/detections',DetectionArray),
                            ('/uav_odin_qr/tf_targets',QrTransformArray)]:
             self.publishers[topic] = rospy.Publisher(topic,cls,queue_size=10)
+        self.odin_tf = tf2_ros.StaticTransformBroadcaster()
+        imu_to_camera = TransformStamped(child_frame_id='camera_0')
+        imu_to_camera.header.frame_id = 'imu'
+        imu_to_camera.transform.rotation.w = 1.
+        self.odin_tf.sendTransform(imu_to_camera)
         self.subs = [
             rospy.Subscriber('/mavros/setpoint_raw/local',PositionTarget,self.local_command),
             rospy.Subscriber('/mavros/setpoint_position/local',PoseStamped,self.pose_command),
@@ -79,6 +95,7 @@ class FlightDouble:
             rospy.Subscriber('/uav_qr_mission/result',MissionResult,self.result),
             rospy.Subscriber('/maxt_test_node/mission_status',String,self.status)]
         self.service = rospy.Service('/ugv/qr_display/update',ReportQr,self.report)
+        self.audio_service = rospy.Service('/audio/play', PlayAudio, self.play_audio)
         self.thread = threading.Thread(target=self.run,daemon=True)
         self.thread.start()
 
@@ -99,6 +116,8 @@ class FlightDouble:
         with self.lock:
             self.command = ('global',message)
             self.global_targets.append(message)
+            if self.first_global_time is None:
+                self.first_global_time = time.monotonic()
 
     def result(self,message):
         with self.lock:
@@ -113,10 +132,17 @@ class FlightDouble:
     def status(self,message):
         with self.lock:
             self.active = json.loads(message.data).get('active',[])
+            if self.failure_hold_time is None and any(n.get('name') == 'SurveyFailureHold' for n in self.active):
+                self.failure_hold_time = time.monotonic()
             if self.wait_arm_seen is None and any(n.get('name') == 'Takeoff' for n in self.active):
                 self.wait_arm_seen = time.monotonic()
             if self.first_navigation_time is None and any(n.get('name') == 'ToCaptureStop' for n in self.active):
                 self.first_navigation_time = time.monotonic()
+
+    def play_audio(self, request):
+        with self.lock:
+            self.audio_requests.append(request.filename)
+        return PlayAudioResponse(True, 'TEST')
 
     def report(self,request):
         with self.lock:
@@ -216,11 +242,13 @@ class FlightDouble:
             enu = [a+b for a,b in zip(self.position,offset)]
             fix.latitude,fix.longitude,fix.altitude = offset_wgs84(*self.origin,enu)
             self.publishers[topic].publish(fix)
-        imu = Imu()
-        imu.header.stamp = stamp
-        imu.orientation.z = math.sin(yaw/2)
-        imu.orientation.w = math.cos(yaw/2)
-        self.publishers['/mavros/imu/data'].publish(imu)
+        if not self.camera_down:
+            for offset in (-.002, .002):
+                odom = Odometry(child_frame_id='imu')
+                odom.header.frame_id = 'odom'
+                odom.header.stamp = stamp + rospy.Duration.from_sec(offset)
+                odom.pose.pose.orientation = pose.pose.orientation
+                self.publishers['/odin1/odometry_highfreq'].publish(odom)
         detections,targets = DetectionArray(),QrTransformArray()
         detections.header.stamp = targets.header.stamp = stamp
         # The scene depends on physical position, never on an asynchronously
@@ -232,6 +260,11 @@ class FlightDouble:
         elif math.hypot(x,y) < radius: codes = self.ordinary_ids[:1]
         elif math.hypot(x,y-second_y) < radius: codes = self.ordinary_ids[1:]+[self.drop_id]
         else: codes = []
+        if self.scenario in CAMERA_SCENARIOS and z > self.survey_height / 2:
+            cutoff = 19. if self.scenario == 'camera_failure_with_target' else 9.
+            self.camera_down = self.camera_down or y >= cutoff
+        if self.camera_down:
+            return  # ODIN stops. The separate FCU and RTK streams continue.
         if self.signed_heading: codes = []
         if self.scenario == 'missing_drop': codes = [c for c in codes if c != self.drop_id]
         locations = {self.ordinary_ids[0]:(0,0), self.ordinary_ids[1]:(0,second_y),
@@ -260,7 +293,8 @@ class FlightDouble:
 def main():
     args = argparse.ArgumentParser()
     args.add_argument('--scenario',choices=['happy','navigation_failure','missing_drop',
-                                          'takeoff_overshoot','takeoff_timeout','field_5m','signed_heading'],default='happy')
+                                          'takeoff_overshoot','takeoff_timeout','field_5m','signed_heading',
+                                          *CAMERA_SCENARIOS],default='happy')
     args.add_argument('--log-dir',required=True)
     options = args.parse_args(rospy.myargv()[1:])
     uri = urlparse(os.environ.get('ROS_MASTER_URI',''))
@@ -275,7 +309,7 @@ def main():
     nav_config = yaml.safe_load((Path(__file__).resolve().parents[1]/'config/nav.yaml').read_text())
     nav_config['takeoff']['ascent_speed'] = ascent_speed
     if options.scenario == 'takeoff_timeout': nav_config['takeoff']['timeout'] = .8
-    nav_config['nav']['hold_timeout'] = .7
+    nav_config['nav'].update(hold_timeout=.7, azimuth_angle=0.)
     test_nav_path = log_dir/'nav-test.yaml'
     test_nav_path.write_text(yaml.safe_dump(nav_config))
     # Keep the original regression scenarios independent of deployment defaults.
@@ -302,6 +336,8 @@ def main():
         deadline = time.monotonic()+(180 if fixture.field_profile else 100)
         success_scenario = options.scenario in ('happy','takeoff_overshoot','field_5m')
         final_name = 'ReadyForDrop' if success_scenario else 'SurveyFailureHold'
+        if options.scenario == 'camera_failure_with_target':
+            final_name = 'RecoveryTargetHold'
         while time.monotonic() < deadline:
             with fixture.lock:
                 if fixture.failure: raise fixture.failure
@@ -324,7 +360,23 @@ def main():
                 grid=[(x,y) for i,x in enumerate([0,2,4,5])
                       for y in ([0,-2,-4,-5] if i%2==0 else [-5,-4,-2,0])]
                 expected=[(12-y,-7+x) for x,y in grid]
-            if options.scenario == 'takeoff_timeout':
+            if options.scenario in CAMERA_SCENARIOS:
+                has_target = options.scenario == 'camera_failure_with_target'
+                assert fixture.latest.capture_status == 'TIMEOUT_WAIT_FRAME'
+                assert len(fixture.captures) == (3 if has_target else 2), fixture.capture_positions
+                assert fixture.audio_requests.count('cn-fault.wav') == 1, fixture.audio_requests
+                assert fixture.failure_hold_time is not None
+                target = next(t for t in fixture.latest.targets if t.is_drop_target)
+                assert target.position_valid is has_target
+                assert bool(fixture.global_targets) is has_target
+                if has_target:
+                    assert fixture.first_global_time - fixture.failure_hold_time >= .85
+                    assert math.hypot(fixture.position[0]-fixture.drop_location[0],
+                                      fixture.position[1]-fixture.drop_location[1]) < .15
+                else:
+                    assert fixture.command[0] == 'raw'
+                    assert abs(fixture.position[1] - 10.) < .15
+            elif options.scenario == 'takeoff_timeout':
                 assert not fixture.captures and not fixture.global_targets
                 assert fixture.first_navigation_time is None
                 kind,last_command = fixture.command
@@ -369,7 +421,9 @@ def main():
                            batch_sizes=[len(r.targets) for r in fixture.received_reports],
                            targets=[dict(content=t.content,found=t.found,valid=t.position_valid,status=t.status)
                                     for t in fixture.latest.targets],
-                           final_position=fixture.position,active=fixture.active)
+                           final_position=fixture.position,active=fixture.active,
+                           global_setpoints=len(fixture.global_targets),
+                           audio_requests=fixture.audio_requests)
             if options.scenario == 'takeoff_overshoot':
                 summary['takeoff_hold_before_navigation_s'] = fixture.first_navigation_time-fixture.takeoff_hold_time
         (log_dir/'summary.json').write_text(json.dumps(summary,indent=2))

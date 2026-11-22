@@ -76,7 +76,7 @@ public:
     bool mavInit(ros::NodeHandle& nh);
 
     // 尽力提交播报，不等待音频服务或播放结果。
-    void playAudio(const std::string& filename) { audio_.play(filename); }
+    void playAudio(const std::string& filename, bool priority = false) { audio_.play(filename, priority); }
 
     /**
      * @brief 标定：根据参照点计算 SLAM 坐标系偏航偏移

@@ -62,10 +62,14 @@ AudioCaller::~AudioCaller() {
     state_->wake.notify_one();
 }
 
-void AudioCaller::play(std::string filename) {
+void AudioCaller::play(std::string filename, bool priority) {
     if (filename.empty() || state_->stopped.load()) return;
-    std::unique_lock<std::mutex> lock(state_->mutex, std::try_to_lock);
-    if (!lock.owns_lock() || state_->busy || !state_->pending.empty()) return;
+    std::unique_lock<std::mutex> lock(state_->mutex, std::defer_lock);
+    if (priority) {
+        lock.lock();  // The worker releases this mutex before every service call.
+    } else if (!lock.try_lock() || state_->busy || !state_->pending.empty()) {
+        return;
+    }
     state_->pending = std::move(filename);
     state_->wake.notify_one();
 }

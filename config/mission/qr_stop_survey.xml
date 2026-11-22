@@ -1,7 +1,6 @@
 <root main_tree_to_execute="QrStopSurvey">
   <BehaviorTree ID="QrStopSurvey">
-    <!-- Failure transfers to a persistent fixed hold, not process termination.
-         No stage ends early just because all three codes have been found. -->
+    <!-- The full grid runs unless a survey step fails. -->
     <Fallback>
       <Sequence>
         <ConnectCheck />
@@ -19,7 +18,8 @@
             <NavAzimuth name="ToCaptureStop" nav_n="{stop_n}" nav_t="{stop_t}" nav_a="0"
                         bp_x_raw="{base_x}" bp_y_raw="{base_y}" bp_z_raw="{base_z}"
                         azimuth_rad="{survey_yaw}" timeout="90" strict_reach="true" />
-            <QrCapture mission_id="{qr_mission_id}" />
+            <QrCapture mission_id="{qr_mission_id}" recover="{qr_recover}"
+                       recovery_latitude="{recovery_lat}" recovery_longitude="{recovery_lon}" />
           </Sequence>
         </Repeat>
         <QrFinish mission_id="{qr_mission_id}" drop_target_id="{drop_id}"
@@ -28,7 +28,17 @@
                 target_alt="{drop_height}" timeout="90" strict_reach="true" />
         <QrHold name="ReadyForDrop" />
       </Sequence>
-      <QrHold name="SurveyFailureHold" />
+      <Sequence>
+        <PlayAudio filename="cn-fault.wav" priority="true" />
+        <ForceSuccess>
+          <Sequence>
+            <QrHold name="SurveyFailureHold" recover="{qr_recover}" />
+            <NavGeo name="ToSavedDropTarget" latitude="{recovery_lat}" longitude="{recovery_lon}"
+                    target_alt="{drop_height}" timeout="90" strict_reach="true" />
+          </Sequence>
+        </ForceSuccess>
+        <QrHold name="RecoveryTargetHold" />
+      </Sequence>
     </Fallback>
   </BehaviorTree>
 </root>

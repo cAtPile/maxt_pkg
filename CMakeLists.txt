@@ -23,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   behaviortree_cpp_v3
   std_msgs
   uav_qr_mission
+  slicer_air_ground_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -35,7 +36,6 @@ find_package(Threads REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GeographicLib REQUIRED geographiclib)
-pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_package(gazebo REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -99,7 +99,7 @@ find_package(gazebo REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
-  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission
+  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission slicer_air_ground_msgs
   DEPENDS Boost Eigen3 GeographicLib
 )
 
@@ -192,14 +192,11 @@ add_executable(maxt_test_node nodes/maxt_test_node.cpp)
 add_dependencies(maxt_test_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_include_directories(${PROJECT_NAME} PRIVATE ${JSONCPP_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME}
   ${GeographicLib_LIBRARIES}
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
-  ${JSONCPP_LIBRARIES}
-
 )
 
 target_link_libraries(maxt_test_node

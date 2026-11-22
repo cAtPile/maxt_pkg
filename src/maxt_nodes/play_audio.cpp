@@ -7,7 +7,8 @@ PlayAudioNode::PlayAudioNode(const std::string& name,
     : BT::SyncActionNode(name, config), mav_(mav) {}
 
 BT::PortsList PlayAudioNode::providedPorts() {
-    return {BT::InputPort<std::string>("filename", "WAV filename to play")};
+    return {BT::InputPort<std::string>("filename", "WAV filename to play"),
+            BT::InputPort<bool>("priority", false, "Queue even if another notification is in flight")};
 }
 
 BT::NodeStatus PlayAudioNode::tick() {
@@ -16,7 +17,9 @@ BT::NodeStatus PlayAudioNode::tick() {
         ROS_ERROR("PlayAudioNode: Missing filename input");
         return BT::NodeStatus::FAILURE;
     }
-    mav_.playAudio(filename);
+    bool priority = false;
+    getInput("priority", priority);
+    mav_.playAudio(filename, priority);
     return BT::NodeStatus::SUCCESS;
 }
 

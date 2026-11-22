@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 """Exercise the maxt QR adapter through the real V2 gateway with a fake UGV."""
-import json
 import os
+from io import BytesIO
 from pathlib import Path
 import signal
 import subprocess
 import time
 import unittest
 
+import cv2
+import numpy as np
 import rospy
 import rostest
 import yaml
+from sensor_msgs.msg import CompressedImage
+from slicer_air_ground_msgs.msg import V2Command, V2State
 from std_msgs.msg import String, UInt64
 from uav_qr_mission.msg import MissionResult, QrTargetResult
 from ag_uav_client.v2 import COMMAND, INTENT, STATE, UAV_STATE, validate
+from ag_uav_client.v2_ros import command_from_ros
 
 
 def until(check, timeout=5.):
@@ -38,13 +43,13 @@ class DispatchTests(unittest.TestCase):
         self.state_offset = 0.
         self.state_reason = None
         self.outputs = [
-            rospy.Publisher(self.ns + '/state', String, queue_size=1, latch=True),
+            rospy.Publisher(self.ns + '/state', V2State, queue_size=1, latch=True),
             rospy.Publisher(self.ns + '/qr/result', MissionResult, queue_size=1),
             rospy.Publisher(self.ns + '/probe/begin', String, queue_size=1),
         ]
         self.state_pub, self.qr_pub, self.begin_pub = self.outputs
         self.inputs = [
-            rospy.Subscriber(self.ns + '/command', String, self.commands.append, queue_size=16),
+            rospy.Subscriber(self.ns + '/command', V2Command, self.commands.append, queue_size=16),
             rospy.Subscriber(self.ns + '/probe/bt_ticks', UInt64, self.ticks.append, queue_size=100),
         ]
         self.addCleanup(self.cleanup)
@@ -81,9 +86,9 @@ class DispatchTests(unittest.TestCase):
     def publish(self, _):
         now = rospy.Time.now()
         if self.state_offset is not None:
-            self.state_pub.publish(String(data=json.dumps(
-                dict(version=2, vehicle_id='ugv', updated_at=now.to_sec() + self.state_offset,
-                     reason=self.state_reason))))
+            self.state_pub.publish(V2State(version=2, vehicle_id='ugv',
+                                           updated_at=now.to_sec() + self.state_offset,
+                                           reason=self.state_reason or ''))
         result = self.latest
         if result is not None:
             result.header.stamp = now
@@ -103,29 +108,44 @@ class DispatchTests(unittest.TestCase):
         result.position.altitude = 82.5
         return result
 
-    def result(self, *records, mission='survey'):
-        self.latest = MissionResult(mission_id=mission, position_target_id=self.target, targets=list(records))
+    def result(self, *records, mission='survey', images=()):
+        self.latest = MissionResult(mission_id=mission, position_target_id=self.target,
+                                    targets=list(records), target_images=list(images))
 
     def received(self):
-        return [validate(json.loads(message.data)) for message in self.commands]
+        return [validate(command_from_ros(message)) for message in self.commands]
 
     def test_roles_measurements_and_dedup(self):
         self.start_gateway()
         self.begin()
         first = self.record(self.report_b)
-        self.result(first)
+        drop = self.record(self.target)
+        images = []
+        for record in (first, drop):
+            ok, jpeg = cv2.imencode('.jpg', np.full((32, 32), 124, dtype=np.uint8))
+            self.assertTrue(ok)
+            image = CompressedImage(format='jpeg', data=jpeg.tobytes())
+            image.header.stamp = record.position.header.stamp
+            image.header.frame_id = 'odin_optical_frame'
+            images.append(image)
+        self.result(first, images=images[:1])
         until(lambda: len(self.commands) == 1)
-        self.result(first, self.record(self.target), self.record(self.report_a))
+        self.result(first, drop, self.record(self.report_a), images=images + [CompressedImage()])
         until(lambda: len(self.commands) == 3)
         time.sleep(.15)
         sent = self.received()
         self.assertEqual([command['op'] for command in sent], ['REPORT_QR', 'SET_TARGET', 'REPORT_QR'])
         self.assertEqual([command['task_id'] for command in sent], ['survey'] * 3)
         self.assertEqual([sent[0]['qr']['qr_id'], sent[2]['qr']['qr_id']], [self.report_b, self.report_a])
-        self.assertEqual(sent[1]['target'], dict(lat=31.123456789, lon=118.987654321))
+        self.assertEqual(sent[1]['target'], dict(lat=31.123456789, lon=118.987654321, image_id=self.target))
         self.assertEqual(sent[0]['qr'], dict(qr_id=self.report_b, lat=31.123456789, lon=118.987654321,
                                              measured_at=first.position.header.stamp.to_sec(),
-                                             revision=1, altitude_m=82.5))
+                                             revision=1, altitude_m=82.5, image_id=self.report_b))
+        for command, image in zip(sent, images):
+            expected, actual = BytesIO(), BytesIO()
+            image.serialize(expected)
+            command['image'].serialize(actual)
+            self.assertEqual(expected.getvalue(), actual.getvalue())
         self.assertTrue(all(message._connection_header.get('latching') == '0' for message in self.commands))
 
     def test_ignores_unregistered_wrong_role_and_invalid_results(self):

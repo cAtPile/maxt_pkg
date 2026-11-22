@@ -21,8 +21,8 @@ public:
     AudioCaller(AudioCaller&&) = delete;
     AudioCaller& operator=(AudioCaller&&) = delete;
 
-    // Returns immediately after submission; drops requests if busy or contended.
-    void play(std::string filename);
+    // Priority requests replace any pending notification and run after an in-flight call.
+    void play(std::string filename, bool priority = false);
 
 private:
     struct State;

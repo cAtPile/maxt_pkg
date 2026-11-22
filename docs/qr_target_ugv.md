@@ -8,7 +8,7 @@ qr_survey:
   report_id: [QR002, QR003]
 ```
 
-`target_id` 的首个有效地面 WGS84 坐标提交为 `SET_TARGET`。`report_id` 的两个码各自提交一次 `REPORT_QR`，携带二维码原文、经纬度、采样时间、位置版本和可用的椭球高。展示点可以先于导航目标送达。三条消息共用本轮巡检 ID 作为 V2 `task_id`。未注册的码不发送。
+`target_id` 的首个有效地面 WGS84 坐标提交为 `SET_TARGET`。`report_id` 的两个码各自提交一次 `REPORT_QR`，携带二维码原文、经纬度、采样时间、位置版本和可用的椭球高。展示点可以先于导航目标送达。两种 V2 命令都携带同一测量帧的二维码居中 JPEG（2 倍放大），车端从本地 `/air_ground/v2/qr_capture` 接收已受理的图片。三条消息共用本轮巡检 ID 作为 V2 `task_id`。未注册的码不发送。
 
 ## 启动与检查
 
@@ -33,3 +33,8 @@ rostopic echo -n 1 /air_ground/v2/state
 ## 隔离验证
 
 在独立 loopback ROS master 上运行 `rostest maxt_pkg qr_ugv_dispatch.test`。测试使用真实 maxt QR 回调与 V2 gateway、合成二维码结果和模拟 UGV，不启动飞控或底盘。
+
+
+## 巡检失败后的动作
+
+巡检失败时优先播放 `cn-fault.wav`，并在 OFFBOARD 下发送固定位置设点。若本次曝光超时且一直未收到配对图像（`TIMEOUT_WAIT_FRAME`），已有本轮确认的投放目标坐标，且飞控仍已解锁、处于 OFFBOARD 且导航数据新鲜，定点保持 1 秒后走 `NavGeo` 直达该目标，再进入等待。缺少任一条件时持续保持。到目标途中导航失败也会转回定点保持。

@@ -1,7 +1,5 @@
 #include <maxt_pkg/qr_ugv_dispatch.hpp>
-#include <json/json.h>
 #include <cmath>
-#include <memory>
 
 namespace maxt {
 
@@ -10,7 +8,7 @@ QrUgvDispatch::QrUgvDispatch(ros::NodeHandle nh) {
     nh.param("ugv_dispatch/enabled", enabled, true);
     if (!enabled) return;
     nh.param("ugv_dispatch/state_max_age", state_max_age_, state_max_age_);
-    intent_ = nh.advertise<std_msgs::String>("/air_ground/v2/uav_intent", 8, false);
+    intent_ = nh.advertise<slicer_air_ground_msgs::V2Command>("/air_ground/v2/uav_intent", 8, false);
     state_ = nh.subscribe("/air_ground/v2/state", 1, &QrUgvDispatch::onUgvState, this);
 }
 
@@ -24,16 +22,11 @@ void QrUgvDispatch::begin(const std::string& mission, const std::string& target,
     submitted_.clear();
 }
 
-void QrUgvDispatch::onUgvState(const std_msgs::String::ConstPtr& message) {
-    Json::CharReaderBuilder builder;
-    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-    Json::Value snapshot;
-    const auto& data = message->data;
-    const bool ready = reader->parse(data.data(), data.data() + data.size(), &snapshot, nullptr) &&
-        snapshot.isObject() && snapshot["version"] == 2 && snapshot["vehicle_id"] == "ugv" &&
-        snapshot["reason"] != "MONITOR_ONLY" && snapshot["updated_at"].isNumeric();
+void QrUgvDispatch::onUgvState(const slicer_air_ground_msgs::V2State::ConstPtr& message) {
+    const bool ready = message->version == 2 && message->vehicle_id == "ugv" &&
+        message->reason != "MONITOR_ONLY";
     std::lock_guard<std::mutex> lock(mutex_);
-    state_stamp_ = ready ? snapshot["updated_at"].asDouble() : 0.0;
+    state_stamp_ = ready ? message->updated_at : 0.0;
     state_received_ = ros::SteadyTime::now();
 }
 
@@ -47,7 +40,8 @@ void QrUgvDispatch::observe(const uav_qr_mission::MissionResult& result) {
     if (result.header.stamp.isZero() || result.header.stamp > now ||
         (now - result.header.stamp).toSec() > 2.0) return;
 
-    for (const auto& record : result.targets) {
+    for (std::size_t i = 0; i < result.targets.size(); ++i) {
+        const auto& record = result.targets[i];
         const bool is_target = record.content == target_;
         if (!ids_.count(record.content) || submitted_.count(record.content) ||
             is_target != record.is_drop_target || !record.found ||
@@ -70,26 +64,27 @@ void QrUgvDispatch::observe(const uav_qr_mission::MissionResult& result) {
             return;
         }
 
-        Json::Value point;
-        point["lat"] = p.latitude;
-        point["lon"] = p.longitude;
-        Json::Value command;
+        slicer_air_ground_msgs::V2Command message;
         const char* op = is_target ? "SET_TARGET" : "REPORT_QR";
-        command["op"] = op;
-        command["task_id"] = mission_;
+        message.op = op;
+        message.task_id = mission_;
+        if (result.target_images.size() == result.targets.size()) message.image = result.target_images[i];
+        const auto image_id = message.image.data.empty() ? std::string() : record.content;
         if (is_target) {
-            command["target"] = point;
+            message.has_target = true;
+            message.target.lat = p.latitude;
+            message.target.lon = p.longitude;
+            message.target.image_id = image_id;
         } else {
-            point["qr_id"] = record.content;
-            point["measured_at"] = p.header.stamp.toSec();
-            point["revision"] = Json::UInt(record.revision);
-            if (std::isfinite(p.altitude)) point["altitude_m"] = p.altitude;
-            command["qr"] = point;
+            message.qr.lat = p.latitude;
+            message.qr.lon = p.longitude;
+            message.qr.qr_id = record.content;
+            message.qr.image_id = image_id;
+            message.qr.measured_at = p.header.stamp.toSec();
+            message.qr.revision = record.revision;
+            message.qr.has_altitude = std::isfinite(p.altitude);
+            if (message.qr.has_altitude) message.qr.altitude_m = p.altitude;
         }
-        Json::StreamWriterBuilder writer;
-        writer["indentation"] = "";
-        std_msgs::String message;
-        message.data = Json::writeString(writer, command);
         intent_.publish(message);
         submitted_.insert(record.content);
         ROS_INFO("[AG_Client] 已向 V2 gateway 提交 %s [%s] %.9f, %.9f (task_id=%s)",
