@@ -17,7 +17,9 @@ find_package(catkin REQUIRED COMPONENTS
   mavros
   mavros_msgs
   geometry_msgs
+  quadrotor_msgs
   sensor_msgs
+  nav_msgs
   tf2
   tf2_ros
   behaviortree_cpp_v3
@@ -160,6 +162,7 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/re_heading.cpp
   src/maxt_nodes/nav/nav.cpp
   src/maxt_nodes/nav/nav_raw.cpp
+  src/maxt_nodes/nav/nav_avoide.cpp
   src/maxt_nodes/base_point_azimuth_fix.cpp
   src/maxt_nodes/nav/nav_azimuth.cpp
 )
@@ -226,7 +229,13 @@ install(DIRECTORY worlds models
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-install(TARGETS maxt_test_node
+add_executable(lidar_cloud_adapter nodes/lidar_cloud_adapter.cpp)
+target_link_libraries(lidar_cloud_adapter ${catkin_LIBRARIES})
+
+add_executable(lidar_grid nodes/lidar_grid.cpp)
+target_link_libraries(lidar_grid ${catkin_LIBRARIES})
+
+install(TARGETS maxt_test_node lidar_grid lidar_cloud_adapter
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -248,7 +257,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  FILES_MATCHING PATTERN "*.launch" PATTERN "*.xml" PATTERN "*.yaml"
+  FILES_MATCHING PATTERN "*.launch" PATTERN "*.xml" PATTERN "*.yaml" PATTERN "*.rviz"
   PATTERN "*~" EXCLUDE
 )
 

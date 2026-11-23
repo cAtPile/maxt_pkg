@@ -1,0 +1,33 @@
+<launch>
+    <arg name="sim" default="true" />
+    <arg name="gui" default="true" />
+    <arg name="rviz" default="false" />
+    <arg name="mapping" default="$(arg rviz)" />
+    <arg name="run_mission" default="true" />
+    <arg name="run_planner" default="$(arg run_mission)" />
+    <arg name="world" default="$(find maxt_pkg)/worlds/obstacle_world.world" />
+    <arg name="bt_xml_path" default="$(find maxt_pkg)/config/mission/testAvoide/nav_avoide_mission.xml" />
+    <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml" />
+
+    <include if="$(arg sim)" file="$(find maxt_pkg)/launch/lidar_sim.launch">
+        <arg name="world" value="$(arg world)" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="mapping" value="$(arg mapping)" />
+        <arg name="rviz" value="$(arg rviz)" />
+    </include>
+
+    <param if="$(arg sim)" name="/mavros/local_position/tf/send" value="true" />
+
+    <group if="$(arg run_planner)">
+        <include file="$(find diff_planner)/launch/planner.launch">
+            <arg name="odom_topic" value="/diff_planner/odom" />
+        </include>
+        <param name="/planner/grid_map/frame_id" value="map" />
+    </group>
+
+    <include if="$(arg run_mission)" file="$(find maxt_pkg)/launch/mission.launch">
+        <arg name="sim" value="false" />
+        <arg name="bt_xml_path" value="$(arg bt_xml_path)" />
+        <arg name="nav_config" value="$(arg nav_config)" />
+    </include>
+</launch>

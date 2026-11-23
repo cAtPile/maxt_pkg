@@ -17,6 +17,7 @@
 
 #include <maxt_pkg/maxt_nodes/nav/nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/nav/nav_raw_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_avoide_node.hpp>
 #include <maxt_pkg/maxt_nodes/re_heading_node.hpp>
 #include <maxt_pkg/maxt_nodes/nav/nav_geo_node.hpp>
 #include <maxt_pkg/maxt_nodes/base_point_azimuth_fix_node.hpp>
@@ -91,6 +92,11 @@ void MaxtCore::registerNodes() {
     factory_.registerBuilder<NavNode>("Nav",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<NavNode>(name, config, *mav_, nh_);
+        });
+
+    factory_.registerBuilder<NavAvoideNode>("NavAvoide",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<NavAvoideNode>(name, config, *mav_, nh_);
         });
 
     factory_.registerBuilder<NavRawNode>("NavRaw",

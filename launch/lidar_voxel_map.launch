@@ -1,0 +1,24 @@
+<launch>
+  <arg name="points" default="/lidar/points"/>
+  <arg name="cloud_type" default="PointCloud"/>
+  <arg name="map_frame" default="map"/>
+  <arg name="resolution" default="0.2"/>
+  <arg name="max_range" default="50.0"/>
+  <arg name="rviz" default="false"/>
+
+  <node if="$(eval arg('cloud_type') == 'PointCloud')" pkg="maxt_pkg"
+        type="lidar_cloud_adapter" name="lidar_cloud_adapter">
+    <remap from="points" to="$(arg points)"/>
+    <remap from="cloud_out" to="/lidar/voxel_map_input"/>
+  </node>
+  <node pkg="octomap_server" type="octomap_server_node" name="voxel_mapper" output="screen">
+    <remap from="cloud_in" to="$(eval {'PointCloud': '/lidar/voxel_map_input', 'PointCloud2': arg('points')}[arg('cloud_type')])"/>
+    <param name="frame_id" value="$(arg map_frame)"/>
+    <param name="resolution" value="$(arg resolution)"/>
+    <param name="sensor_model/max_range" value="$(arg max_range)"/>
+    <param name="height_map" value="true"/>
+    <param name="latch" value="true"/>
+  </node>
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="voxel_rviz"
+        args="-d $(find maxt_pkg)/config/lidar_voxels.rviz -f $(arg map_frame)"/>
+</launch>

@@ -1,0 +1,21 @@
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Fixed Frame: map
+    Background Color: 36; 40; 46
+  Displays:
+    - Class: rviz/Grid
+      Name: Ground grid
+      Enabled: true
+      Plane: XY
+      Cell Size: 1
+    - Class: rviz/MarkerArray
+      Name: Occupied voxels
+      Enabled: true
+      Marker Topic: /occupied_cells_vis_array
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 28
+      Pitch: 0.55
+      Yaw: 0.8

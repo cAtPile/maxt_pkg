@@ -1,0 +1,14 @@
+<launch>
+  <arg name="points" default="/lidar/points"/>
+  <arg name="cloud_type" default="PointCloud"/>
+  <arg name="map_frame" default="map"/>
+  <arg name="min_z" default="0.2"/>
+  <arg name="max_z" default="3.0"/>
+  <node pkg="maxt_pkg" type="lidar_grid" name="lidar_grid" output="screen">
+    <remap from="points" to="$(arg points)"/>
+    <param name="cloud_type" value="$(arg cloud_type)"/>
+    <param name="map_frame" value="$(arg map_frame)"/>
+    <param name="min_z" value="$(arg min_z)"/>
+    <param name="max_z" value="$(arg max_z)"/>
+  </node>
+</launch>

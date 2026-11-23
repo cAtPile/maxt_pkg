@@ -1,0 +1,17 @@
+<root main_tree_to_execute="NavAvoideMission">
+    <BehaviorTree ID="NavAvoideMission">
+        <Sequence>
+            <ConnectCheck />
+            <Takeoff target_alt="1.0" />
+            <Fallback>
+                <!-- 示例目标使用 MAVROS 本地坐标，单位为米。 -->
+                <NavAvoide x="9.0" y="0.0" z="1.0" timeout="60.0" tolerance="0.3" />
+                <Sequence>
+                    <TouchDown name="LandAfterNavigationFailure" />
+                    <AlwaysFailure />
+                </Sequence>
+            </Fallback>
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>
