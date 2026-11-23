@@ -355,15 +355,22 @@ roslaunch maxt_pkg mission.launch bt_xml_path:="$(rospack find maxt_pkg)/config/
 
 #### 避障导航任务
 
-`config/mission/testAvoide/nav_avoide_mission.xml` 通过 `NavAvoide` 执行避障导航，到达目标后降落。导航超时也会执行降落，任务状态为失败。运行前在 XML 中按场景设置 MAVROS 本地坐标 `x`、`y`、`z`，并启动外部规划器。Primitive-Planner 可保留默认的 `/goal`、`/cloud` 和 `/position_cmd`，并传入 `odom:=/mavros/local_position/odom`。
+`config/mission/testAvoide/nav_avoide_mission.xml` 通过 Diff-Planner 执行避障导航，到达目标后降落。导航超时也会执行降落，任务状态为失败。运行前在 XML 中按场景设置 MAVROS 本地坐标 `x`、`y`、`z`。
 
-避障节点按点云采集时刻的 TF 将 `/lidar/points` 转到 MAVROS 本地坐标系，并以 `sensor_msgs/PointCloud2` 发布到 `/cloud`。默认仿真会发布 `map → base_link → lidar_link` 的 TF。复用外部仿真时，需要由该环境提供对应的 TF。
+先编译 `~/Diff-Planner`，再使用其中的 `quadrotor_msgs` 重新编译 `maxt_pkg`。如果 `~/catkin_ws/src/quadrotor_msgs` 是指向旧消息包的软链接，将其切换到 `~/Diff-Planner/src/Utils/quadrotor_msgs`。两个工作空间的 `PositionCommand` 消息定义必须一致。
+如果切换软链接后仍在使用旧的生成文件，运行 `touch ~/Diff-Planner/src/Utils/quadrotor_msgs/msg/PositionCommand.msg` 后重新编译。
 
 ```bash
+source ~/Diff-Planner/devel/setup.bash
+cd ~/catkin_ws
+catkin_make --pkg quadrotor_msgs maxt_pkg
+source devel/setup.bash
 roslaunch maxt_pkg sim_nav_avoide.launch
 ```
 
-该入口加载带激光雷达的 Iris 和 `obstacle_world.world`。传入 `run_mission:=false` 可只启动仿真，传入 `sim:=false` 可在已有仿真中只启动任务，传入 `gui:=false` 可关闭 Gazebo 图形界面。
+避障节点将 MAVROS 里程计的机体系线速度转到本地坐标系，再发布到 `/diff_planner/odom`。它也按采集时刻的 TF 将 `/lidar/points` 转到同一坐标系，以 `sensor_msgs/PointCloud2` 发布到 `/cloud`。转发里程计和点云后，节点向 `/goal` 发送目标并接收 `/position_cmd` 上的轨迹指令。默认仿真提供 `map → base_link → lidar_link` 的 TF。复用外部仿真时，由该环境提供对应的 TF。
+
+该入口加载带激光雷达的 Iris 和 `obstacle_world.world`，并随任务启动 Diff-Planner。传入 `run_mission:=false` 可只启动仿真，传入 `sim:=false` 可在已有仿真中启动任务和规划器，传入 `gui:=false` 可关闭 Gazebo 图形界面。若要单独启动规划器，运行 `roslaunch diff_planner planner.launch odom_topic:=/diff_planner/odom`，并给任务入口传入 `run_planner:=false`。
 
 传入 `rviz:=true` 会同时启动激光雷达体素建图和 RViz。只需要建图时可传入 `mapping:=true`。
 

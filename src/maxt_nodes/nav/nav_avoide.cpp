@@ -13,8 +13,9 @@ NavAvoideNode::NavAvoideNode(const std::string& name, const BT::NodeConfiguratio
       tf_listener_(tf_buffer_) {
     nh_.setCallbackQueue(&queue_);
     goals_ = nh_.advertise<geometry_msgs::PoseStamped>("/goal", 1);
-    targets_ = nh_.advertise<mavros_msgs::PositionTarget>("primitive_planner/setpoint", 1);
+    targets_ = nh_.advertise<mavros_msgs::PositionTarget>("diff_planner/setpoint", 1);
     planner_cloud_ = nh_.advertise<sensor_msgs::PointCloud2>("/cloud", 1);
+    planner_odom_ = nh_.advertise<nav_msgs::Odometry>("/diff_planner/odom", 1);
 }
 
 BT::PortsList NavAvoideNode::providedPorts() {
@@ -38,9 +39,11 @@ BT::NodeStatus NavAvoideNode::onStart() {
         return BT::NodeStatus::FAILURE;
     }
     sent_ = endpoint_commanded_ = false;
+    odom_forwarded_ = cloud_forwarded_ = false;
     start_ = ros::WallTime::now();
     commands_ = nh_.subscribe("/position_cmd", 1, &NavAvoideNode::command, this);
     lidar_cloud_ = nh_.subscribe("/lidar/points", 1, &NavAvoideNode::cloud, this);
+    mavros_odom_ = nh_.subscribe("/mavros/local_position/odom", 1, &NavAvoideNode::odometry, this);
     return BT::NodeStatus::RUNNING;
 }
 
@@ -51,7 +54,7 @@ BT::NodeStatus NavAvoideNode::onRunning() {
         return BT::NodeStatus::FAILURE;
     }
     const auto pose = mav_.GetRawPose();
-    if (!sent_ && !pose.header.frame_id.empty() &&
+    if (!sent_ && odom_forwarded_ && cloud_forwarded_ && !pose.header.frame_id.empty() &&
         goals_.getNumSubscribers() && commands_.getNumPublishers()) {
         goal_.header.frame_id = pose.header.frame_id;
         goal_.header.stamp = ros::Time::now();
@@ -97,6 +100,8 @@ void NavAvoideNode::command(const quadrotor_msgs::PositionCommand::ConstPtr& msg
 
     mavros_msgs::PositionTarget target;
     target.header = msg->header;
+    // Diff-Planner labels samples "world" and computes them in the input odometry frame.
+    target.header.frame_id = goal_.header.frame_id;
     target.coordinate_frame = target.FRAME_LOCAL_NED;
     target.position = msg->position;
     target.velocity = msg->velocity;
@@ -111,9 +116,28 @@ void NavAvoideNode::command(const quadrotor_msgs::PositionCommand::ConstPtr& msg
                                      p.z - target.position.z) <= tolerance_;
 }
 
+void NavAvoideNode::odometry(const nav_msgs::Odometry::ConstPtr& msg) {
+    if (planner_odom_.getNumSubscribers() == 0) return;
+
+    const auto& q = msg->pose.pose.orientation;
+    const tf2::Quaternion body_to_local(q.x, q.y, q.z, q.w);
+    if (!std::isfinite(body_to_local.length2()) || body_to_local.length2() <= 0) return;
+
+    // Diff-Planner reads linear velocity in the same frame as the odometry pose.
+    nav_msgs::Odometry output = *msg;
+    auto& v = output.twist.twist.linear;
+    const auto local = tf2::quatRotate(body_to_local.normalized(), tf2::Vector3(v.x, v.y, v.z));
+    v.x = local.x();
+    v.y = local.y();
+    v.z = local.z();
+    planner_odom_.publish(output);
+    odom_forwarded_ = true;
+}
+
 void NavAvoideNode::cloud(const sensor_msgs::PointCloud::ConstPtr& msg) {
     const auto frame = mav_.GetRawPose().header.frame_id;
-    if (frame.empty() || planner_cloud_.getNumSubscribers() == 0) return;
+    if (!odom_forwarded_ || frame.empty() || msg->points.empty() ||
+        planner_cloud_.getNumSubscribers() == 0) return;
 
     try {
         const auto stamped = tf_buffer_.lookupTransform(frame, msg->header.frame_id,
@@ -133,6 +157,7 @@ void NavAvoideNode::cloud(const sensor_msgs::PointCloud::ConstPtr& msg) {
         sensor_msgs::PointCloud2 output;
         if (sensor_msgs::convertPointCloudToPointCloud2(transformed, output)) {
             planner_cloud_.publish(output);
+            cloud_forwarded_ = true;
         }
     } catch (const tf2::TransformException& e) {
         ROS_WARN_THROTTLE(1.0, "[NavAvoide] Cannot transform lidar cloud to %s: %s",
@@ -143,6 +168,7 @@ void NavAvoideNode::cloud(const sensor_msgs::PointCloud::ConstPtr& msg) {
 void NavAvoideNode::onHalted() {
     commands_.shutdown();
     lidar_cloud_.shutdown();
+    mavros_odom_.shutdown();
     queue_.clear();
     mav_.setSetpointMode(SetpointMode::HEARTBEAT);
 }
