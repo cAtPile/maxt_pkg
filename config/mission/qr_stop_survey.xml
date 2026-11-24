@@ -1,6 +1,6 @@
 <root main_tree_to_execute="QrStopSurvey">
   <BehaviorTree ID="QrStopSurvey">
-    <!-- The full grid runs unless a survey step fails. -->
+    <!-- A skipped capture advances the grid. Flight/mission failures enter the hold. -->
     <Fallback>
       <Sequence>
         <ConnectCheck />
@@ -10,6 +10,7 @@
         <Takeoff target_alt="{survey_height}"
                  takeoff_x_raw="{base_x}" takeoff_y_raw="{base_y}"
                  takeoff_target_z_raw="{base_z}" takeoff_yaw_raw="{survey_yaw}" />
+        <PlayAudio filename="cn-mission-start.wav" level="INFO" />
         <SetBlackboard output_key="stop_index" value="0" />
         <Repeat num_cycles="{stop_count}">
           <Sequence>
@@ -18,26 +19,22 @@
             <NavAzimuth name="ToCaptureStop" nav_n="{stop_n}" nav_t="{stop_t}" nav_a="0"
                         bp_x_raw="{base_x}" bp_y_raw="{base_y}" bp_z_raw="{base_z}"
                         azimuth_rad="{survey_yaw}" timeout="90" strict_reach="true" />
-            <QrCapture mission_id="{qr_mission_id}" recover="{qr_recover}"
-                       recovery_latitude="{recovery_lat}" recovery_longitude="{recovery_lon}" />
+            <PlayAudio level="DEBUG" waypoint_number="{stop_index}" x="{stop_n}" y="{stop_t}" />
+            <QrCapture mission_id="{qr_mission_id}" waypoint_number="{stop_index}" />
           </Sequence>
         </Repeat>
         <QrFinish mission_id="{qr_mission_id}" drop_target_id="{drop_id}"
                   latitude="{drop_lat}" longitude="{drop_lon}" />
+        <PlayAudio filename="cn-target-found.wav" level="INFO" />
         <NavGeo name="ToDropTarget" latitude="{drop_lat}" longitude="{drop_lon}"
                 target_alt="{drop_height}" timeout="90" strict_reach="true" />
+        <!-- Navigation is complete; ReadyForDrop remains a persistent hold. -->
+        <PlayAudio filename="cn-mission-complete.wav" level="INFO" />
         <QrHold name="ReadyForDrop" />
       </Sequence>
       <Sequence>
-        <PlayAudio filename="cn-fault.wav" priority="true" />
-        <ForceSuccess>
-          <Sequence>
-            <QrHold name="SurveyFailureHold" recover="{qr_recover}" />
-            <NavGeo name="ToSavedDropTarget" latitude="{recovery_lat}" longitude="{recovery_lon}"
-                    target_alt="{drop_height}" timeout="90" strict_reach="true" />
-          </Sequence>
-        </ForceSuccess>
-        <QrHold name="RecoveryTargetHold" />
+        <PlayAudio filename="cn-fault.wav" level="ERROR" priority="true" />
+        <QrHold name="SurveyFailureHold" />
       </Sequence>
     </Fallback>
   </BehaviorTree>

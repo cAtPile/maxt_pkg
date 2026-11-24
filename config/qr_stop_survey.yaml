@@ -4,6 +4,7 @@ nav:
   v_max: 2          # survey speed limit, m/s
   a_max: 1          # survey acceleration limit, m/s^2
 qr_survey:
+  audio_level: DEBUG # minimum BT announcement level: DEBUG, INFO, WARN, ERROR, FATAL
   report_id: [QR002, QR003]
   target_id: QR001
   mission_namespace: /uav_qr_mission

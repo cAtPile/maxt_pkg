@@ -1,5 +1,6 @@
 #include <maxt_pkg/audio_caller.hpp>
 #include <maxt_pkg/PlayAudio.h>
+#include <maxt_pkg/Say.h>
 #include <ros/ros.h>
 
 #include <atomic>
@@ -16,6 +17,7 @@ struct AudioCaller::State {
     std::mutex mutex;
     std::condition_variable wake;
     bool busy{false};
+    bool speech{false};
     std::string pending;
 };
 
@@ -26,6 +28,7 @@ AudioCaller::AudioCaller(const ros::NodeHandle& nh, const std::string& service_n
     std::thread([state, nh = ros::NodeHandle(nh), service_name]() mutable {
         try {
             auto client = nh.serviceClient<maxt_pkg::PlayAudio>(service_name, false);
+            auto say_client = nh.serviceClient<maxt_pkg::Say>("/audio/say", false);
             std::unique_lock<std::mutex> lock(state->mutex);
             while (!state->stopped.load()) {
                 // A timed wait also handles stop notifications racing with wait().
@@ -35,15 +38,21 @@ AudioCaller::AudioCaller(const ros::NodeHandle& nh, const std::string& service_n
                 if (state->stopped.load() || !ros::ok()) break;
                 if (state->pending.empty()) continue;
 
-                maxt_pkg::PlayAudio request;
-                request.request.filename = std::move(state->pending);
+                auto value = std::move(state->pending);
+                const bool speech = state->speech;
                 state->pending.clear();
                 state->busy = true;
                 lock.unlock();
-                // Both existence checking and the synchronous call stay off the main thread.
-                // No waiting for availability, retries, or processing of response results.
-                if (!state->stopped.load() && client.exists()) {
-                    if (!state->stopped.load()) client.call(request);
+                if (!state->stopped.load()) {
+                    if (speech && say_client.exists()) {
+                        maxt_pkg::Say request;
+                        request.request.text = std::move(value);
+                        say_client.call(request);
+                    } else if (!speech && client.exists()) {
+                        maxt_pkg::PlayAudio request;
+                        request.request.filename = std::move(value);
+                        client.call(request);
+                    }
                 }
                 lock.lock();
                 state->busy = false;
@@ -63,14 +72,23 @@ AudioCaller::~AudioCaller() {
 }
 
 void AudioCaller::play(std::string filename, bool priority) {
-    if (filename.empty() || state_->stopped.load()) return;
+    enqueue(std::move(filename), false, priority);
+}
+
+void AudioCaller::say(std::string text) {
+    enqueue(std::move(text), true, false);
+}
+
+void AudioCaller::enqueue(std::string value, bool speech, bool priority) {
+    if (value.empty() || state_->stopped.load()) return;
     std::unique_lock<std::mutex> lock(state_->mutex, std::defer_lock);
     if (priority) {
         lock.lock();  // The worker releases this mutex before every service call.
     } else if (!lock.try_lock() || state_->busy || !state_->pending.empty()) {
         return;
     }
-    state_->pending = std::move(filename);
+    state_->pending = std::move(value);
+    state_->speech = speech;
     state_->wake.notify_one();
 }
 

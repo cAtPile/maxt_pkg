@@ -11,9 +11,15 @@ class QrCapture : public MavActionNode {
     ros::SteadyTime started_, stable_since_, capture_started_;
     double settle_{1}, stable_time_{0.4}, speed_{0.2}, tilt_{10}, tolerance_{0.2};
     double settle_timeout_{20}, capture_timeout_{3};
-    bool requested_{false}, accepted_{false};
-    bool stable() const;
-    void cancel();
+    enum class Phase { Settling, Starting, WaitingFrame, Confirming, Cancelling };
+    Phase phase_{Phase::Settling};
+    int waypoint_{0};
+    int attempts_{0};
+    double distance_{0}, velocity_{0}, roll_deg_{0}, pitch_deg_{0};
+    bool stable();
+    bool cancel();
+    BT::NodeStatus retryOrSkip(const char* reason);
+    BT::NodeStatus skip(const char* reason) const;
 public:
     QrCapture(const std::string& name, const BT::NodeConfiguration& config, MavKit& mav,
               ros::NodeHandle nh, std::shared_ptr<QrSurveyContext> context);

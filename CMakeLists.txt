@@ -28,7 +28,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 add_action_files(FILES Guidance.action ugv_mover.action)
-add_service_files(FILES PlayAudio.srv)
+add_service_files(FILES PlayAudio.srv Say.srv)
 generate_messages(DEPENDENCIES actionlib_msgs std_msgs)
 
 find_package(Boost REQUIRED COMPONENTS system)

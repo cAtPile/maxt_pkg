@@ -24,6 +24,7 @@ from mavros_msgs.msg import State, PositionTarget, GlobalPositionTarget, Mavlink
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from maxt_pkg.srv import PlayAudio, PlayAudioResponse
+from uav_audio.srv import Say, SayResponse
 from std_msgs.msg import Float64, String
 from uav_odin_qr.msg import Detection, DetectionArray, QrTransform, QrTransformArray
 from uav_qr_mission.msg import MissionResult
@@ -59,8 +60,9 @@ class FlightDouble:
         self.global_targets = []
         self.camera_down = False
         self.audio_requests = []
-        self.failure_hold_time = None
-        self.first_global_time = None
+        self.spoken = []
+        self.motion_until = 0.
+        self.cancelled = set()
         self.received_reports = []
         self.display = {}
         self.outside_window_violation = False
@@ -96,6 +98,7 @@ class FlightDouble:
             rospy.Subscriber('/maxt_test_node/mission_status',String,self.status)]
         self.service = rospy.Service('/ugv/qr_display/update',ReportQr,self.report)
         self.audio_service = rospy.Service('/audio/play', PlayAudio, self.play_audio)
+        self.say_service = rospy.Service('/audio/say', Say, self.say_audio)
         self.thread = threading.Thread(target=self.run,daemon=True)
         self.thread.start()
 
@@ -116,8 +119,6 @@ class FlightDouble:
         with self.lock:
             self.command = ('global',message)
             self.global_targets.append(message)
-            if self.first_global_time is None:
-                self.first_global_time = time.monotonic()
 
     def result(self,message):
         with self.lock:
@@ -125,6 +126,10 @@ class FlightDouble:
                 self.captures.append(message.capture_id)
                 self.capture_positions.append(list(self.position))
                 self.capture_stable_times.append(time.monotonic()-self.last_motion)
+                if self.scenario == 'capture_motion' and math.hypot(self.position[0], self.position[1]-20.) < .15:
+                    self.motion_until = time.monotonic() + .3
+            if message.capture_status == 'CANCELLED':
+                self.cancelled.add(message.capture_id)
             if any(message.found) and not self.captures:
                 self.outside_window_violation = True
             self.latest = message
@@ -132,8 +137,6 @@ class FlightDouble:
     def status(self,message):
         with self.lock:
             self.active = json.loads(message.data).get('active',[])
-            if self.failure_hold_time is None and any(n.get('name') == 'SurveyFailureHold' for n in self.active):
-                self.failure_hold_time = time.monotonic()
             if self.wait_arm_seen is None and any(n.get('name') == 'Takeoff' for n in self.active):
                 self.wait_arm_seen = time.monotonic()
             if self.first_navigation_time is None and any(n.get('name') == 'ToCaptureStop' for n in self.active):
@@ -143,6 +146,11 @@ class FlightDouble:
         with self.lock:
             self.audio_requests.append(request.filename)
         return PlayAudioResponse(True, 'TEST')
+
+    def say_audio(self, request):
+        with self.lock:
+            self.spoken.append(request.text)
+        return SayResponse(True, 'TEST')
 
     def report(self,request):
         with self.lock:
@@ -205,6 +213,8 @@ class FlightDouble:
                         # Height has reached 5 m but the velocity estimator still
                         # reports motion. Takeoff must remain RUNNING until it settles.
                         velocity[2] = 1.
+                    if now < self.motion_until:
+                        velocity[0] = .4
                     if sum(v*v for v in velocity) > .2**2: self.last_motion = now
                     self.publish(velocity)
                 time.sleep(.02)
@@ -293,9 +303,10 @@ class FlightDouble:
 def main():
     args = argparse.ArgumentParser()
     args.add_argument('--scenario',choices=['happy','navigation_failure','missing_drop',
-                                          'takeoff_overshoot','takeoff_timeout','field_5m','signed_heading',
+                                          'takeoff_overshoot','takeoff_timeout','field_5m','signed_heading','capture_motion',
                                           *CAMERA_SCENARIOS],default='happy')
     args.add_argument('--log-dir',required=True)
+    args.add_argument('--audio-level', choices=['DEBUG','INFO'], default='DEBUG')
     options = args.parse_args(rospy.myargv()[1:])
     uri = urlparse(os.environ.get('ROS_MASTER_URI',''))
     if uri.hostname not in ('127.0.0.1','localhost') or uri.port == 11311:
@@ -315,6 +326,7 @@ def main():
     # Keep the original regression scenarios independent of deployment defaults.
     # field_5m explicitly keeps its historical 5m / 1m / 3m regression profile.
     survey_config = yaml.safe_load((Path(__file__).resolve().parents[1]/'config/qr_stop_survey.yaml').read_text())
+    survey_config['qr_survey']['audio_level'] = options.audio_level
     if not fixture.field_profile:
         survey_config['qr_survey'].update(corner_x=20.,corner_y=20.,step=10.,
                                          survey_height=5.,drop_height=5.)
@@ -334,10 +346,9 @@ def main():
     try:
         # Load overrides atomically through launch, not racing persistent ROS params.
         deadline = time.monotonic()+(180 if fixture.field_profile else 100)
-        success_scenario = options.scenario in ('happy','takeoff_overshoot','field_5m')
+        success_scenario = options.scenario in ('happy','takeoff_overshoot','field_5m',
+                                                'capture_motion','camera_failure_with_target')
         final_name = 'ReadyForDrop' if success_scenario else 'SurveyFailureHold'
-        if options.scenario == 'camera_failure_with_target':
-            final_name = 'RecoveryTargetHold'
         while time.monotonic() < deadline:
             with fixture.lock:
                 if fixture.failure: raise fixture.failure
@@ -363,19 +374,23 @@ def main():
             if options.scenario in CAMERA_SCENARIOS:
                 has_target = options.scenario == 'camera_failure_with_target'
                 assert fixture.latest.capture_status == 'TIMEOUT_WAIT_FRAME'
-                assert len(fixture.captures) == (3 if has_target else 2), fixture.capture_positions
-                assert fixture.audio_requests.count('cn-fault.wav') == 1, fixture.audio_requests
-                assert fixture.failure_hold_time is not None
+                first_missing = 2 if has_target else 1
+                expected_attempts = expected[:first_missing] + [
+                    point for point in expected[first_missing:] for _ in range(2)]
+                assert len(fixture.capture_positions) == len(expected_attempts), fixture.capture_positions
+                for position, point in zip(fixture.capture_positions, expected_attempts):
+                    assert math.hypot(position[0]-point[0],position[1]-point[1]) < .15
+                assert fixture.latest.survey_finished
+                assert fixture.audio_requests.count('cn-fault.wav') == (0 if has_target else 1)
                 target = next(t for t in fixture.latest.targets if t.is_drop_target)
                 assert target.position_valid is has_target
                 assert bool(fixture.global_targets) is has_target
                 if has_target:
-                    assert fixture.first_global_time - fixture.failure_hold_time >= .85
                     assert math.hypot(fixture.position[0]-fixture.drop_location[0],
                                       fixture.position[1]-fixture.drop_location[1]) < .15
                 else:
                     assert fixture.command[0] == 'raw'
-                    assert abs(fixture.position[1] - 10.) < .15
+                    assert math.hypot(fixture.position[0]-20.,fixture.position[1]-20.) < .15
             elif options.scenario == 'takeoff_timeout':
                 assert not fixture.captures and not fixture.global_targets
                 assert fixture.first_navigation_time is None
@@ -387,6 +402,9 @@ def main():
                 assert len(fixture.captures) == 1, fixture.capture_positions
                 assert not fixture.global_targets, 'Failed waypoint incorrectly reached drop navigation'
             else:
+                if options.scenario == 'capture_motion':
+                    assert len(fixture.cancelled) == 2, fixture.cancelled
+                    expected.insert(2, expected[2])
                 assert len(fixture.captures) == len(expected), fixture.capture_positions
                 for position,point in zip(fixture.capture_positions,expected):
                     assert math.hypot(position[0]-point[0],position[1]-point[1]) < .15
@@ -415,6 +433,12 @@ def main():
                     assert not fixture.global_targets, 'Missing drop code must never navigate'
                     assert not next(t for t in fixture.latest.targets if t.content == fixture.drop_id).position_valid
                     assert len(fixture.display) == (0 if fixture.signed_heading else 2), 'Both ordinary codes must still reach the screen'
+            if options.audio_level == 'INFO':
+                assert not fixture.spoken, fixture.spoken
+            elif success_scenario or options.scenario == 'camera_failure_without_target':
+                assert any('到达第1个航点' in text and '坐标，0，0' in text for text in fixture.spoken), fixture.spoken
+                assert any(f'到达第{36 if fixture.field_profile else 9}个航点' in text
+                           for text in fixture.spoken), fixture.spoken
             summary = dict(scenario=options.scenario,stops=fixture.capture_positions,
                            stable_before_capture=fixture.capture_stable_times,
                            displayed_codes=sorted(t.content for t in fixture.display.values()),
@@ -423,7 +447,7 @@ def main():
                                     for t in fixture.latest.targets],
                            final_position=fixture.position,active=fixture.active,
                            global_setpoints=len(fixture.global_targets),
-                           audio_requests=fixture.audio_requests)
+                           audio_requests=fixture.audio_requests, spoken=fixture.spoken)
             if options.scenario == 'takeoff_overshoot':
                 summary['takeoff_hold_before_navigation_s'] = fixture.first_navigation_time-fixture.takeoff_hold_time
         (log_dir/'summary.json').write_text(json.dumps(summary,indent=2))

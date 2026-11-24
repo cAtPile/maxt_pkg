@@ -9,12 +9,13 @@ namespace maxt {
 class PlayAudioNode : public BT::SyncActionNode {
 public:
     PlayAudioNode(const std::string& name, const BT::NodeConfiguration& config,
-                  MavKit& mav);
+                  MavKit& mav, const ros::NodeHandle& nh);
     static BT::PortsList providedPorts();
     BT::NodeStatus tick() override;
 
 private:
     MavKit& mav_;
+    int minimum_level_;
 };
 
 }  // namespace maxt

@@ -23,8 +23,10 @@ public:
 
     // Priority requests replace any pending notification and run after an in-flight call.
     void play(std::string filename, bool priority = false);
+    void say(std::string text);
 
 private:
+    void enqueue(std::string value, bool speech, bool priority);
     struct State;
     std::shared_ptr<State> state_;
 };

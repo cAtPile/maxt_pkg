@@ -76,6 +76,7 @@ public:
     bool mavInit(ros::NodeHandle& nh);
 
     // 尽力提交播报，不等待音频服务或播放结果。
+    void sayAudio(const std::string& text) { audio_.say(text); }
     void playAudio(const std::string& filename, bool priority = false) { audio_.play(filename, priority); }
 
     /**

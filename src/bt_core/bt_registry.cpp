@@ -64,7 +64,7 @@ void MaxtCore::registerNodes() {
         });
     factory_.registerBuilder<PlayAudioNode>("PlayAudio",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
-            return std::make_unique<PlayAudioNode>(name, config, *mav_);
+            return std::make_unique<PlayAudioNode>(name, config, *mav_, nh_);
         });
     factory_.registerBuilder<CapturePoseNode>("CapturePose",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
