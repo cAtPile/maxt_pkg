@@ -1,0 +1,122 @@
+material Maxt/CompetitionConcrete
+{
+  technique
+  {
+    pass
+    {
+      ambient 0.83 0.83 0.83 1
+      diffuse 0.9 0.9 0.9 1
+      specular 0 0 0 1
+      texture_unit
+      {
+        texture concrete.png
+        scale 0.16 0.16
+        filtering trilinear
+      }
+    }
+  }
+}
+
+material Maxt/SurroundingConcrete : Maxt/CompetitionConcrete
+{
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        scale 0.024 0.024
+      }
+    }
+  }
+}
+
+material Maxt/Competition/QR002
+{
+  technique
+  {
+    pass
+    {
+      lighting off
+      cull_hardware none
+      cull_software none
+      texture_unit
+      {
+        texture QR002.png
+        filtering trilinear
+      }
+    }
+  }
+}
+
+material Maxt/Competition/QR003
+{
+  technique
+  {
+    pass
+    {
+      lighting off
+      cull_hardware none
+      cull_software none
+      texture_unit
+      {
+        texture QR003.png
+        filtering trilinear
+      }
+    }
+  }
+}
+
+material Maxt/Competition/QR004
+{
+  technique
+  {
+    pass
+    {
+      lighting off
+      cull_hardware none
+      cull_software none
+      texture_unit
+      {
+        texture QR004.png
+        filtering trilinear
+      }
+    }
+  }
+}
+
+material Maxt/Competition/QR005
+{
+  technique
+  {
+    pass
+    {
+      lighting off
+      cull_hardware none
+      cull_software none
+      texture_unit
+      {
+        texture QR005.png
+        filtering trilinear
+      }
+    }
+  }
+}
+
+material Maxt/Competition/QR006
+{
+  technique
+  {
+    pass
+    {
+      lighting off
+      cull_hardware none
+      cull_software none
+      texture_unit
+      {
+        texture QR006.png
+        filtering trilinear
+      }
+    }
+  }
+}

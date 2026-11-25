@@ -223,6 +223,7 @@ catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_serv
   script/fast_mission/fast_mission.py
   script/fake_audio.py
   script/fake_reciver.py
+  script/spawn_competition_qr.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

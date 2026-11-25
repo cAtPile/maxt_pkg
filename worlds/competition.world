@@ -35,8 +35,11 @@
             </plane>
           </geometry>
           <material>
-            <ambient>0.4 0.4 0.4 1</ambient>
-            <diffuse>0.4 0.4 0.4 1</diffuse>
+            <script>
+              <uri>model://competition_surface/materials/scripts</uri>
+              <uri>model://competition_surface/materials/textures</uri>
+              <name>Maxt/SurroundingConcrete</name>
+            </script>
           </material>
         </visual>
       </link>
