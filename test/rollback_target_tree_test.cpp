@@ -15,7 +15,7 @@ void check(bool ok) { if (!ok) throw std::runtime_error("rollback assertion fail
 struct Scenario {
     BT::Blackboard::Ptr history = BT::Blackboard::create();
     std::vector<std::string> events;
-    bool nav_fail{false}, guidance_fail{false};
+    bool nav_fail{false}, guidance_fail{false}, first_target_missing{false};
     int search_legs{0}, search_halts{0};
     bool search_fail{false}, visible{true};
 };
@@ -43,12 +43,20 @@ public:
         : BT::SyncActionNode(n, c), s_(s) {}
     static BT::PortsList providedPorts() {
         return {BT::InputPort<std::string>("target_id"), BT::InputPort<double>("timeout"),
-                BT::InputPort<double>("tracking_duration"), BT::OutputPort<std::string>("message")};
+                BT::InputPort<double>("tracking_duration"), BT::InputPort<std::string>("aligned_topic"),
+                BT::OutputPort<std::string>("message")};
     }
     BT::NodeStatus tick() override {
         const auto id = getInput<std::string>("target_id").value();
         s_.events.push_back("guide " + id);
-        if (s_.guidance_fail) return BT::NodeStatus::FAILURE;
+        if (s_.guidance_fail) {
+            setOutput("message", std::string("TIMEOUT"));
+            return BT::NodeStatus::FAILURE;
+        }
+        if (s_.first_target_missing && id == "A") {
+            setOutput("message", std::string("QR_NOT_VISIBLE"));
+            return BT::NodeStatus::FAILURE;
+        }
         std::vector<std::string> processed;
         s_.history->get("processed_qr", processed);
         processed.push_back(id);
@@ -107,6 +115,7 @@ public:
 void runTraverse(int mode, const std::string& xml) {
     Scenario s; s.visible = mode != 1;
     s.search_fail = mode == 2; s.nav_fail = mode == 3; s.guidance_fail = mode == 4;
+    s.first_target_missing = mode == 5;
     BT::BehaviorTreeFactory f;
     f.registerNodeType<maxt::TraversePathGeneratorNode>("TraversePathGenerator");
     f.registerNodeType<maxt::GetRegionWaypointNode>("GetRegionWaypoint");
@@ -150,18 +159,19 @@ void runTraverse(int mode, const std::string& xml) {
     auto tree = f.createTreeFromFile(xml, bb);
     auto status = BT::NodeStatus::RUNNING;
     for (int i = 0; i < 30 && status == BT::NodeStatus::RUNNING; ++i) status = tree.tickRoot();
-    check(status == (mode >= 2 ? BT::NodeStatus::FAILURE : BT::NodeStatus::SUCCESS));
-    check(bb->get<std::string>("traverse_result") == (mode >= 2 ? "failed" : "complete"));
+    const bool failed = mode >= 2 && mode <= 4;
+    check(status == (failed ? BT::NodeStatus::FAILURE : BT::NodeStatus::SUCCESS));
+    check(bb->get<std::string>("traverse_result") == (failed ? "failed" : "complete"));
     check(s.search_halts == 0);
     std::vector<std::string> expected(mode == 2 ? 1 : 10, "search");
-    if (mode == 0) {
+    if (mode == 0 || mode == 5) {
         expected.insert(expected.end(), {"nav A", "guide A", "nav B", "guide B"});
     } else if (mode == 3) {
         expected.push_back("nav A");
     } else if (mode == 4) {
         expected.insert(expected.end(), {"nav A", "guide A"});
     }
-    if (mode < 2) expected.insert(expected.end(), {"home", "land"});
+    if (!failed) expected.insert(expected.end(), {"home", "land"});
     check(s.events == expected);
 }
 void testDistanceOrdering() {
@@ -260,6 +270,6 @@ int main(int argc, char** argv) {
     const std::string xml = argc > 1 ? argv[1] : "config/mission/subtree/RollbackTargetTree.xml";
     for (int i = 0; i < 6; ++i) run(i, xml);
     const auto dir = xml.substr(0, xml.find_last_of('/') + 1);
-    for (int i = 0; i < 5; ++i) runTraverse(i, dir + "../traverse_guidance_mission.xml");
-    std::cout << "Distance ordering: PASS; RollbackTargetTree: 6 scenarios PASS; TraverseGuidanceMission: 5 scenarios PASS\n";
+    for (int i = 0; i < 6; ++i) runTraverse(i, dir + "../traverse_guidance_mission.xml");
+    std::cout << "Distance ordering: PASS; RollbackTargetTree: 6 scenarios PASS; TraverseGuidanceMission: 6 scenarios PASS\n";
 }

@@ -3,6 +3,18 @@ project(maxt_pkg)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(MAXT_ENABLE_QR_SURVEY "Build the QR stop-and-capture survey nodes" ON)
+if(MAXT_ENABLE_QR_SURVEY)
+  set(MAXT_QR_CATKIN_COMPONENTS uav_qr_mission slicer_air_ground_msgs)
+  set(MAXT_QR_SOURCES
+    src/maxt_nodes/qr_survey_setup.cpp
+    src/maxt_nodes/qr_ugv_dispatch.cpp
+    src/maxt_nodes/qr_capture.cpp
+    src/maxt_nodes/qr_finish.cpp
+    src/maxt_nodes/qr_hold.cpp
+  )
+endif()
+
 ## Compile as C++14, supported in ROS Noetic and newer
 add_compile_options(-std=c++14)
 
@@ -22,8 +34,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   behaviortree_cpp_v3
   std_msgs
-  uav_qr_mission
-  slicer_air_ground_msgs
+  ${MAXT_QR_CATKIN_COMPONENTS}
 )
 
 ## System dependencies are found with CMake's conventions
@@ -99,7 +110,7 @@ find_package(gazebo REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES maxt_pkg
-  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs uav_qr_mission slicer_air_ground_msgs
+  CATKIN_DEPENDS actionlib actionlib_msgs message_runtime roscpp mavros mavros_msgs geometry_msgs sensor_msgs tf2 tf2_ros behaviortree_cpp_v3 std_msgs ${MAXT_QR_CATKIN_COMPONENTS}
   DEPENDS Boost Eigen3 GeographicLib
 )
 
@@ -143,11 +154,7 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/ugv_cowork_node.cpp
   src/maxt_nodes/capture_pose_node.cpp
   src/maxt_nodes/send_geo_pose_node.cpp
-  src/maxt_nodes/qr_survey_setup.cpp
-  src/maxt_nodes/qr_ugv_dispatch.cpp
-  src/maxt_nodes/qr_capture.cpp
-  src/maxt_nodes/qr_finish.cpp
-  src/maxt_nodes/qr_hold.cpp
+  ${MAXT_QR_SOURCES}
 
   src/maxt_nodes/takeoff.cpp
   src/maxt_nodes/waitstep.cpp
@@ -170,6 +177,10 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/base_point_azimuth_fix.cpp
   src/maxt_nodes/nav/nav_azimuth.cpp
 )
+
+if(MAXT_ENABLE_QR_SURVEY)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE MAXT_ENABLE_QR_SURVEY)
+endif()
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -224,6 +235,7 @@ catkin_install_python(PROGRAMS script/moving_target.py script/guidance_test_serv
   script/fake_audio.py
   script/fake_reciver.py
   script/spawn_competition_qr.py
+  script/qr_center.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -264,15 +276,17 @@ install(DIRECTORY launch config
 #############
 
 if(CATKIN_ENABLE_TESTING)
-  find_package(rostest REQUIRED)
-  add_executable(qr_ugv_dispatch_probe test/qr_ugv_dispatch_probe.cpp)
-  add_dependencies(qr_ugv_dispatch_probe ${catkin_EXPORTED_TARGETS})
-  target_link_libraries(qr_ugv_dispatch_probe ${PROJECT_NAME} ${catkin_LIBRARIES})
-  add_rostest(test/qr_ugv_dispatch.test DEPENDENCIES qr_ugv_dispatch_probe)
-  catkin_add_gtest(test_qr_survey_grid test/unit/test_qr_survey_grid.cpp)
-  if(TARGET test_qr_survey_grid)
-    add_dependencies(test_qr_survey_grid ${catkin_EXPORTED_TARGETS})
-    target_link_libraries(test_qr_survey_grid ${catkin_LIBRARIES})
+  if(MAXT_ENABLE_QR_SURVEY)
+    find_package(rostest REQUIRED)
+    add_executable(qr_ugv_dispatch_probe test/qr_ugv_dispatch_probe.cpp)
+    add_dependencies(qr_ugv_dispatch_probe ${catkin_EXPORTED_TARGETS})
+    target_link_libraries(qr_ugv_dispatch_probe ${PROJECT_NAME} ${catkin_LIBRARIES})
+    add_rostest(test/qr_ugv_dispatch.test DEPENDENCIES qr_ugv_dispatch_probe)
+    catkin_add_gtest(test_qr_survey_grid test/unit/test_qr_survey_grid.cpp)
+    if(TARGET test_qr_survey_grid)
+      add_dependencies(test_qr_survey_grid ${catkin_EXPORTED_TARGETS})
+      target_link_libraries(test_qr_survey_grid ${catkin_LIBRARIES})
+    endif()
   endif()
   add_executable(test_rollback_target_tree test/rollback_target_tree_test.cpp)
   target_link_libraries(test_rollback_target_tree ${PROJECT_NAME} ${catkin_LIBRARIES})

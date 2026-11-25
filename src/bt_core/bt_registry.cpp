@@ -6,10 +6,12 @@
 #include <maxt_pkg/maxt_nodes/ugv_cowork_node.hpp>
 #include <maxt_pkg/maxt_nodes/capture_pose_node.hpp>
 #include <maxt_pkg/maxt_nodes/send_geo_pose_node.hpp>
+#ifdef MAXT_ENABLE_QR_SURVEY
 #include <maxt_pkg/maxt_nodes/qr_survey_setup_node.hpp>
 #include <maxt_pkg/maxt_nodes/qr_capture_node.hpp>
 #include <maxt_pkg/maxt_nodes/qr_finish_node.hpp>
 #include <maxt_pkg/maxt_nodes/qr_hold_node.hpp>
+#endif
 
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
 
@@ -33,6 +35,7 @@
 namespace maxt {
 
 void MaxtCore::registerNodes() {
+#ifdef MAXT_ENABLE_QR_SURVEY
     auto qr = std::make_shared<QrSurveyContext>(nh_);
     factory_.registerBuilder<QrSurveySetup>("QrSurveySetup",
         [this, qr](const std::string& name, const BT::NodeConfiguration& config) {
@@ -50,6 +53,7 @@ void MaxtCore::registerNodes() {
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<QrHold>(name, config, *mav_);
         });
+#endif
     factory_.registerBuilder<SendGeoPoseNode>("SendGeoPose",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<SendGeoPoseNode>(name, config, nh_);

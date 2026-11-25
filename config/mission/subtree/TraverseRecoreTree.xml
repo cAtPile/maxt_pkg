@@ -22,7 +22,7 @@
                 <!-- 每次记录成功后返回 RUNNING，下个 tick 再次检测。
                      避免无限 Repeat 在目标持续可见时阻塞同一次 tick。 -->
                 <KeepRunningUntilFailure>
-                    <TargetCheck topic="/aruco_center/content" record="true"
+                    <TargetCheck topic="/qr_center/content" record="true"
                                  target_id="{detected_target_id}" />
                 </KeepRunningUntilFailure>
             </Parallel>

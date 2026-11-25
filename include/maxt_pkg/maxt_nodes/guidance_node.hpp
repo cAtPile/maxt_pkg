@@ -46,6 +46,7 @@ private:
     BT::NodeStatus finish(BT::NodeStatus status, const std::string& message);
     // 与 FoundCheck 共用任务根黑板，只有伺服成功才提交处理记录。
     BT::Blackboard::Ptr history_;
+    ros::Publisher aligned_pub_;
     std::unique_ptr<Client> client_;
     std::shared_ptr<FeedbackState> feedback_;
     maxt_pkg::GuidanceGoal goal_;

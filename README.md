@@ -423,6 +423,15 @@ rosrun maxt_pkg moving_target.py _x:=-4.0 _y:=4.0 _amplitude:=2.0 _period:=25.13
 
 #### 当前主任务：TraverseGuidanceMission
 
+`sim_geo_treverse.launch` 默认启动 `qr_center.py`，使用系统 Python 的
+`zxing-cpp==2.2.0` 和 AG Client V2 分支生成的 `slicer_air_ground_msgs`。
+识别通过 `/qr_center/content` 向遍历树提供白名单 ID，回访继续使用
+`/guidance`。仿真角色和相机话题在 `config/qr_center.yaml` 配置。
+
+对准后，识别节点以当时无人机的 GPS 经纬度作为地面位置的水平近似值。
+目标码通过 `SET_TARGET`、上报码通过 `REPORT_QR` 提交给 AG Client V2。
+识别节点在 ROS 回调中直接发布 V2 消息。车端连接和转发由 AG Client 处理。
+
 ```bash
 roslaunch maxt_pkg sim_geo_treverse.launch
 # 复用已启动的仿真或飞控环境：

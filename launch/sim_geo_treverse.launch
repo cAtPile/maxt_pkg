@@ -3,19 +3,19 @@
     <arg name="sim" default="true" />
     <arg name="run_detection" default="true" />
     <arg name="run_guidance" default="true" />
-    <arg name="detection_config" default="$(find maxt_pkg)/config/aruco_center.yaml" />
+    <arg name="detection_config" default="$(find maxt_pkg)/config/qr_center.yaml" />
     <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml" />
     <arg name="run_fake_audio" default="false" />
     <arg name="bt_tick_rate" default="20.0" />
     <arg name="heartbeat_rate" default="20.0" />
 
-    <include if="$(arg run_detection)" file="$(find maxt_pkg)/launch/aruco_center.launch">
-        <arg name="config" value="$(arg detection_config)" />
-        <arg name="run_guidance" value="$(arg run_guidance)" />
-    </include>
+    <node if="$(arg run_detection)" pkg="maxt_pkg" type="qr_center.py" name="qr_center" output="screen">
+        <rosparam command="load" file="$(arg detection_config)" />
+        <param name="run_guidance" value="$(arg run_guidance)" />
+    </node>
 
     <include file="$(find maxt_pkg)/launch/mission.launch">
-        <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/traverse_guidance_mission.xml" />
+        <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/sim_traverse_guidance_mission.xml" />
         <arg name="sim" value="$(arg sim)" />
         <arg name="nav_config" value="$(arg nav_config)" />
         <arg name="run_fake_audio" value="$(arg run_fake_audio)" />

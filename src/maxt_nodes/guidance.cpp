@@ -1,6 +1,7 @@
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 #include <cmath>
 #include <algorithm>
+#include <std_msgs/String.h>
 #include <vector>
 
 namespace maxt {
@@ -14,7 +15,12 @@ GuidanceNode::GuidanceNode(const std::string& name,
                            const BT::NodeConfiguration& config, MavKit& mav,
                            BT::Blackboard::Ptr history)
     : MavActionNode(name, config, mav),
-      history_(history ? history : config.blackboard) {}
+      history_(history ? history : config.blackboard) {
+    const auto topic = getInput<std::string>("aligned_topic");
+    if (topic && !topic.value().empty()) {
+        aligned_pub_ = ros::NodeHandle().advertise<std_msgs::String>(topic.value(), 8);
+    }
+}
 
 GuidanceNode::~GuidanceNode() {
     if (goal_sent_ && client_) {
@@ -28,6 +34,7 @@ BT::PortsList GuidanceNode::providedPorts() {
         BT::InputPort<std::string>("target_id"),
         BT::InputPort<double>("timeout", 30.0, "whole operation timeout in seconds"),
         BT::InputPort<double>("tracking_duration", 0.0, "continuous tracking seconds; zero aligns once"),
+        BT::InputPort<std::string>("aligned_topic", "", "publish target ID after successful alignment"),
         BT::OutputPort<std::string>("message", "local completion or server result")
     };
 }
@@ -81,6 +88,7 @@ BT::NodeStatus GuidanceNode::onStart() {
     setOutput("message", std::string("RUNNING"));
     if (client_->isServerConnected()) {
         sendGoal();
+        guidance_state_ = GuidanceState::WAIT_FEEDBACK;
     }
     return BT::NodeStatus::RUNNING;
 }
@@ -272,6 +280,11 @@ BT::NodeStatus GuidanceNode::finish(BT::NodeStatus status, const std::string& me
             processed.push_back(goal_.target_id);
             history_->set("processed_qr", processed);
             ROS_INFO("[Guidance] processed target_id=%s", goal_.target_id.c_str());
+            if (aligned_pub_) {
+                std_msgs::String aligned;
+                aligned.data = goal_.target_id;
+                aligned_pub_.publish(aligned);
+            }
         }
     }
     setOutput("message", message);

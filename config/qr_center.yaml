@@ -1,0 +1,5 @@
+image_topic: /iris/camera/rgb/image_raw
+
+# 沿用停点巡检的角色字段。比赛场景没有 QR001，选 QR004 为导航目标。
+target_id: QR004
+report_id: [QR002, QR003]
