@@ -21,6 +21,20 @@ private:
     geometry_msgs::PoseStamped start_hover_pose_;
 };
 
+class Px4HoldNode : public MavActionNode {
+public:
+    using MavActionNode::MavActionNode;
+
+    static BT::PortsList providedPorts() { return {}; }
+    BT::NodeStatus onStart() override;
+    BT::NodeStatus onRunning() override;
+    void onHalted() override;
+
+private:
+    ros::SteadyTime started_;
+    ros::SteadyTime next_request_;
+};
+
 } // namespace maxt
 
 #endif

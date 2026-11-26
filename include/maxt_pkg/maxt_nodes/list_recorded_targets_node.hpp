@@ -12,12 +12,14 @@ class ListRecordedTargetsNode : public BT::SyncActionNode {
 public:
     ListRecordedTargetsNode(const std::string& name, const BT::NodeConfiguration& config,
                             BT::Blackboard::Ptr history,
-                            std::function<geometry_msgs::PoseStamped()> current_pose = {});
+                            std::function<geometry_msgs::PoseStamped()> current_pose = {},
+                            std::function<std::string(const std::string&)> read_parameter = {});
     static BT::PortsList providedPorts();
     BT::NodeStatus tick() override;
 private:
     BT::Blackboard::Ptr history_;
     std::function<geometry_msgs::PoseStamped()> current_pose_;
+    std::function<std::string(const std::string&)> read_parameter_;
 };
 
 } // namespace maxt

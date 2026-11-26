@@ -11,13 +11,16 @@ namespace maxt {
 
 ListRecordedTargetsNode::ListRecordedTargetsNode(
     const std::string& name, const BT::NodeConfiguration& config, BT::Blackboard::Ptr history,
-    std::function<geometry_msgs::PoseStamped()> current_pose)
+    std::function<geometry_msgs::PoseStamped()> current_pose,
+    std::function<std::string(const std::string&)> read_parameter)
     : BT::SyncActionNode(name, config), history_(history ? history : config.blackboard),
-      current_pose_(std::move(current_pose)) {}
+      current_pose_(std::move(current_pose)), read_parameter_(std::move(read_parameter)) {}
 
 BT::PortsList ListRecordedTargetsNode::providedPorts() {
     return {BT::InputPort<bool>("sort_by_distance", true,
                                       "Sort by 3D distance from current raw local pose; false sorts by ID"),
+            BT::InputPort<std::string>("last_id_param", "ROS parameter naming the QR to visit last"),
+            BT::OutputPort<std::string>("last_id", "Configured QR ID, empty when unset"),
             BT::OutputPort<std::vector<std::string>>("target_ids"),
             BT::OutputPort<int>("target_count")};
 }
@@ -67,6 +70,14 @@ BT::NodeStatus ListRecordedTargetsNode::tick() {
             return distances.at(a) < distances.at(b);
         });
     }
+    std::string last_id;
+    const auto parameter = getInput<std::string>("last_id_param");
+    if (read_parameter_ && parameter && !parameter.value().empty()) {
+        last_id = read_parameter_(parameter.value());
+        const auto target = std::find(ids.begin(), ids.end(), last_id);
+        if (target != ids.end()) std::rotate(target, target + 1, ids.end());
+    }
+    setOutput("last_id", last_id);
     setOutput("target_ids", ids);
     setOutput("target_count", static_cast<int>(ids.size()));
     return BT::NodeStatus::SUCCESS;

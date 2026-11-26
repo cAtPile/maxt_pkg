@@ -1,6 +1,6 @@
 <launch>
     <!-- 经纬度基点 + 固定方向区域遍历；sim=false 可复用已启动的仿真。 -->
-    <arg name="sim" default="true" />
+    <arg name="sim" default="false" />
     <arg name="run_detection" default="true" />
     <arg name="run_guidance" default="true" />
     <arg name="detection_config" default="$(find maxt_pkg)/config/qr_center.yaml" />

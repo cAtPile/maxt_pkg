@@ -47,4 +47,54 @@ void HoverNode::onHalted() {
     mav_.setSetpointMode(SetpointMode::HEARTBEAT);
 }
 
+namespace {
+constexpr char kPx4HoldMode[] = "AUTO.LOITER";
+}
+
+BT::NodeStatus Px4HoldNode::onStart() {
+    started_ = ros::SteadyTime::now();
+    next_request_ = ros::SteadyTime();
+    return onRunning();
+}
+
+BT::NodeStatus Px4HoldNode::onRunning() {
+    const auto mode = mav_.getMode();
+    if (mav_.isConnected() && mav_.isArmed() && mode == kPx4HoldMode) {
+        mav_.setSetpointMode(SetpointMode::STANDBY);
+        ROS_INFO("%s: PX4 Hold confirmed (%s).", name().c_str(), kPx4HoldMode);
+        return BT::NodeStatus::SUCCESS;
+    }
+    if (mode != "OFFBOARD" || !mav_.isArmed() || !mav_.hasFreshNavigationData()) {
+        mav_.setSetpointMode(SetpointMode::STANDBY);
+        ROS_WARN("%s: Hold handoff interrupted. Mode: %s.", name().c_str(), mode.c_str());
+        return BT::NodeStatus::FAILURE;
+    }
+    const auto now = ros::SteadyTime::now();
+    if (next_request_.isZero()) {
+        using Target = mavros_msgs::PositionTarget;
+        Target target;
+        target.coordinate_frame = Target::FRAME_LOCAL_NED;
+        target.type_mask = Target::IGNORE_VX | Target::IGNORE_VY | Target::IGNORE_VZ |
+                           Target::IGNORE_AFX | Target::IGNORE_AFY | Target::IGNORE_AFZ |
+                           Target::IGNORE_YAW_RATE;
+        target.position = mav_.GetRawPose().pose.position;
+        target.yaw = mav_.get_current_yaw();
+        mav_.setRawTarget(target, false);
+        mav_.setSetpointMode(SetpointMode::RAW_CTRL);
+        next_request_ = now;
+    }
+    if ((now - started_).toSec() >= 5.0) {
+        ROS_ERROR_THROTTLE(5.0, "%s: PX4 Hold unconfirmed. Holding position in OFFBOARD.",
+                           name().c_str());
+    } else if (now >= next_request_) {
+        next_request_ = now + ros::WallDuration(1.0);
+        mav_.requestMode(kPx4HoldMode);
+    }
+    return BT::NodeStatus::RUNNING;
+}
+
+void Px4HoldNode::onHalted() {
+    mav_.setSetpointMode(SetpointMode::STANDBY);
+}
+
 } // namespace maxt

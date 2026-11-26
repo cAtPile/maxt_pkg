@@ -1,8 +1,8 @@
 <root>
-    <!-- 输入：tracking_duration（秒，0 表示对齐一次）。
+    <!-- 输入：tracking_duration（秒，0 表示对齐一次），可选 last_id_param（最后回访的目标 ID 参数）。
          读取任务黑板 target_local_poses，按距执行时无人机位置的三维距离从近到远返回观察点并伺服，
          跳过 processed_qr 中已完成的目标。Guidance 成功后负责登记 processed_qr。
-         输出：result=complete/failed、detected_target_id、guidance_message。
+         输出：result=complete/failed、detected_target_id、guidance_message、last_id。
          无待处理目标时直接成功；未重新看到二维码时跳过，其他导航或伺服失败时退出，保留全部位姿记录。
          仅返回记录的 XYZ，不恢复记录的朝向；不负责起飞、返航或降落。 -->
     <BehaviorTree ID="RollbackTargetTree">
@@ -10,7 +10,8 @@
             <SetBlackboard output_key="result" value="failed" />
             <SetBlackboard output_key="detected_target_id" value="" />
             <SetBlackboard output_key="guidance_message" value="" />
-            <ListRecordedTargets sort_by_distance="true" target_ids="{rollback_target_ids}"
+            <ListRecordedTargets sort_by_distance="true" last_id_param="{last_id_param}"
+                                 last_id="{last_id}" target_ids="{rollback_target_ids}"
                                  target_count="{rollback_target_count}" />
             <SetBlackboard output_key="rollback_target_index" value="0" />
             <Repeat num_cycles="{rollback_target_count}">

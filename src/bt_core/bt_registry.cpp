@@ -89,7 +89,12 @@ void MaxtCore::registerNodes() {
     factory_.registerBuilder<ListRecordedTargetsNode>("ListRecordedTargets",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<ListRecordedTargetsNode>(
-                name, config, mission_blackboard_, [this] { return mav_->GetRawPose(); });
+                name, config, mission_blackboard_, [this] { return mav_->GetRawPose(); },
+                [this](const std::string& parameter) {
+                    std::string value;
+                    nh_.getParam(parameter, value);
+                    return value;
+                });
         });
     factory_.registerBuilder<GetRecordedTargetNode>("GetRecordedTarget",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
@@ -131,6 +136,10 @@ void MaxtCore::registerNodes() {
     factory_.registerBuilder<HoverNode>("Hover",
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<HoverNode>(name, config, *mav_);
+        });
+    factory_.registerBuilder<Px4HoldNode>("Px4Hold",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<Px4HoldNode>(name, config, *mav_);
         });
 
     factory_.registerBuilder<RoundNode>("Round", 

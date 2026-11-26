@@ -61,7 +61,7 @@ public:
         s_.history->get("processed_qr", processed);
         processed.push_back(id);
         s_.history->set("processed_qr", processed);
-        setOutput("message", std::string("done"));
+        setOutput("message", std::string("SUCCEED"));
         return BT::NodeStatus::SUCCESS;
     }
 };
@@ -115,7 +115,10 @@ public:
 void runTraverse(int mode, const std::string& xml) {
     Scenario s; s.visible = mode != 1;
     s.search_fail = mode == 2; s.nav_fail = mode == 3; s.guidance_fail = mode == 4;
-    s.first_target_missing = mode == 5;
+    s.first_target_missing = mode == 5 || mode == 8;
+    std::string configured_target;
+    if (mode == 1 || mode >= 6) configured_target = "A";
+    if (mode == 7) configured_target = "C";
     BT::BehaviorTreeFactory f;
     f.registerNodeType<maxt::TraversePathGeneratorNode>("TraversePathGenerator");
     f.registerNodeType<maxt::GetRegionWaypointNode>("GetRegionWaypoint");
@@ -125,7 +128,11 @@ void runTraverse(int mode, const std::string& xml) {
         return std::make_unique<Detection>(n, c, s); });
     f.registerBuilder<maxt::ListRecordedTargetsNode>("ListRecordedTargets", [&](const std::string& n, const BT::NodeConfiguration& c) {
         return std::make_unique<maxt::ListRecordedTargetsNode>(n, c, s.history, [] {
-            geometry_msgs::PoseStamped pose; pose.header.stamp.sec = 1; return pose; }); });
+            geometry_msgs::PoseStamped pose; pose.header.stamp.sec = 1; return pose; },
+            [&](const std::string& parameter) {
+                check(parameter == "/qr_center/target_id");
+                return configured_target;
+            }); });
     f.registerBuilder<maxt::GetRecordedTargetNode>("GetRecordedTarget", [&](const std::string& n, const BT::NodeConfiguration& c) {
         return std::make_unique<maxt::GetRecordedTargetNode>(n, c, s.history); });
     f.registerBuilder<Nav>("NavRaw", [&](const std::string& n, const BT::NodeConfiguration& c) {
@@ -155,23 +162,33 @@ void runTraverse(int mode, const std::string& xml) {
     f.registerSimpleAction("TouchDown", [&](BT::TreeNode&) {
         s.events.push_back("land"); return BT::NodeStatus::SUCCESS;
     });
+    f.registerSimpleAction("Px4Hold", [&](BT::TreeNode&) {
+        s.events.push_back("hold");
+        return mode == 9 ? BT::NodeStatus::FAILURE : BT::NodeStatus::SUCCESS;
+    });
     auto bb = BT::Blackboard::create();
     auto tree = f.createTreeFromFile(xml, bb);
     auto status = BT::NodeStatus::RUNNING;
     for (int i = 0; i < 30 && status == BT::NodeStatus::RUNNING; ++i) status = tree.tickRoot();
-    const bool failed = mode >= 2 && mode <= 4;
+    const bool failed = (mode >= 2 && mode <= 4) || mode == 9;
     check(status == (failed ? BT::NodeStatus::FAILURE : BT::NodeStatus::SUCCESS));
     check(bb->get<std::string>("traverse_result") == (failed ? "failed" : "complete"));
     check(s.search_halts == 0);
     std::vector<std::string> expected(mode == 2 ? 1 : 10, "search");
-    if (mode == 0 || mode == 5) {
+    if (mode == 0 || mode == 5 || mode == 7) {
         expected.insert(expected.end(), {"nav A", "guide A", "nav B", "guide B"});
+    } else if (mode == 6 || mode == 8 || mode == 9) {
+        expected.insert(expected.end(), {"nav B", "guide B", "nav A", "guide A"});
     } else if (mode == 3) {
         expected.push_back("nav A");
     } else if (mode == 4) {
         expected.insert(expected.end(), {"nav A", "guide A"});
     }
-    if (!failed) expected.insert(expected.end(), {"home", "land"});
+    if (mode == 6 || mode == 9) {
+        expected.push_back("hold");
+    } else if (!failed) {
+        expected.insert(expected.end(), {"home", "land"});
+    }
     check(s.events == expected);
 }
 void testDistanceOrdering() {
@@ -270,6 +287,6 @@ int main(int argc, char** argv) {
     const std::string xml = argc > 1 ? argv[1] : "config/mission/subtree/RollbackTargetTree.xml";
     for (int i = 0; i < 6; ++i) run(i, xml);
     const auto dir = xml.substr(0, xml.find_last_of('/') + 1);
-    for (int i = 0; i < 6; ++i) runTraverse(i, dir + "../traverse_guidance_mission.xml");
-    std::cout << "Distance ordering: PASS; RollbackTargetTree: 6 scenarios PASS; TraverseGuidanceMission: 6 scenarios PASS\n";
+    for (int i = 0; i < 10; ++i) runTraverse(i, dir + "../traverse_guidance_mission.xml");
+    std::cout << "Distance ordering: PASS; RollbackTargetTree: 6 scenarios PASS; TraverseGuidanceMission: 10 scenarios PASS\n";
 }
