@@ -24,7 +24,7 @@ QR 任务通过 AG Client V2 把导航目标和两个展示点异步发送给 UG
 
 - `report_id: [QR002, QR003]`，`target_id: QR001`。
 - 当前试飞区域 5×5 m，步长 1 m，共 36 个停点。以起飞结束时的位置为水平原点，方向采用 `nav/azimuth_angle`。
-- `survey_height`、`drop_height` 均以起飞点为高度基准，当前均为 3 m；在当前水平场地假设下作为离地高度。
+- `survey_height` 指定相对起飞点的起飞高度。最后一段 NavGeo 保持进入时的高度。
 - 先连续满足低速、位置及倾角约束 `stable_seconds=0.4`，再延时 `settle_seconds=1.0`；期间扰动会重新计时。
 - 从连续相机流选取该时刻之后的一张新图，图像与深度时间均校验；飞行阶段暂停视觉解码和 OYO 查询。
 
@@ -85,13 +85,11 @@ roslaunch maxt_pkg qr_stop_survey.launch \
 
 ### NavGeo 高度及严格到达
 
-`NavGeo` 新增可选 `target_alt`，单位 m，相对起飞点高度，使用 `FRAME_GLOBAL_REL_ALT`；
-省略该端口仍保持进入节点时的高度。水平和高度共同使用平滑曲线，到达检查换算为原始 local Z。
-它不是 WGS84 椭球高或目标地面海拔。
+`NavGeo` 只规划水平位移。它以 `FRAME_GLOBAL_REL_ALT` 保持进入节点时的相对高度，并用进入时的原始 local Z 检查到达。
 
 ```xml
 <NavGeo latitude="{latitude}" longitude="{longitude}"
-        target_alt="5.0" strict_reach="true" timeout="90" />
+        strict_reach="true" timeout="90" />
 ```
 
 `NavGeo`、`NavAzimuth` 新增 `strict_reach`，默认 false 保持旧任务行为；新扫描 XML 显式启用。

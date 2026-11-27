@@ -22,7 +22,6 @@ BT::PortsList NavGeo::providedPorts() {
         BT::OutputPort<bool>("breakpoint_valid"),
         BT::InputPort<double>("latitude"),
         BT::InputPort<double>("longitude"),
-        BT::InputPort<double>("target_alt", "Optional height above takeoff, metres; omit to hold"),
         BT::InputPort<bool>("strict_reach", false, "Timeout cannot count as arrival"),
         BT::InputPort<double>("timeout", 60.0, "timeout (s)")
     };
@@ -67,18 +66,6 @@ BT::NodeStatus NavGeo::onStart() {
     const auto start = mav_.GetGlobalPose();
     target_.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
     target_.altitude = start.altitude;
-    double requested_altitude;
-    const bool change_altitude = config().input_ports.count("target_alt") != 0;
-    if (change_altitude) {
-        if (!getInput("target_alt", requested_altitude) ||
-            !std::isfinite(requested_altitude) || requested_altitude <= 0.0) {
-            ROS_ERROR("[NavGeo] target_alt must be a positive takeoff-relative height.");
-            return BT::NodeStatus::FAILURE;
-        }
-        // FCU relative altitude and local Z may have different origins.
-        altitude_raw_ += requested_altitude - start.altitude;
-        target_.altitude = requested_altitude;
-    }
     double v_max, a_max;
     nh_.param<double>("nav/v_max", v_max, 2.5);
     nh_.param<double>("nav/a_max", a_max, 1.2);
@@ -108,7 +95,7 @@ BT::NodeStatus NavGeo::onStart() {
     }
     QuinticCurve::solveAxis(measured_yaw_, 0.0, 0.0, measured_yaw_ + delta, 0.0, 0.0,
                             yaw_duration_, yaw_coefficients_.data());
-    curve_.setTarget(start, target_, v_max, a_max, change_altitude);
+    curve_.setTarget(start, target_, v_max, a_max, false);
     // 在发送设点前检查预计曲线时长，拦截错误经纬度造成的长距离航行。
     if (!std::isfinite(curve_.duration()) || curve_.duration() > max_duration_) {
         ROS_ERROR("[NavGeo] Estimated duration T=%.2f s exceeds limit %.2f s.",
@@ -198,8 +185,6 @@ BT::NodeStatus NavGeo::onRunning() {
     }
     return BT::NodeStatus::RUNNING;
 }
-
-
 
 void NavGeo::applyYaw(mavros_msgs::GlobalPositionTarget& target, double elapsed) {
     using Target = mavros_msgs::GlobalPositionTarget;

@@ -6,7 +6,7 @@
 
 namespace maxt {
 
-// 经纬度导航；可选 target_alt 为相对起飞点高度，省略则保持当前高度。
+// 经纬度平面导航，保持进入节点时的高度。
 class NavGeo : public MavActionNode {
 public:
     NavGeo(const std::string& name, const BT::NodeConfiguration& config,

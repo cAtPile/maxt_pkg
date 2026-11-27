@@ -27,7 +27,7 @@
                   latitude="{drop_lat}" longitude="{drop_lon}" />
         <PlayAudio filename="cn-target-found.wav" level="INFO" />
         <NavGeo name="ToDropTarget" latitude="{drop_lat}" longitude="{drop_lon}"
-                target_alt="{drop_height}" timeout="90" strict_reach="true" />
+                timeout="90" strict_reach="true" />
         <!-- Navigation is complete; ReadyForDrop remains a persistent hold. -->
         <PlayAudio filename="cn-mission-complete.wav" level="INFO" />
         <QrHold name="ReadyForDrop" />
