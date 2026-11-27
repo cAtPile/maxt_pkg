@@ -27,10 +27,14 @@ BT::NodeStatus Geo2Local::tick() {
     GeographicLib::LocalCartesian projection(global.latitude, global.longitude, 0.0);
     double east, north, up;
     projection.Forward(latitude, longitude, 0.0, east, north, up);
-    if (!setOutput("x", local.x + east) || !setOutput("y", local.y + north)) {
+    const double x = local.x + east;
+    const double y = local.y + north;
+    if (!setOutput("x", x) || !setOutput("y", y)) {
         ROS_ERROR("[Geo2Local] Missing local coordinate output mapping.");
         return BT::NodeStatus::FAILURE;
     }
+    ROS_INFO("[Geo2Local] lon=%.8f deg lat=%.8f deg -> local x=%.3f m y=%.3f m",
+             longitude, latitude, x, y);
     return BT::NodeStatus::SUCCESS;
 }
 

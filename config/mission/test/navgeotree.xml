@@ -1,0 +1,15 @@
+<root main_tree_to_execute="NavGeoTestMission">
+    <include path="../subtree/NavGeoTree.xml" />
+    <BehaviorTree ID="NavGeoTestMission">
+        <Sequence>
+            <ConnectCheck />
+            <Takeoff target_alt="6.0" home_x="{home_x}" home_y="{home_y}"
+                     return_z="{return_z}" />
+            <!-- 经纬度沿用实地遍历任务的航点，Hight 单位为 local 系中的米。 -->
+            <SubTreePlus ID="NavGeoTree" Longitude="填写"
+                         Latitude="填写" Hight="6.0" />
+            <Nav name="ReturnHome" x="{home_x}" y="{home_y}" z="{return_z}" />
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>
