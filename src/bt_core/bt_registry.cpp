@@ -24,6 +24,7 @@
 #include <maxt_pkg/maxt_nodes/nav/nav_node.hpp>
 #include <maxt_pkg/maxt_nodes/nav/nav_raw_node.hpp>
 #include <maxt_pkg/maxt_nodes/re_heading_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/geo_to_local.hpp>
 #include <maxt_pkg/maxt_nodes/nav/nav_geo_node.hpp>
 #include <maxt_pkg/maxt_nodes/base_point_azimuth_fix_node.hpp>
 #include <maxt_pkg/maxt_nodes/nav/nav_azimuth_node.hpp>
@@ -106,6 +107,11 @@ void MaxtCore::registerNodes() {
     factory_.registerBuilder<TakeoffNode>("Takeoff", 
         [this](const std::string& name, const BT::NodeConfiguration& config) {
             return std::make_unique<TakeoffNode>(name, config, *mav_);
+        });
+
+    factory_.registerBuilder<Geo2Local>("Geo2Local",
+        [this](const std::string& name, const BT::NodeConfiguration& config) {
+            return std::make_unique<Geo2Local>(name, config, *mav_);
         });
 
     factory_.registerBuilder<NavGeo>("NavGeo",

@@ -802,3 +802,15 @@ NavGeo 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/l
 目标黑名单 `processed_qr` 由 Guidance 在成功收尾时更新（再次返回断点前）。FoundCheck 只检查历史并输出目标 ID；仅发现、伺服失败、超时或中止均不会加入黑名单。`record="false"` 仍只检查可见性。
 
 导航中断处理在 Guidance 成功后执行 `SendGeoPose`，将新的 GPS 定位发布到 `QRCode_pose/Global_pose`，发送成功后再返回断点继续原航段。等待有效定位或接收端超过 10 秒时返回 FAILURE。
+
+## 经纬度导航子树 NavGeoTree
+
+任务 XML 可通过 `<include path="subtree/NavGeoTree.xml" />` 引入子树，再在任务序列中调用：
+
+```xml
+<SubTreePlus ID="NavGeoTree" Longitude="{target_lon}" Latitude="{target_lat}" Hight="{target_z}" />
+```
+
+经纬度使用 WGS84 十进制度。Geo2Local 以当前全球定位和原始 local 位置为参考，将目标投影到 MAVROS local 系（x 向东、y 向北），随后 NavRaw 飞向该点。`Hight` 为原始 local 系的目标 z 坐标，单位为米。
+
+运行单航点仿真任务：`roslaunch maxt_pkg sim_navgeotree.launch`。仿真已启动时可追加 `sim:=false` 复用当前环境。任务起飞至 6 米，调用 NavGeoTree 飞往 `config/mission/sim_navgeotree.xml` 中的仿真航点，到达后返航并降落。

@@ -1,0 +1,15 @@
+<root main_tree_to_execute="SimNavGeoMission">
+    <include path="subtree/NavGeoTree.xml" />
+    <BehaviorTree ID="SimNavGeoMission">
+        <Sequence>
+            <ConnectCheck />
+            <Takeoff target_alt="6.0" home_x="{home_x}" home_y="{home_y}"
+                     return_z="{return_z}" />
+            <!-- 复用仿真场景的经纬度航点，Hight 单位为 local 系中的米。 -->
+            <SubTreePlus ID="NavGeoTree" Longitude="8.5455939"
+                         Latitude="47.3977419" Hight="6.0" />
+            <Nav name="ReturnHome" x="{home_x}" y="{home_y}" z="{return_z}" />
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>
