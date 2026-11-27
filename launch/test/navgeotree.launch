@@ -1,6 +1,7 @@
 <launch>
     <!-- 单航点 NavGeoTree 实飞测试，默认复用外部 MAVROS。 -->
     <arg name="sim" default="false" />
+    <arg name="run_uav" default="false" />
     <arg name="run_detection" default="false" />
     <arg name="run_guidance" default="true" />
     <arg name="detection_config" default="$(find maxt_pkg)/config/qr_center.yaml" />
@@ -17,6 +18,7 @@
     <include file="$(find maxt_pkg)/launch/mission.launch">
         <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/test/navgeotree.xml" />
         <arg name="sim" value="$(arg sim)" />
+        <arg name="run_uav" value="$(arg run_uav)" />
         <arg name="nav_config" value="$(arg nav_config)" />
         <arg name="run_fake_audio" value="$(arg run_fake_audio)" />
         <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />

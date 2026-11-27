@@ -160,6 +160,7 @@ add_library(${PROJECT_NAME}
   src/maxt_nodes/waitstep.cpp
   src/maxt_nodes/hover.cpp
   src/maxt_nodes/traverse_path_generator.cpp
+  src/maxt_nodes/polygon_coverage_wpg.cpp
   src/maxt_nodes/get_region_waypoint.cpp
   src/maxt_nodes/found_check.cpp
   src/maxt_nodes/target_check.cpp

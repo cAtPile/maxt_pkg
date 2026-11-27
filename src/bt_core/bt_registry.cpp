@@ -1,6 +1,7 @@
 #include <maxt_pkg/maxt_core.hpp>
 #include <maxt_pkg/maxt_nodes/play_audio_node.hpp>
 #include <maxt_pkg/maxt_nodes/traverse_path_generator_node.hpp>
+#include <maxt_pkg/maxt_nodes/polygon_coverage_wpg.hpp>
 #include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 #include <maxt_pkg/maxt_nodes/ugv_cowork_node.hpp>
@@ -102,6 +103,7 @@ void MaxtCore::registerNodes() {
             return std::make_unique<GetRecordedTargetNode>(name, config, mission_blackboard_);
         });
     factory_.registerNodeType<TraversePathGeneratorNode>("TraversePathGenerator");
+    factory_.registerNodeType<PolygonCoverageWpG>("PolygonCoverageWpG");
     factory_.registerNodeType<GetRegionWaypointNode>("GetRegionWaypoint");
 
     factory_.registerBuilder<TakeoffNode>("Takeoff", 

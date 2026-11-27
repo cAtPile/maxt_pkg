@@ -1,0 +1,19 @@
+<root main_tree_to_execute="SimPolygonCoverageMission">
+    <include path="subtree/PolygonCoverageTree.xml" />
+    <BehaviorTree ID="SimPolygonCoverageMission">
+        <Sequence>
+            <ConnectCheck />
+            <Takeoff target_alt="6.0" home_x="{home_x}" home_y="{home_y}"
+                     return_z="{return_z}" />
+            <!-- 使用现有仿真航点附近的四个角点，覆盖间距和作业高度单位均为米。 -->
+            <SubTreePlus ID="PolygonCoverageTree"
+                         Longitude1="8.545500500" Latitude3="47.397877000"
+                         Longitude2="8.545568300" Latitude2="47.397977500"
+                         Longitude3="8.545594600" Latitude4="47.397940700"
+                         Longitude4="8.545499400" Latitude1="47.397922300"
+                         coverage_step="3.0" work_hight="6.0" />
+            <Nav name="ReturnHome" x="{home_x}" y="{home_y}" z="{return_z}" />
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>

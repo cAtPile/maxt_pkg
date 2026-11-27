@@ -1,0 +1,17 @@
+<root main_tree_to_execute="NavRawFourPoints">
+    <BehaviorTree ID="NavRawFourPoints">
+        <Sequence>
+            <ConnectCheck />
+            <Takeoff target_alt="3.0" />
+            <!-- 仿真示例航点，使用原始 MAVROS local 坐标（米）。 -->
+            <NavRaw name="Waypoint1" x="0.0" y="0.0" z="3.0" />
+            <SendGeoPose />
+            <NavRaw name="Waypoint2" x="5.0" y="0.0" z="3.0" />
+            <SendGeoPose />
+            <NavRaw name="Waypoint3" x="7.0" y="7.0" z="3.0" />
+            <SendGeoPose />
+            <NavRaw name="Waypoint4" x="0.0" y="5.0" z="3.0" />
+            <SendGeoPose />
+        </Sequence>
+    </BehaviorTree>
+</root>

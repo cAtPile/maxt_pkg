@@ -814,3 +814,17 @@ NavGeo 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/l
 经纬度使用 WGS84 十进制度。Geo2Local 以当前全球定位和原始 local 位置为参考，将目标投影到 MAVROS local 系（x 向东、y 向北），随后 NavRaw 飞向该点。`Hight` 为原始 local 系的目标 z 坐标，单位为米。
 
 运行单航点仿真任务：`roslaunch maxt_pkg sim_navgeotree.launch`。仿真已启动时可追加 `sim:=false` 复用当前环境。任务起飞至 6 米，调用 NavGeoTree 飞往 `config/mission/sim_navgeotree.xml` 中的仿真航点，到达后返航并降落。
+
+### 四角区域覆盖
+
+在任务 XML 中包含 `subtree/PolygonCoverageTree.xml`，通过 `SubTreePlus` 调用
+`PolygonCoverageTree`。输入 `Longitude1/Latitude1` 至 `Longitude4/Latitude4`
+为凸四边形的四个角点（度），可乱序输入。`coverage_step` 为最大航带宽度（米），
+`work_hight` 为 MAVROS 本地坐标系中的目标 Z（米）。调用前应已起飞且定位有效。
+`PolygonCoverageWpG` 将南北跨度均分为向上取整的航带数，沿东西方向往返。
+
+运行覆盖仿真任务可执行 `roslaunch maxt_pkg sim_polygon_coverage.launch`。
+示例任务在 `config/mission/sim_polygon_coverage.xml` 中设置四个角点，以 6 米高度和
+3 米覆盖间距执行遍历，完成后返航并降落。仿真已启动时可追加 `sim:=false` 复用当前环境。
+例如跨度 5 米、覆盖宽度 2 米时，生成 3 条航带，实际间距约 1.67 米。
+规划器以第一角点为投影原点，按米计算航带，再输出 WGS84 经纬度航点。子树逐点调用 `NavGeoTree`，由其完成坐标转换并使用 `NavRaw` 导航。

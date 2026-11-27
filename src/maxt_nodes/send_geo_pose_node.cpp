@@ -35,9 +35,11 @@ BT::NodeStatus SendGeoPoseNode::tick() {
         }
         message = fix_;
     }
+    ROS_INFO("SendGeoPose: preparing to send latitude=%.9f longitude=%.9f",
+             message.latitude, message.longitude);
     if (publisher_.getNumSubscribers() == 0) {
-        ROS_WARN("SendGeoPose: no receiver connected, skipping send");
-        return BT::NodeStatus::FAILURE;
+        ROS_INFO("SendGeoPose: warning: no receiver connected, skipping send");
+        return BT::NodeStatus::SUCCESS;
     }
     publisher_.publish(message);
     ROS_INFO("SendGeoPose: sent latitude=%.9f longitude=%.9f altitude=%.3f",
