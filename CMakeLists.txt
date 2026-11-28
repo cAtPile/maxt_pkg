@@ -171,6 +171,8 @@ add_library(${PROJECT_NAME}
 
   src/maxt_nodes/touch_down.cpp
 
+  src/maxt_nodes/nav/heading_to_local.cpp
+  src/maxt_nodes/nav/hight_ref_to_local.cpp
   src/maxt_nodes/nav/geo_to_local.cpp
   src/maxt_nodes/nav/nav_geo.cpp
   src/maxt_nodes/re_heading.cpp

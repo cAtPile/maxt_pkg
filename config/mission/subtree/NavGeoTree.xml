@@ -2,7 +2,8 @@
     <BehaviorTree ID="NavGeoTree">
         <Sequence>
             <Geo2Local longitude="{Longitude}" latitude="{Latitude}" x="{local_x}" y="{local_y}" />
-            <NavRaw x="{local_x}" y="{local_y}" z="{Hight}" />
+            <!-- 有风险废弃 -->
+            <!-- <NavRaw x="{local_x}" y="{local_y}" z="{Hight}" /> -->
         </Sequence>
     </BehaviorTree>
 </root>

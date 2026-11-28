@@ -1,0 +1,23 @@
+<root main_tree_to_execute="SimNavHeadingMission">
+    <include path="subtree/NavHeadingTree.xml" />
+    <BehaviorTree ID="SimNavHeadingMission">
+        <Sequence>
+            <!-- 经纬度及航向角单位为度，高度及位移单位为米。 -->
+            <SetBlackboard output_key="work_alt" value="6.0" />
+            <SetBlackboard output_key="base_Longitude" value="填写" />
+            <SetBlackboard output_key="base_Latitude" value="填写" />
+            <SetBlackboard output_key="headingYaw" value="填写" />
+            <SetBlackboard output_key="target_n" value="填写" />
+            <SetBlackboard output_key="target_e" value="填写" />
+
+            <ConnectCheck />
+            <Takeoff target_alt="{work_alt}" home_x="{home_x}" home_y="{home_y}"
+                     home_z="{home_z}" return_z="{return_z}" />
+            <SubTreePlus ID="NavHeadingTree" base_Longitude="{base_Longitude}" base_Latitude="{base_Latitude}"
+                         headingYaw="{headingYaw}" target_n="{target_n}" target_e="{target_e}"
+                         target_hight="{work_alt}" home_z="{home_z}" />
+            <NavRaw name="ReturnHome" x="{home_x}" y="{home_y}" z="{return_z}" />
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>

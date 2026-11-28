@@ -168,8 +168,6 @@ BT::NodeStatus NavAzimuth::onRunning() {
     return BT::NodeStatus::RUNNING;
 }
 
-
-
 void NavAzimuth::onHalted() {
     recordBreakpointAndSlowDown();
 }

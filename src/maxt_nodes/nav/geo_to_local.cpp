@@ -4,6 +4,22 @@
 
 namespace maxt {
 
+bool geoToLocalXY(MavKit& mav, double longitude, double latitude, double& x, double& y) {
+    if (!mav.hasGlobalPose() || !mav.hasFreshNavigationData(true)) {
+        ROS_ERROR("[Geo2Local] Current navigation data unavailable.");
+        return false;
+    }
+    const auto global = mav.GetGlobalPose();
+    const auto local = mav.GetRawPose().pose.position;
+    // 当前定位点作为切平面原点，将东西、南北位移叠加到 MAVROS local 坐标。
+    GeographicLib::LocalCartesian projection(global.latitude, global.longitude, 0.0);
+    double east, north, up;
+    projection.Forward(latitude, longitude, 0.0, east, north, up);
+    x = local.x + east;
+    y = local.y + north;
+    return true;
+}
+
 BT::PortsList Geo2Local::providedPorts() {
     return {BT::InputPort<double>("longitude"), BT::InputPort<double>("latitude"),
             BT::OutputPort<double>("x"), BT::OutputPort<double>("y")};
@@ -17,18 +33,10 @@ BT::NodeStatus Geo2Local::tick() {
         ROS_ERROR("[Geo2Local] Invalid target longitude or latitude.");
         return BT::NodeStatus::FAILURE;
     }
-    if (!mav_.hasGlobalPose() || !mav_.hasFreshNavigationData(true)) {
-        ROS_ERROR("[Geo2Local] Current navigation data unavailable.");
+    double x, y;
+    if (!geoToLocalXY(mav_, longitude, latitude, x, y)) {
         return BT::NodeStatus::FAILURE;
     }
-    const auto global = mav_.GetGlobalPose();
-    const auto local = mav_.GetRawPose().pose.position;
-    // 当前定位点作为切平面原点，将东西、南北位移叠加到 MAVROS local 坐标。
-    GeographicLib::LocalCartesian projection(global.latitude, global.longitude, 0.0);
-    double east, north, up;
-    projection.Forward(latitude, longitude, 0.0, east, north, up);
-    const double x = local.x + east;
-    const double y = local.y + north;
     if (!setOutput("x", x) || !setOutput("y", y)) {
         ROS_ERROR("[Geo2Local] Missing local coordinate output mapping.");
         return BT::NodeStatus::FAILURE;

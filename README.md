@@ -828,3 +828,25 @@ NavGeo 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/l
 3 米覆盖间距执行遍历，完成后返航并降落。仿真已启动时可追加 `sim:=false` 复用当前环境。
 例如跨度 5 米、覆盖宽度 2 米时，生成 3 条航带，实际间距约 1.67 米。
 规划器以第一角点为投影原点，按米计算航带，再输出 WGS84 经纬度航点。子树逐点调用 `NavGeoTree`，由其完成坐标转换并使用 `NavRaw` 导航。
+
+### 固定航向导航 NavHeadingTree
+
+在任务 XML 的根元素内引入 `<include path="subtree/NavHeadingTree.xml"/>`。父树显式传入起飞节点记录的 `home_z`，例如：
+
+```xml
+<Takeoff target_alt="2" home_z="{home_z}" />
+<SubTreePlus ID="NavHeadingTree" base_Longitude="{longitude}" base_Latitude="{latitude}"
+             headingYaw="0" target_n="5" target_e="1" target_hight="2" home_z="{home_z}" />
+```
+
+`Heading2Local` 将经纬度基准点转换到 MAVROS local ENU。水平位移以配置的机头方向为基准，`target_n` 向前为正，`target_e` 向右为正，单位为米。`headingYaw` 是该方向的罗盘航向角，正北为 0°，顺时针至正东为 90°。示例目标位于基准点以北 5 米、以东 1 米。该角度用于计算目标位置，机头朝向沿用 NavRaw 的控制方式。
+
+`HightRef2Local` 输出 `z = home_alt + target_hight`。子树将起飞点的 `home_z` 传给 `home_alt`。`target_hight` 表示相对起飞点的高度（米），示例中的 2 表示起飞点上方 2 米。
+
+运行固定航向仿真任务：
+
+```bash
+roslaunch maxt_pkg sim_navheading.launch
+```
+
+在 `sim_navheading.xml` 开头的 `SetBlackboard` 节点中统一设置任务参数。当前起飞高度和目标高度均为起飞点上方 6 米，航向为正东，目标位于仿真基准点以东 5 米，到达后返航降落。

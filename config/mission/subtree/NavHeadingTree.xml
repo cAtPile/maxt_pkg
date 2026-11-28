@@ -1,0 +1,11 @@
+<root>
+    <BehaviorTree ID="NavHeadingTree">
+        <Sequence>
+            <Heading2Local base_Longitude="{base_Longitude}" base_Latitude="{base_Latitude}"
+                           headingYaw="{headingYaw}" target_n="{target_n}" target_e="{target_e}"
+                           x="{local_x}" y="{local_y}" />
+            <HightRef2Local home_alt="{home_z}" target_hight="{target_hight}" z="{local_z}" />
+            <NavRaw x="{local_x}" y="{local_y}" z="{local_z}" />
+        </Sequence>
+    </BehaviorTree>
+</root>

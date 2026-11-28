@@ -4,6 +4,8 @@
 
 namespace maxt {
 
+bool geoToLocalXY(MavKit& mav, double longitude, double latitude, double& x, double& y);
+
 class Geo2Local : public BT::SyncActionNode {
 public:
     Geo2Local(const std::string& name, const BT::NodeConfiguration& config, MavKit& mav)
