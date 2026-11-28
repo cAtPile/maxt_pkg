@@ -6,14 +6,12 @@ namespace maxt {
 BT::PortsList TakeoffNode::providedPorts() {
     return {
         BT::InputPort<double>("target_alt", 0.5, "takeoff altitude"),
-        BT::OutputPort<double>("takeoff_x_raw", "Raw local X at ascent start"),
-        BT::OutputPort<double>("takeoff_y_raw", "Raw local Y at ascent start"),
         BT::OutputPort<double>("takeoff_yaw_raw", "Raw local yaw captured at external arming"),
         BT::OutputPort<double>("takeoff_target_z_raw", "Raw local takeoff target Z"),
-        BT::OutputPort<double>("home_x", "takeoff X in calibrated navigation frame"),
-        BT::OutputPort<double>("home_y", "takeoff Y in calibrated navigation frame"),
-        BT::OutputPort<double>("home_z", "takeoff Z in calibrated navigation frame"),
-        BT::OutputPort<double>("return_z", "takeoff Z plus target_alt in calibrated navigation frame")
+        BT::OutputPort<double>("home_raw_x", "takeoff X in raw local frame"),
+        BT::OutputPort<double>("home_raw_y", "takeoff Y in raw local frame"),
+        BT::OutputPort<double>("home_raw_z", "takeoff Z in raw local frame"),
+        BT::OutputPort<double>("return_z", "takeoff Z plus target_alt in raw local frame")
     };
 }
 
@@ -123,9 +121,9 @@ BT::NodeStatus TakeoffNode::onRunning() {
 
     //初始化
     case Phase::INIT: {
-        const auto home = mav_.GetCalibratePose();
+        const auto current = mav_.GetRawPose();
         // 尚未收到定位时等待，避免将默认零坐标写入黑板；受起飞超时限制。
-        if (home.header.stamp.isZero() || !mav_.hasFreshNavigationData()) {
+        if (current.header.stamp.isZero() || !mav_.hasFreshNavigationData()) {
             return BT::NodeStatus::RUNNING;
         }
         // 输出可选，兼容未配置黑板映射的已有任务树。仅在爬升前记录一次。
@@ -134,17 +132,14 @@ BT::NodeStatus TakeoffNode::onRunning() {
                 setOutput(port, value);
             }
         };
-        write_output("home_x", home.pose.position.x);
-        write_output("home_y", home.pose.position.y);
-        write_output("home_z", home.pose.position.z);
-        write_output("return_z", home.pose.position.z + target_alt_);
+        write_output("home_raw_x", current.pose.position.x);
+        write_output("home_raw_y", current.pose.position.y);
+        write_output("home_raw_z", current.pose.position.z);
+        write_output("return_z", current.pose.position.z + target_alt_);
         mav_.RecordRawHomePose();
-        const auto current = mav_.GetRawPose();
         last_valid_position_ = current.pose.position;
         aim_altitude_raw_ = current.pose.position.z + target_alt_;
         if (!std::isfinite(aim_altitude_raw_)) return BT::NodeStatus::FAILURE;
-        write_output("takeoff_x_raw", current.pose.position.x);
-        write_output("takeoff_y_raw", current.pose.position.y);
         write_output("takeoff_yaw_raw", hold_yaw_);
         write_output("takeoff_target_z_raw", aim_altitude_raw_);
         if (config().output_ports.count("takeoff_yaw_raw")) {

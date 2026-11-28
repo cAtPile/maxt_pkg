@@ -549,7 +549,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `ConnectCheck` | `map_x/map_y/fact_x/fact_y(0)` | 无 |
 | `CapturePose` | `height_offset(0)` | `x`、`y`、`z` |
 | `PlayAudio` | `filename` | 无 |
-| `Takeoff` | `target_alt(0.5)` | `home_x`、`home_y`、`home_z`、`return_z` |
+| `Takeoff` | `target_alt(0.5)` | `home_raw_x`、`home_raw_y`、`home_raw_z`、`return_z` |
 | `NavGeo` | `latitude/longitude`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
 | `Nav` | `x/y/z`、`timeout(60)` | `breakpoint_x/y/z`、`breakpoint_valid` |
 | `BasePointAzimuthFix` | 无 | `bp_x_raw/bp_y_raw/bp_z_raw` |
@@ -769,7 +769,7 @@ rosrun maxt_pkg test_calibrate_tools
 
 `Takeoff` 持续等待外部解锁，不主动发送解锁请求，不设置等待解锁超时。检测到解锁后使用单调时钟重新计时，`takeoff.timeout` 限制 OFFBOARD 切换、爬升和稳定保持的总时长。
 
-`Takeoff` 在开始爬升前等待有效定位，将标定坐标系中的起飞位置输出到 `home_x/home_y/home_z`，并将起飞 Z 加 `target_alt` 输出到 `return_z`。输出端口按需映射到黑板，每次执行重新记录，爬升过程中不覆盖。例如 `<Takeoff target_alt="4.0" home_x="{home_x}" home_y="{home_y}" home_z="{home_z}" return_z="{return_z}" />`；随后用 `<Nav x="{home_x}" y="{home_y}" z="{return_z}" />` 返回起飞点上方，再执行 `<TouchDown />`。
+`Takeoff` 在开始爬升前等待有效定位，将未经标定变换的本地起飞位置输出到 `home_raw_x/home_raw_y/home_raw_z`，并将起飞 Z 加 `target_alt` 输出到 `return_z`。输出端口按需映射到黑板，每次执行重新记录，爬升过程中不覆盖。例如 `<Takeoff target_alt="4.0" home_raw_x="{home_raw_x}" home_raw_y="{home_raw_y}" home_raw_z="{home_raw_z}" return_z="{return_z}" />`；随后用 `<NavRaw x="{home_raw_x}" y="{home_raw_y}" z="{return_z}" />` 返回起飞点上方，再执行 `<TouchDown />`。
 
 初始化爬升时先调用 `RecordRawHomePose()` 记录未经处理的起飞位姿，再读取 `GetRawPose()`，保持该原始局部坐标的 XY，以 `takeoff.ascent_speed` 恒定垂直速度通过 `setRawTarget()` 和 `RAW_CTRL` 上升。目标原始高度为该次读取的 Z 加 `target_alt`，通过 `ReachAltitudeCheck()` 判定到达，随后切回 HEARTBEAT。
 
@@ -831,17 +831,17 @@ NavGeo 启动时计算预计曲线时长 T，通过 `config/nav.yaml` 的 `nav/l
 
 ### 固定航向导航 NavHeadingTree
 
-在任务 XML 的根元素内引入 `<include path="subtree/NavHeadingTree.xml"/>`。父树显式传入起飞节点记录的 `home_z`，例如：
+在任务 XML 的根元素内引入 `<include path="subtree/NavHeadingTree.xml"/>`。父树显式传入起飞节点记录的 `home_raw_z`，例如：
 
 ```xml
-<Takeoff target_alt="2" home_z="{home_z}" />
+<Takeoff target_alt="2" home_raw_z="{home_raw_z}" />
 <SubTreePlus ID="NavHeadingTree" base_Longitude="{longitude}" base_Latitude="{latitude}"
-             headingYaw="0" target_n="5" target_e="1" target_hight="2" home_z="{home_z}" />
+             headingYaw="0" target_n="5" target_e="1" target_hight="2" home_raw_z="{home_raw_z}" />
 ```
 
 `Heading2Local` 将经纬度基准点转换到 MAVROS local ENU。水平位移以配置的机头方向为基准，`target_n` 向前为正，`target_e` 向右为正，单位为米。`headingYaw` 是该方向的罗盘航向角，正北为 0°，顺时针至正东为 90°。示例目标位于基准点以北 5 米、以东 1 米。该角度用于计算目标位置，机头朝向沿用 NavRaw 的控制方式。
 
-`HightRef2Local` 输出 `z = home_alt + target_hight`。子树将起飞点的 `home_z` 传给 `home_alt`。`target_hight` 表示相对起飞点的高度（米），示例中的 2 表示起飞点上方 2 米。
+`HightRef2Local` 输出 `z = home_alt + target_hight`。子树将起飞点的 `home_raw_z` 传给 `home_alt`。`target_hight` 表示相对起飞点的高度（米），示例中的 2 表示起飞点上方 2 米。
 
 运行固定航向仿真任务：
 
@@ -858,9 +858,9 @@ roslaunch maxt_pkg sim_navheading.launch
 ```xml
 <SubTreePlus ID="BoustrophedonTree" base_Longitude="{base_Longitude}" base_Latitude="{base_Latitude}"
              lenth_n="30" lenth_e="18" coverage_step="6" heading_yaw="0"
-             home_z="{home_z}" target_hight="6.0" />
+             home_raw_z="{home_raw_z}" target_hight="6.0" />
 ```
 
-基准经纬度指定矩形角点。子树沿南北方向往返、向东西方向换带，并在 `HightRef2Local` 算出的 MAVROS local 高度巡航。示例将 `Takeoff` 输出的 `home_z` 作为高度基准，巡航高度设为起飞点上方 6 米。边长和航带间距以米计，负边长表示反方向。上述配置产生 3 条航带、6 个航点。
+基准经纬度指定矩形角点。子树沿南北方向往返、向东西方向换带，并在 `HightRef2Local` 算出的 MAVROS local 高度巡航。示例将 `Takeoff` 输出的 `home_raw_z` 作为高度基准，巡航高度设为起飞点上方 6 米。边长和航带间距以米计，负边长表示反方向。上述配置产生 3 条航带、6 个航点。
 
 单独使用 `TraversePathGenerator` 时，可设置 `heading_yaw`（罗盘角，单位度，默认 0，顺时针为正）。此时 `lenth_n` 沿指定航向，`lenth_e` 沿其右侧，输出为相对于 local 原点的绝对 XY 坐标。

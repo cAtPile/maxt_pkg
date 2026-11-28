@@ -5,6 +5,7 @@
 #include <maxt_pkg/maxt_nodes/get_region_waypoint_node.hpp>
 #include <maxt_pkg/maxt_nodes/guidance_node.hpp>
 #include <maxt_pkg/maxt_nodes/nav/nav_node.hpp>
+#include <maxt_pkg/maxt_nodes/nav/nav_raw_node.hpp>
 #include <maxt_pkg/maxt_nodes/traverse_path_generator_node.hpp>
 #include <maxt_pkg/maxt_nodes/takeoff_node.hpp>
 #include <maxt_pkg/maxt_nodes/touch_down_node.hpp>
@@ -38,9 +39,9 @@ public:
     BT::NodeStatus onStart() override {
         ticks_ = 0;
         if (kind_ == "Takeoff") {
-            setOutput("home_x", 1.25);
-            setOutput("home_y", -0.75);
-            setOutput("home_z", 0.5);
+            setOutput("home_raw_x", 1.25);
+            setOutput("home_raw_y", -0.75);
+            setOutput("home_raw_z", 0.5);
             setOutput("return_z", 0.5 + getInput<double>("target_alt").value());
         } else if (kind_ == "FoundCheck") {
             ++scenario_.detections;
@@ -50,7 +51,7 @@ public:
             tracking_ = getInput<double>("tracking_duration").value() > 0;
             if (tracking_) ++scenario_.tracking_starts;
             return BT::NodeStatus::RUNNING;
-        } else if (kind_ == "Nav" && name() == "ReturnHome") {
+        } else if (kind_ == "NavRaw" && name() == "ReturnHome") {
             check(getInput<double>("x").value() == 1.25, "lost takeoff X");
             check(getInput<double>("y").value() == -0.75, "lost takeoff Y");
             check(getInput<double>("z").value() == 4.5, "lost return altitude");
@@ -122,6 +123,7 @@ void run(const std::string& xml, const std::string& name, const std::string& exp
     registerLeaf<maxt::ConnectCheckNode>(factory, "ConnectCheck", scenario);
     registerLeaf<maxt::TakeoffNode>(factory, "Takeoff", scenario);
     registerLeaf<maxt::FoundCheckNode>(factory, "FoundCheck", scenario);
+    registerLeaf<maxt::NavRawNode>(factory, "NavRaw", scenario);
     registerLeaf<maxt::NavNode>(factory, "Nav", scenario);
     registerLeaf<maxt::GuidanceNode>(factory, "Guidance", scenario);
     registerLeaf<maxt::UgvCoworkNode>(factory, "UgvCowork", scenario);

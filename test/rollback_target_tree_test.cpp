@@ -30,6 +30,11 @@ public:
     }
     BT::NodeStatus tick() override {
         double x = getInput<double>("x").value();
+        if (name() == "ReturnHome") {
+            check(x == 0.0 && getInput<double>("y").value() == 0.0 && getInput<double>("z").value() == 6.0);
+            s_.events.push_back("home");
+            return BT::NodeStatus::SUCCESS;
+        }
         check(getInput<double>("y").value() == x + 1);
         check(getInput<double>("z").value() == x + 2);
         s_.events.push_back(x == 1 ? "nav A" : "nav B");
@@ -141,11 +146,11 @@ void runTraverse(int mode, const std::string& xml) {
         return std::make_unique<Guidance>(n, c, s); });
     f.registerSimpleAction("ConnectCheck", [](BT::TreeNode&) { return BT::NodeStatus::SUCCESS; });
     f.registerSimpleAction("Takeoff", [](BT::TreeNode& n) {
-        n.setOutput("home_x", 0.0); n.setOutput("home_y", 0.0);
-        n.setOutput("home_z", 0.0); n.setOutput("return_z", 6.0);
+        n.setOutput("home_raw_x", 0.0); n.setOutput("home_raw_y", 0.0);
+        n.setOutput("home_raw_z", 0.0); n.setOutput("return_z", 6.0);
         return BT::NodeStatus::SUCCESS;
-    }, {BT::InputPort<double>("target_alt"), BT::OutputPort<double>("home_x"),
-        BT::OutputPort<double>("home_y"), BT::OutputPort<double>("home_z"), BT::OutputPort<double>("return_z")});
+    }, {BT::InputPort<double>("target_alt"), BT::OutputPort<double>("home_raw_x"),
+        BT::OutputPort<double>("home_raw_y"), BT::OutputPort<double>("home_raw_z"), BT::OutputPort<double>("return_z")});
     f.registerSimpleAction("ReHeading", [](BT::TreeNode&) { return BT::NodeStatus::SUCCESS; },
                            {BT::InputPort<double>("timeout")});
     f.registerSimpleAction("NavGeo", [](BT::TreeNode&) { return BT::NodeStatus::SUCCESS; },
@@ -154,11 +159,6 @@ void runTraverse(int mode, const std::string& xml) {
         n.setOutput("bp_x_raw", 10.0); n.setOutput("bp_y_raw", 0.0); n.setOutput("bp_z_raw", 0.0);
         return BT::NodeStatus::SUCCESS;
     }, {BT::OutputPort<double>("bp_x_raw"), BT::OutputPort<double>("bp_y_raw"), BT::OutputPort<double>("bp_z_raw")});
-    f.registerSimpleAction("Nav", [&](BT::TreeNode& n) {
-        check(n.getInput<double>("x").value() == 0.0);
-        check(n.getInput<double>("z").value() == 6.0);
-        s.events.push_back("home"); return BT::NodeStatus::SUCCESS;
-    }, Nav::providedPorts());
     f.registerSimpleAction("TouchDown", [&](BT::TreeNode&) {
         s.events.push_back("land"); return BT::NodeStatus::SUCCESS;
     });

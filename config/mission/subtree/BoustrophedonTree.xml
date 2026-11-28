@@ -7,7 +7,7 @@
                                    lenth_n="{lenth_n}" lenth_e="{lenth_e}"
                                    coverage_step="{coverage_step}" heading_yaw="{heading_yaw}"
                                    waypoints="{waypoints}" waypoint_count="{waypoint_count}" />
-            <HightRef2Local home_alt="{home_z}" target_hight="{target_hight}" z="{survey_z}" />
+            <HightRef2Local home_alt="{home_raw_z}" target_hight="{target_hight}" z="{survey_z}" />
             <SetBlackboard output_key="index" value="0" />
             <Repeat num_cycles="{waypoint_count}">
                 <Sequence>

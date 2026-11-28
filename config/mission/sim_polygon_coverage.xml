@@ -3,7 +3,7 @@
     <BehaviorTree ID="SimPolygonCoverageMission">
         <Sequence>
             <ConnectCheck />
-            <Takeoff target_alt="6.0" home_x="{home_x}" home_y="{home_y}"
+            <Takeoff target_alt="6.0" home_raw_x="{home_raw_x}" home_raw_y="{home_raw_y}"
                      return_z="{return_z}" />
             <!-- 使用现有仿真航点附近的四个角点，覆盖间距和作业高度单位均为米。 -->
             <SubTreePlus ID="PolygonCoverageTree"
@@ -12,7 +12,7 @@
                          Longitude3="8.545594600" Latitude4="47.397940700"
                          Longitude4="8.545499400" Latitude1="47.397922300"
                          coverage_step="3.0" work_hight="6.0" />
-            <Nav name="ReturnHome" x="{home_x}" y="{home_y}" z="{return_z}" />
+            <NavRaw name="ReturnHome" x="{home_raw_x}" y="{home_raw_y}" z="{return_z}" />
             <TouchDown />
         </Sequence>
     </BehaviorTree>

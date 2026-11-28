@@ -8,7 +8,7 @@
                        waypoints="{stops}" waypoint_count="{stop_count}"
                        survey_height="{survey_height}" drop_height="{drop_height}" />
         <Takeoff target_alt="{survey_height}"
-                 takeoff_x_raw="{base_x}" takeoff_y_raw="{base_y}"
+                 home_raw_x="{base_x}" home_raw_y="{base_y}"
                  takeoff_target_z_raw="{base_z}" takeoff_yaw_raw="{survey_yaw}" />
         <PlayAudio filename="cn-mission-start.wav" level="INFO" />
         <SetBlackboard output_key="stop_index" value="0" />

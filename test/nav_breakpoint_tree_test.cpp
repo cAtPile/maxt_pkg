@@ -57,7 +57,7 @@ public:
             return s_.mode == "guidance_failed" ? BT::NodeStatus::FAILURE : BT::NodeStatus::RUNNING;
         }
         if (kind_ == "Takeoff") {
-            setOutput("home_x", 0.0); setOutput("home_y", 0.0);
+            setOutput("home_raw_x", 0.0); setOutput("home_raw_y", 0.0);
         }
         if (kind_ == "BasePointAzimuthFix") {
             setOutput("bp_x_raw", 0.0); setOutput("bp_y_raw", 0.0); setOutput("bp_z_raw", 6.0);
