@@ -3,7 +3,7 @@
     <BehaviorTree ID="SimNavHeadingMission">
         <Sequence>
             <!-- 经纬度及航向角单位为度，高度及位移单位为米。 -->
-            <SetBlackboard output_key="work_alt" value="6.0" />
+            <SetBlackboard output_key="work_alt" value="填写" />
             <SetBlackboard output_key="base_Longitude" value="填写" />
             <SetBlackboard output_key="base_Latitude" value="填写" />
             <SetBlackboard output_key="headingYaw" value="填写" />

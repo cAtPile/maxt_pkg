@@ -1,0 +1,24 @@
+<root main_tree_to_execute="SimBoustrophedonMission">
+    <include path="subtree/BoustrophedonTree.xml" />
+    <BehaviorTree ID="SimBoustrophedonMission">
+        <Sequence>
+            <!-- 经纬度单位为度。矩形边长、航带间距和相对高度单位为米。 -->
+            <SetBlackboard output_key="work_alt" value="6.0" />
+            <SetBlackboard output_key="base_Longitude" value="8.545500500" />
+            <SetBlackboard output_key="base_Latitude" value="47.397877000" />
+            <SetBlackboard output_key="heading_yaw" value="0" />
+            <SetBlackboard output_key="coverage_step" value="6" />
+            <SetBlackboard output_key="lenth_n" value="30" />
+            <SetBlackboard output_key="lenth_e" value="6" />
+
+            <ConnectCheck />
+            <Takeoff target_alt="{work_alt}" home_x="{home_x}" home_y="{home_y}"
+                     home_z="{home_z}" return_z="{return_z}" />
+            <SubTreePlus ID="BoustrophedonTree" base_Longitude="{base_Longitude}" base_Latitude="{base_Latitude}"
+                         lenth_n="{lenth_n}" lenth_e="{lenth_e}" coverage_step="{coverage_step}"
+                         heading_yaw="{heading_yaw}" target_hight="{work_alt}" home_z="{home_z}" />
+            <NavRaw name="ReturnHome" x="{home_x}" y="{home_y}" z="{return_z}" />
+            <TouchDown />
+        </Sequence>
+    </BehaviorTree>
+</root>

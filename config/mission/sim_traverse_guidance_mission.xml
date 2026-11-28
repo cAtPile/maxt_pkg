@@ -18,7 +18,7 @@
                  先完整遍历并记录目标，再逐个返回记录点伺服，最后返航降落。 -->
             <SetBlackboard output_key="traverse_result" value="failed" />
             <TraversePathGenerator origin_x="0" origin_y="0"
-                                   length_x="30" length_y="30"
+                                   lenth_n="30" lenth_e="-30" heading_yaw="90"
                                    coverage_step="6"
                                    waypoints="{region_waypoints}"
                                    waypoint_count="{region_waypoint_count}" />

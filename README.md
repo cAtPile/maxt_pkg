@@ -559,7 +559,7 @@ Action 通过 actionlib 提供目标、结果和反馈，不是普通 ROS servic
 | `Round` | `center_x/center_y/center_z`、`radius(0)`、`angular_speed(30)`、`total_angle(360)`、`tolerance(0.3)`、`timeout(60)`、`ramp_time(2)` | 无 |
 | `TouchDown` | 无 | 无 |
 | `Guidance` | `target_id`、`timeout(30)`、`tracking_duration(0)` | `message` |
-| `TraversePathGenerator` | `origin_x/y`、`length_x/y`、`coverage_step` | `waypoints`、`waypoint_count` |
+| `TraversePathGenerator` | `origin_x/y`、`lenth_n/e`、`coverage_step`、`heading_yaw` | `waypoints`、`waypoint_count` |
 | `GetRegionWaypoint` | `waypoints`、`index` | `x`、`y`、`next_index` |
 | `FoundCheck` | `topic(/aruco_center/is_found)` | 无 |
 | `UgvCowork` | `action_name(/ugv_mover)`、`timeout(60)`、`follow_drone(false)`、`update_period(0.2)`、`target_tolerance(0.2)`、`settle_time(1)` | `message` |
@@ -850,3 +850,17 @@ roslaunch maxt_pkg sim_navheading.launch
 ```
 
 在 `sim_navheading.xml` 开头的 `SetBlackboard` 节点中统一设置任务参数。当前起飞高度和目标高度均为起飞点上方 6 米，航向为正东，目标位于仿真基准点以东 5 米，到达后返航降落。
+
+### 矩形牛耕遍历 BoustrophedonTree
+
+任务 XML 可用 `<include path="subtree/BoustrophedonTree.xml" />` 引入子树。例如：
+
+```xml
+<SubTreePlus ID="BoustrophedonTree" base_Longitude="{base_Longitude}" base_Latitude="{base_Latitude}"
+             lenth_n="30" lenth_e="18" coverage_step="6" heading_yaw="0"
+             home_z="{home_z}" target_hight="6.0" />
+```
+
+基准经纬度指定矩形角点。子树沿南北方向往返、向东西方向换带，并在 `HightRef2Local` 算出的 MAVROS local 高度巡航。示例将 `Takeoff` 输出的 `home_z` 作为高度基准，巡航高度设为起飞点上方 6 米。边长和航带间距以米计，负边长表示反方向。上述配置产生 3 条航带、6 个航点。
+
+单独使用 `TraversePathGenerator` 时，可设置 `heading_yaw`（罗盘角，单位度，默认 0，顺时针为正）。此时 `lenth_n` 沿指定航向，`lenth_e` 沿其右侧，输出为相对于 local 原点的绝对 XY 坐标。

@@ -1,0 +1,27 @@
+<launch>
+    <!-- 单航点 NavGeoTree 实飞测试，默认复用外部 MAVROS。 -->
+    <arg name="sim" default="false" />
+    <arg name="run_uav" default="false" />
+    <arg name="run_detection" default="false" />
+    <arg name="run_guidance" default="true" />
+    <arg name="detection_config" default="$(find maxt_pkg)/config/qr_center.yaml" />
+    <arg name="nav_config" default="$(find maxt_pkg)/config/nav.yaml" />
+    <arg name="run_fake_audio" default="false" />
+    <arg name="bt_tick_rate" default="20.0" />
+    <arg name="heartbeat_rate" default="20.0" />
+
+    <node if="$(arg run_detection)" pkg="maxt_pkg" type="qr_center.py" name="qr_center" output="screen">
+        <rosparam command="load" file="$(arg detection_config)" />
+        <param name="run_guidance" value="$(arg run_guidance)" />
+    </node>
+
+    <include file="$(find maxt_pkg)/launch/mission.launch">
+        <arg name="bt_xml_path" value="$(find maxt_pkg)/config/mission/test/boustrophedon.xml" />
+        <arg name="sim" value="$(arg sim)" />
+        <arg name="run_uav" value="$(arg run_uav)" />
+        <arg name="nav_config" value="$(arg nav_config)" />
+        <arg name="run_fake_audio" value="$(arg run_fake_audio)" />
+        <arg name="bt_tick_rate" value="$(arg bt_tick_rate)" />
+        <arg name="heartbeat_rate" value="$(arg heartbeat_rate)" />
+    </include>
+</launch>

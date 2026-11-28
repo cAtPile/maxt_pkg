@@ -48,8 +48,9 @@ MISSION_HINTS = {
 PORT_LABELS = {
     "origin_x": "origin_x (原点 X, m)",
     "origin_y": "origin_y (原点 Y, m)",
-    "length_x": "length_x (X 方向有符号边长, m)",
-    "length_y": "length_y (Y 方向有符号边长, m)",
+    "lenth_n": "lenth_n (沿航向有符号边长, m)",
+    "lenth_e": "lenth_e (航向右侧有符号边长, m)",
+    "heading_yaw": "heading_yaw (罗盘航向, 度)",
     "coverage_step": "coverage_step (航带间距, m)",
     "altitude": "altitude (导航高度, m)",
     "target_alt": "altitude (target_alt, m)",

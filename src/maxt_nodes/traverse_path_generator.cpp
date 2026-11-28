@@ -1,4 +1,5 @@
 #include <maxt_pkg/maxt_nodes/traverse_path_generator_node.hpp>
+#include <maxt_pkg/survey_geometry.hpp>
 #include <cmath>
 #include <algorithm>
 
@@ -8,8 +9,9 @@ BT::PortsList TraversePathGeneratorNode::providedPorts() {
     return {
         BT::InputPort<double>("origin_x"),
         BT::InputPort<double>("origin_y"),
-        BT::InputPort<double>("length_x"),
-        BT::InputPort<double>("length_y"),
+        BT::InputPort<double>("lenth_n"),
+        BT::InputPort<double>("lenth_e"),
+        BT::InputPort<double>("heading_yaw", 0.0, "Compass heading in degrees"),
         BT::InputPort<double>("coverage_step"),
         BT::OutputPort<RegionWaypoints>("waypoints", "Ordered XY waypoint array"),
         BT::OutputPort<int>("waypoint_count", "Number of waypoints")
@@ -17,25 +19,26 @@ BT::PortsList TraversePathGeneratorNode::providedPorts() {
 }
 
 BT::NodeStatus TraversePathGeneratorNode::tick() {
-    double origin_x, origin_y, length_x, length_y, coverage_step;
+    double origin_x, origin_y, north_length, east_length, coverage_step, heading;
     if (!getInput("origin_x", origin_x) || !getInput("origin_y", origin_y) ||
-        !getInput("length_x", length_x) || !getInput("length_y", length_y) ||
+        !getInput("lenth_n", north_length) || !getInput("lenth_e", east_length) ||
+        !getInput("heading_yaw", heading) || !std::isfinite(heading) ||
         !getInput("coverage_step", coverage_step) ||
-        !std::isfinite(origin_x) || !std::isfinite(origin_y) ||
-        !std::isfinite(length_x) || !std::isfinite(length_y) ||
         !std::isfinite(coverage_step) || coverage_step <= 0.0 ||
-        length_x == 0.0 || length_y == 0.0 ||
-        !std::isfinite(origin_x + length_x) || !std::isfinite(origin_y + length_y)) {
+        north_length == 0.0 || east_length == 0.0 ||
+        !std::isfinite(origin_x) || !std::isfinite(origin_y) ||
+        !std::isfinite(north_length) || !std::isfinite(east_length)) {
         return BT::NodeStatus::FAILURE;
     }
 
-    // 航带沿有符号 X 边长往返，沿有符号 Y 边长推进。
-    const double width = std::abs(length_y);
+    const double enu_yaw = (90.0 - heading) * M_PI / 180.0;
+    // 航带沿航向往返，沿航向右侧的有符号边长推进。
+    const double width = std::abs(east_length);
     // X 两端各内缩半个航带间距；短边最多缩至中点，避免端点交叉。
-    const double x_margin = std::min(coverage_step / 2.0, std::abs(length_x) / 2.0);
-    const double x_offset = std::copysign(x_margin, length_x);
-    const double start_x = origin_x + x_offset;
-    const double end_x = origin_x + (length_x - x_offset);
+    const double x_margin = std::min(coverage_step / 2.0, std::abs(north_length) / 2.0);
+    const double x_offset = std::copysign(x_margin, north_length);
+    const double start_x = x_offset;
+    const double end_x = north_length - x_offset;
 
     // 保持相邻平行轨迹的间距为 coverage_step，余量对称留在两侧。
     const double lanes_needed = std::ceil(width / coverage_step);
@@ -50,14 +53,20 @@ BT::NodeStatus TraversePathGeneratorNode::tick() {
     waypoints.reserve(2 * lane_count);
     for (int lane = 0; lane < lane_count; ++lane) {
         const double fraction = (margin + lane * coverage_step) / width;
-        const double y = origin_y + fraction * length_y;
-        const std::array<double, 2> start = {{start_x, y}};
-        const std::array<double, 2> end = {{end_x, y}};
-        waypoints.push_back(lane % 2 == 0 ? start : end);
-        waypoints.push_back(lane % 2 == 0 ? end : start);
+        const double y = fraction * east_length;
+        for (int end = 0; end < 2; ++end) {
+            const double x = (lane + end) % 2 == 0 ? start_x : end_x;
+            const auto offset = surveyOffsetToLocal(x, -y, enu_yaw);
+            const double local_x = origin_x + offset[0];
+            const double local_y = origin_y + offset[1];
+            if (!std::isfinite(local_x) || !std::isfinite(local_y)) {
+                return BT::NodeStatus::FAILURE;
+            }
+            waypoints.push_back({{local_x, local_y}});
+        }
     }
 
-    setOutput("waypoints", waypoints);//config().blackboard->set()
+    setOutput("waypoints", waypoints);
     setOutput("waypoint_count", static_cast<int>(waypoints.size()));
     return BT::NodeStatus::SUCCESS;
 }

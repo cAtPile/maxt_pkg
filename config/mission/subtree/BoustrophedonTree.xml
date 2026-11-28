@@ -1,0 +1,21 @@
+<root>
+    <BehaviorTree ID="BoustrophedonTree">
+        <Sequence>
+            <Geo2Local longitude="{base_Longitude}" latitude="{base_Latitude}"
+                       x="{origin_x}" y="{origin_y}" />
+            <TraversePathGenerator origin_x="{origin_x}" origin_y="{origin_y}"
+                                   lenth_n="{lenth_n}" lenth_e="{lenth_e}"
+                                   coverage_step="{coverage_step}" heading_yaw="{heading_yaw}"
+                                   waypoints="{waypoints}" waypoint_count="{waypoint_count}" />
+            <HightRef2Local home_alt="{home_z}" target_hight="{target_hight}" z="{survey_z}" />
+            <SetBlackboard output_key="index" value="0" />
+            <Repeat num_cycles="{waypoint_count}">
+                <Sequence>
+                    <GetRegionWaypoint waypoints="{waypoints}" index="{index}" next_index="{index}"
+                                       x="{target_x}" y="{target_y}" />
+                    <NavRaw x="{target_x}" y="{target_y}" z="{survey_z}" />
+                </Sequence>
+            </Repeat>
+        </Sequence>
+    </BehaviorTree>
+</root>

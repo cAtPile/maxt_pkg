@@ -18,7 +18,7 @@
                  完整遍历后回访记录点，配置的目标码留到最后。 -->
             <SetBlackboard output_key="traverse_result" value="failed" />
             <TraversePathGenerator origin_x="0" origin_y="0"
-                                   length_x="10" length_y="-10"
+                                   lenth_n="10" lenth_e="10" heading_yaw="90"
                                    coverage_step="1"
                                    waypoints="{region_waypoints}"
                                    waypoint_count="{region_waypoint_count}" />
